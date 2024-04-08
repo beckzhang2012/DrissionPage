@@ -32,9 +32,9 @@ python 版本：3.6 及以上
 
 # 🛠 如何使用
 
-**📖 使用文档：**  [点击查看](https://g1879.gitee.io/drissionpagedocs)
+**📖 使用文档：**  [点击查看](https://drissionpage.cn/get_start/concept)
 
-**交流 QQ 群：**  636361957
+**交流 QQ 群：**  558778073
 
 ---
 
