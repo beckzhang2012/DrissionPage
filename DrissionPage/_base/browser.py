@@ -135,7 +135,7 @@ class Browser(object):
         """返回所有标签页id组成的列表"""
         j = self._driver.get(f'http://{self.address}/json').json()  # 不要改用cdp，因为顺序不对
         return [i['id'] for i in j if i['type'] in ('page', 'webview')
-                and not i['url'].startswith(('devtools://', 'chrome-extension://'))]
+                and not i['url'].startswith('devtools://')]
 
     @property
     def process_id(self):

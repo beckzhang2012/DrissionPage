@@ -466,9 +466,12 @@ def get_pdf(page, path=None, name=None, kwargs=None):
     return r
 
 
-def tree(ele_or_page):
+def tree(ele_or_page, text=False, show_js=False, show_css=False):
     """把页面或元素对象DOM结构打印出来
     :param ele_or_page: 页面或元素对象
+    :param text: 是否打印文本，输入数字可指定打印文本长度上线
+    :param show_js: 打印文本时是否包含<script>内文本，text参数为False时无效
+    :param show_css: 打印文本时是否包含<style>内文本，text参数为False时无效
     :return: None
     """
 
@@ -488,13 +491,33 @@ def tree(ele_or_page):
                 e = list_ele[i]
 
                 attrs = ' '.join([f"{k}='{v}'" for k, v in e.attrs.items()])
-                print(f'{new_body}{tail}<{e.tag} {attrs}>'.replace('\n', ' '))
+                show_text = f'{new_body}{tail}<{e.tag} {attrs}>'.replace('\n', ' ')
+                if text:
+                    t = e('x:/text()')
+                    if t:
+                        t = t.replace('\n', ' ')
+                        if (e.tag not in ('script', 'style') or (e.tag == 'script' and show_js)
+                                or (e.tag == 'style' and show_css)):
+                            if text is not True:
+                                t = t[:text]
+                            show_text = f'{show_text} {t}'
+                print(show_text)
 
                 _tree(e, new_last_one, new_body)
 
     ele = ele_or_page.s_ele()
     attrs = ' '.join([f"{k}='{v}'" for k, v in ele.attrs.items()])
-    print(f'<{ele.tag} {attrs}>'.replace('\n', ' '))
+    show_text = f'<{ele.tag} {attrs}>'.replace('\n', ' ')
+    if text:
+        t = ele('x:/text()')
+        if t:
+            t = t.replace('\n', ' ')
+            if (ele.tag not in ('script', 'style') or (ele.tag == 'script' and show_js)
+                    or (ele.tag == 'style' and show_css)):
+                if text is not True:
+                    t = t[:text]
+                show_text = f'{show_text} {t}'
+    print(show_text)
     _tree(ele)
 
 

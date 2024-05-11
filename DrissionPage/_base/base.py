@@ -411,7 +411,8 @@ class BasePage(BaseParser):
             if p.exists():
                 url = str(p.absolute())
                 is_file = True
-        self._url = quote(url, safe='-_.~!*\'"();:@&=+$,/\\?#[]%')
+
+        self._url = url if is_file else quote(url, safe='-_.~!*\'"();:@&=+$,/\\?#[]%')
         retry = retry if retry is not None else self.retry_times
         interval = interval if interval is not None else self.retry_interval
         return retry, interval, is_file
