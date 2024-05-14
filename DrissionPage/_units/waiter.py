@@ -461,10 +461,10 @@ class ElementWaiter(OriginWaiter):
         else:
             return False
 
-    def stop_moving(self, gap=.1, timeout=None, raise_err=None):
+    def stop_moving(self, timeout=None, gap=.1, raise_err=None):
         """等待当前元素停止运动
-        :param gap: 检测间隔时间
         :param timeout: 超时时间，为None使用元素所在页面timeout属性
+        :param gap: 检测间隔时间
         :param raise_err: 等待失败时是否报错，为None时根据Settings设置
         :return: 是否等待成功
         """
@@ -494,6 +494,20 @@ class ElementWaiter(OriginWaiter):
         else:
             return False
 
+    def clickable(self, wait_moved=True, timeout=None, raise_err=None):
+        """等待当前元素可被点击
+        :param wait_moved: 是否等待元素运动结束
+        :param timeout: 超时时间，为None使用元素所在页面timeout属性
+        :param raise_err: 等待失败时是否报错，为None时根据Settings设置
+        :return: 是否等待成功
+        """
+        t1 = perf_counter()
+        r = self._wait_state('is_clickable', True, timeout, raise_err, err_text='等待元素可点击失败（等{}秒）。')
+        r = self.stop_moving(timeout=perf_counter() - t1) if wait_moved and r else r
+        if raise_err and not r:
+            raise WaitTimeoutError(f'等待元素可点击失败（等{timeout}秒）。')
+        return r
+
     def has_rect(self, timeout=None, raise_err=None):
         """等待当前元素有大小及位置属性
         :param timeout: 超时时间，为None使用元素所在页面timeout属性
@@ -505,7 +519,7 @@ class ElementWaiter(OriginWaiter):
     def _wait_state(self, attr, mode=False, timeout=None, raise_err=None, err_text=None):
         """等待元素某个元素状态到达指定状态
         :param attr: 状态名称
-        :param mode: True或False
+        :param mode: 等待True还是False
         :param timeout: 超时时间，为None使用元素所在页面timeout属性
         :param raise_err: 等待失败时是否报错，为None时根据Settings设置
         :param err_text: 抛出错误时显示的信息

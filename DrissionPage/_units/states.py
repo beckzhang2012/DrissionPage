@@ -72,6 +72,11 @@ class ElementStates(object):
             return False
 
     @property
+    def is_clickable(self):
+        """返回元素是否可被模拟点击，从是否有大小、是否可用、是否显示、是否响应点击判断，不判断是否被遮挡"""
+        return self.has_rect and self.is_enabled and self.is_displayed and self._ele.style('pointer-events') != 'none'
+
+    @property
     def has_rect(self):
         """返回元素是否拥有位置和大小，没有返回False，有返回四个角在页面中坐标组成的列表"""
         try:

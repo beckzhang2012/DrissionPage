@@ -585,6 +585,9 @@ class ChromiumBase(BasePage):
                             if r is not False:
                                 break
 
+                    elif nIds[__ERROR__] == 'connection disconnected':
+                        raise PageDisconnectedError
+
             if perf_counter() >= end_time:
                 return NoneElement(self) if index is not None else []
 
@@ -592,9 +595,11 @@ class ChromiumBase(BasePage):
             timeout = end_time - perf_counter()
             timeout = .5 if timeout <= 0 else timeout
             result = self.driver.run('DOM.performSearch', query=loc, _timeout=timeout, includeUserAgentShadowDOM=True)
-            if not result or __ERROR__ not in result:
+            if result and __ERROR__ not in result:
                 num = result['resultCount']
                 search_ids.append(result['searchId'])
+            elif result and result[__ERROR__] == 'connection disconnected':
+                raise PageDisconnectedError
 
         for _id in search_ids:
             self._driver.run('DOM.discardSearchResults', searchId=_id)

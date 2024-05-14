@@ -41,6 +41,9 @@ class ElementStates(object):
     def is_covered(self) -> Union[Literal[False], int]: ...
 
     @property
+    def is_clickable(self) -> bool: ...
+
+    @property
     def has_rect(self) -> Union[bool, List[Tuple[float, float]]]: ...
 
 
