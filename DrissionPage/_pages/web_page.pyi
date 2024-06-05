@@ -19,6 +19,7 @@ from .._configs.chromium_options import ChromiumOptions
 from .._configs.session_options import SessionOptions
 from .._elements.chromium_element import ChromiumElement
 from .._elements.session_element import SessionElement
+from .._functions.tools import ElementsList
 from .._units.setter import WebPageSetter
 
 
@@ -108,7 +109,7 @@ class WebPage(SessionPage, ChromiumPage, BasePage):
 
     def eles(self,
              locator: Union[Tuple[str, str], str],
-             timeout: float = None) -> List[Union[ChromiumElement, SessionElement]]: ...
+             timeout: float = None) -> Union[ElementsList, List[Union[ChromiumElement, SessionElement]]]: ...
 
     def s_ele(self,
               locator: Union[Tuple[str, str], str] = None,

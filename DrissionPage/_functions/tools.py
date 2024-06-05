@@ -232,3 +232,94 @@ def raise_error(result, ignore=None):
 
     if not ignore or not isinstance(r, ignore):
         raise r
+
+
+class ElementsList(list):
+    def displayed(self):
+        """返回所有显示的元素"""
+        return self._any_state('is_displayed')
+
+    def hidden(self):
+        """返回所有不显示的元素"""
+        return self._any_state('is_displayed', True)
+
+    def checked(self):
+        """返回所有被选中的元素"""
+        return self._any_state('is_checked')
+
+    def not_checked(self):
+        """返回所有没被选中的元素"""
+        return self._any_state('is_checked', True)
+
+    def selected(self):
+        """返回所有被选中的列表元素"""
+        return self._any_state('is_selected')
+
+    def not_selected(self):
+        """返回所有没被选中的列表元素"""
+        return self._any_state('is_selected', True)
+
+    def enabled(self):
+        """返回所有有效的元素"""
+        return self._any_state('is_enabled')
+
+    def disabled(self):
+        """返回所有无效的元素"""
+        return self._any_state('is_enabled', True)
+
+    def clickable(self):
+        """返回所有可被点击的元素"""
+        return self._any_state('is_clickable')
+
+    def not_clickable(self):
+        """返回所有不可被点击的元素"""
+        return self._any_state('is_clickable', True)
+
+    def has_rect(self):
+        """返回所有有大小和位置的元素"""
+        return self._any_state('has_rect')
+
+    def no_rect(self):
+        """返回所有没有大小和位置的元素"""
+        return self._any_state('has_rect', True)
+
+    def style(self, name, value):
+        """返回所有拥有某个style值的元素
+        :param name: 属性名称
+        :param value: 属性值
+        :return: 筛选结果
+        """
+        r = ElementsList()
+        for i in self:
+            if i.style(name) == value:
+                r.append(i)
+        return r
+
+    def property(self, name, value):
+        """返回所有拥有某个property值的元素
+        :param name: 属性名称
+        :param value: 属性值
+        :return: 筛选结果
+        """
+        r = ElementsList()
+        for i in self:
+            if i.property(name) == value:
+                r.append(i)
+        return r
+
+    def _any_state(self, name, is_not=False):
+        """
+        :param name: 状态名称
+        :param is_not: 是否选择否定的
+        :return: 选中的列表
+        """
+        r = ElementsList()
+        if is_not:
+            for i in self:
+                if not getattr(i.states, name):
+                    r.append(i)
+        else:
+            for i in self:
+                if getattr(i.states, name):
+                    r.append(i)
+        return r

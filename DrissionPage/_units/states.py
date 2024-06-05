@@ -18,7 +18,7 @@ class ElementStates(object):
 
     @property
     def is_selected(self):
-        """返回元素是否被选择"""
+        """返回列表元素是否被选择"""
         return self._ele.run_js('return this.selected;')
 
     @property

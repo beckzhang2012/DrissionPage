@@ -353,8 +353,14 @@ def make_session_ele(html_or_ele, loc=None, index=1):
         page = html_or_ele.owner
         xpath = html_or_ele.xpath
         # ChromiumElement，兼容传入的元素在iframe内的情况
-        html = html_or_ele.owner.run_cdp('DOM.getOuterHTML', objectId=html_or_ele._doc_id)['outerHTML'] \
-            if html_or_ele._doc_id else html_or_ele.owner.html
+        if html_or_ele._doc_id is None:
+            doc = html_or_ele.run_js('return this.ownerDocument;')
+            html_or_ele._doc_id = doc['objectId'] if doc else False
+
+        if html_or_ele._doc_id:
+            html = html_or_ele.owner.run_cdp('DOM.getOuterHTML', objectId=html_or_ele._doc_id)['outerHTML']
+        else:
+            html = html_or_ele.owner.html
         html_or_ele = fromstring(html)
         html_or_ele = html_or_ele.xpath(xpath)[0]
 

@@ -19,6 +19,7 @@ from .._base.base import DrissionElement, BaseElement
 from .._functions.keys import input_text_or_keys
 from .._functions.locator import get_loc
 from .._functions.settings import Settings
+from .._functions.tools import ElementsList
 from .._functions.web import make_absolute_link, get_ele_txt, format_html, is_js_func, offset_scroll, get_blob
 from .._units.clicker import Clicker
 from .._units.rect import ElementRect
@@ -55,6 +56,7 @@ class ChromiumElement(DrissionElement):
         self._tag = None
         self._wait = None
         self._type = 'ChromiumElement'
+        self._doc_id = None
 
         if node_id and obj_id and backend_id:
             self._node_id = node_id
@@ -74,9 +76,6 @@ class ChromiumElement(DrissionElement):
             self._backend_id = backend_id
         else:
             raise ElementLostError
-
-        doc = self.run_js('return this.ownerDocument;')
-        self._doc_id = doc['objectId'] if doc else None
 
     def __repr__(self):
         attrs = [f"{k}='{v}'" for k, v in self.attrs.items()]
@@ -1219,8 +1218,12 @@ def find_by_xpath(ele, xpath, index, timeout, relative=True):
             res = ele.owner.run_cdp('Runtime.getProperties', objectId=res['result']['objectId'],
                                     ownProperties=True)['result'][:-1]
             if index is None:
-                r = [make_chromium_eles(ele.owner, _ids=i['value']['objectId'], is_obj_id=True)
-                     if i['value']['type'] == 'object' else i['value']['value'] for i in res]
+                r = ElementsList()
+                for i in res:
+                    if i['value']['type'] == 'object':
+                        r.append(make_chromium_eles(ele.owner, _ids=i['value']['objectId'], is_obj_id=True))
+                    else:
+                        r.append(i['value']['value'])
                 return None if False in r else r
 
             else:
@@ -1244,7 +1247,7 @@ def find_by_xpath(ele, xpath, index, timeout, relative=True):
 
     if result:
         return result
-    return NoneElement(ele.owner) if index is not None else []
+    return NoneElement(ele.owner) if index is not None else ElementsList()
 
 
 def find_by_css(ele, selector, index, timeout):
@@ -1290,7 +1293,7 @@ def find_by_css(ele, selector, index, timeout):
 
     if result:
         return result
-    return NoneElement(ele.owner) if index is not None else []
+    return NoneElement(ele.owner) if index is not None else ElementsList()
 
 
 def make_chromium_eles(page, _ids, index=1, is_obj_id=True, ele_only=False):
@@ -1322,7 +1325,7 @@ def make_chromium_eles(page, _ids, index=1, is_obj_id=True, ele_only=False):
             return get_node_func(page, obj_id, ele_only)
 
     else:  # 获取全部
-        nodes = []
+        nodes = ElementsList()
         for obj_id in _ids:
             tmp = get_node_func(page, obj_id, ele_only)
             if tmp is False:
