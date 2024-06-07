@@ -307,6 +307,18 @@ class ElementsList(list):
                 r.append(i)
         return r
 
+    def attr(self, name, value):
+        """返回所有拥有某个attribute值的元素
+        :param name: 属性名称
+        :param value: 属性值
+        :return: 筛选结果
+        """
+        r = ElementsList()
+        for i in self:
+            if i.attr(name) == value:
+                r.append(i)
+        return r
+
     def _any_state(self, name, is_not=False):
         """
         :param name: 状态名称
