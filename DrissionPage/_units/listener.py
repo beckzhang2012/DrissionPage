@@ -251,13 +251,13 @@ class Listener(object):
         self._target_id = target_id
         self._address = address
         self._owner = owner
-        debug = False
+        # debug = False
         if self._driver:
-            debug = self._driver._debug
+            # debug = self._driver._debug
             self._driver.stop()
         if self.listening:
             self._driver = Driver(self._target_id, 'page', self._address)
-            self._driver._debug = debug
+            # self._driver._debug = debug
             self._driver.run('Network.enable')
             self._set_callback()
 

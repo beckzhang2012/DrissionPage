@@ -637,6 +637,7 @@ class ChromiumElement(DrissionElement):
             self.run_js('this.dispatchEvent(new Event("change", {bubbles: true}));')
             return
 
+        self.wait.clickable(timeout=.5)
         if clear and vals not in ('\n', '\ue007'):
             self.clear(by_js=False)
         else:
@@ -703,7 +704,6 @@ class ChromiumElement(DrissionElement):
             ele_or_loc = ele_or_loc.rect.midpoint
         elif not isinstance(ele_or_loc, (list, tuple)):
             raise TypeError('需要ChromiumElement对象或坐标。')
-
         self.owner.actions.hold(self).move_to(ele_or_loc, duration=duration).release()
 
     def _get_obj_id(self, node_id=None, backend_id=None):

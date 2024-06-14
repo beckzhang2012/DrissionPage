@@ -13,6 +13,7 @@ from threading import Lock
 from time import perf_counter, sleep
 
 from .._configs.options_manage import OptionsManager
+from .._elements.none_element import NoneElement
 from ..errors import (ContextLostError, ElementLostError, CDPError, PageDisconnectedError, NoRectError,
                       AlertExistsError, WrongURLError, StorageError, CookieFormatError, JavaScriptError)
 
@@ -235,91 +236,141 @@ def raise_error(result, ignore=None):
 
 
 class ElementsList(list):
-    def displayed(self):
-        """返回所有显示的元素"""
-        return self._any_state('is_displayed')
+    # def __init__(self, page=None, method=None, ):
+    #     super().__init__()
 
-    def hidden(self):
-        """返回所有不显示的元素"""
-        return self._any_state('is_displayed', True)
+    def displayed(self, get_all=False):
+        """返回显示的元素，默认返回第一个
+        :param get_all: 是否返回所有
+        :return: 元素或元素组成的列表
+        """
+        return self._any_state('is_displayed', get_all=get_all)
 
-    def checked(self):
-        """返回所有被选中的元素"""
-        return self._any_state('is_checked')
+    def hidden(self, get_all=False):
+        """返回不显示的元素，默认返回第一个
+        :param get_all: 是否返回所有
+        :return: 元素或元素组成的列表
+        """
+        return self._any_state('is_displayed', True, get_all=get_all)
 
-    def not_checked(self):
-        """返回所有没被选中的元素"""
-        return self._any_state('is_checked', True)
+    def checked(self, get_all=False):
+        """返回被选中的元素，默认返回第一个
+        :param get_all: 是否返回所有
+        :return: 元素或元素组成的列表
+        """
+        return self._any_state('is_checked', get_all=get_all)
 
-    def selected(self):
-        """返回所有被选中的列表元素"""
-        return self._any_state('is_selected')
+    def not_checked(self, get_all=False):
+        """返回没被选中的元素"""
+        return self._any_state('is_checked', True, get_all=get_all)
 
-    def not_selected(self):
-        """返回所有没被选中的列表元素"""
-        return self._any_state('is_selected', True)
+    def selected(self, get_all=False):
+        """返回被选中的列表元素，默认返回第一个
+        :param get_all: 是否返回所有
+        :return: 元素或元素组成的列表
+        """
+        return self._any_state('is_selected', get_all=get_all)
 
-    def enabled(self):
-        """返回所有有效的元素"""
-        return self._any_state('is_enabled')
+    def not_selected(self, get_all=False):
+        """返回没被选中的列表元素，默认返回第一个
+        :param get_all: 是否返回所有
+        :return: 元素或元素组成的列表
+        """
+        return self._any_state('is_selected', True, get_all=get_all)
 
-    def disabled(self):
-        """返回所有无效的元素"""
-        return self._any_state('is_enabled', True)
+    def enabled(self, get_all=False):
+        """返回有效的元素，默认返回第一个
+        :param get_all: 是否返回所有
+        :return: 元素或元素组成的列表
+        """
+        return self._any_state('is_enabled', get_all=get_all)
 
-    def clickable(self):
-        """返回所有可被点击的元素"""
-        return self._any_state('is_clickable')
+    def disabled(self, get_all=False):
+        """返回无效的元素，默认返回第一个
+        :param get_all: 是否返回所有
+        :return: 元素或元素组成的列表
+        """
+        return self._any_state('is_enabled', True, get_all=get_all)
 
-    def not_clickable(self):
-        """返回所有不可被点击的元素"""
-        return self._any_state('is_clickable', True)
+    def clickable(self, get_all=False):
+        """返回可被点击的元素，默认返回第一个
+        :param get_all: 是否返回所有
+        :return: 元素或元素组成的列表
+        """
+        return self._any_state('is_clickable', get_all=get_all)
 
-    def has_rect(self):
-        """返回所有有大小和位置的元素"""
-        return self._any_state('has_rect')
+    def not_clickable(self, get_all=False):
+        """返回不可被点击的元素，默认返回第一个
+        :param get_all: 是否返回所有
+        :return: 元素或元素组成的列表
+        """
+        return self._any_state('is_clickable', True, get_all=get_all)
 
-    def no_rect(self):
-        """返回所有没有大小和位置的元素"""
-        return self._any_state('has_rect', True)
+    def have_rect(self, get_all=False):
+        """返回有大小和位置的元素，默认返回第一个
+        :param get_all: 是否返回所有
+        :return: 元素或元素组成的列表
+        """
+        return self._any_state('has_rect', get_all=get_all)
 
-    def style(self, name, value):
-        """返回所有拥有某个style值的元素
+    def no_rect(self, get_all=False):
+        """返回没有大小和位置的元素，默认返回第一个
+        :param get_all: 是否返回所有
+        :return: 元素或元素组成的列表
+        """
+        return self._any_state('has_rect', True, get_all=get_all)
+
+    def have_text(self, get_all=False):
+        """返回包含文本的元素，默认返回第一个
+        :param get_all: 是否返回所有
+        :return: 元素或元素组成的列表
+        """
+        r = ElementsList()
+        for i in self:
+            if i.raw_text:
+                r.append(i)
+        return r if get_all else r[0] if r else NoneElement()
+
+    def style(self, name, value, get_all=False):
+        """返回拥有某个style值的元素，默认返回第一个
         :param name: 属性名称
         :param value: 属性值
+        :param get_all: 是否返回所有
         :return: 筛选结果
         """
         r = ElementsList()
         for i in self:
             if i.style(name) == value:
                 r.append(i)
-        return r
+        return r if get_all else r[0] if r else NoneElement()
 
-    def property(self, name, value):
-        """返回所有拥有某个property值的元素
+    def property(self, name, value, get_all=False):
+        """返回拥有某个property值的元素，默认返回第一个
         :param name: 属性名称
         :param value: 属性值
+        :param get_all: 是否返回所有
         :return: 筛选结果
         """
         r = ElementsList()
         for i in self:
             if i.property(name) == value:
                 r.append(i)
-        return r
+        return r if get_all else r[0] if r else NoneElement()
 
-    def attr(self, name, value):
-        """返回所有拥有某个attribute值的元素
+    def attr(self, name, value, get_all=False):
+        """返回拥有某个attribute值的元素，默认返回第一个
         :param name: 属性名称
         :param value: 属性值
+        :param get_all: 是否返回所有
         :return: 筛选结果
         """
         r = ElementsList()
         for i in self:
             if i.attr(name) == value:
                 r.append(i)
-        return r
+        return r if get_all else r[0] if r else NoneElement()
 
-    def _any_state(self, name, is_not=False):
+    def _any_state(self, name, is_not=False, get_all=False):
         """
         :param name: 状态名称
         :param is_not: 是否选择否定的
@@ -334,4 +385,4 @@ class ElementsList(list):
             for i in self:
                 if getattr(i.states, name):
                     r.append(i)
-        return r
+        return r if get_all else r[0] if r else NoneElement()

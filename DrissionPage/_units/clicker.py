@@ -204,7 +204,6 @@ class Clicker(object):
         """
         self._ele.owner.run_cdp('Input.dispatchMouseEvent', type='mousePressed', x=client_x,
                                 y=client_y, button=button, clickCount=count, _ignore=AlertExistsError)
-        # sleep(.05)
         self._ele.owner.run_cdp('Input.dispatchMouseEvent', type='mouseReleased', x=client_x,
                                 y=client_y, button=button, _ignore=AlertExistsError)
 

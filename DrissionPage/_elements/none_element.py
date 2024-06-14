@@ -10,6 +10,11 @@ from ..errors import ElementNotFoundError
 
 class NoneElement(object):
     def __init__(self, page=None, method=None, args=None):
+        """
+        :param page:
+        :param method:
+        :param args:
+        """
         if page:
             self._none_ele_value = page._none_ele_value
             self._none_ele_return_value = page._none_ele_return_value
