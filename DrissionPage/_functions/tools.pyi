@@ -8,8 +8,9 @@
 from os import popen
 from pathlib import Path
 from threading import Lock
-from typing import Union, Tuple, List
+from typing import Union, Tuple, List, Optional
 
+from .._base.base import BaseParser
 from .._elements.chromium_element import ChromiumElement
 from .._pages.chromium_base import ChromiumBase
 
@@ -49,6 +50,13 @@ def configs_to_here(file_name: Union[Path, str] = None) -> None: ...
 def raise_error(result: dict, ignore=None) -> None: ...
 
 
+def get_eles(locators: Union[List[str], tuple],
+             owner: BaseParser,
+             any_one: bool = False,
+             first_ele: bool = True,
+             timeout: float = 10) -> dict: ...
+
+
 class ElementsList(list):
     def displayed(self, get_all: bool = False) -> Union[List[ChromiumElement], ChromiumElement]: ...
 
@@ -78,9 +86,28 @@ class ElementsList(list):
 
     def style(self, name: str, value: str, get_all: bool = False) -> Union[List[ChromiumElement], ChromiumElement]: ...
 
-    def property(self, name: str, value: str, get_all: bool = False) -> Union[List[ChromiumElement], ChromiumElement]: ...
+    def property(self,
+                 name: str,
+                 value: str,
+                 get_all: bool = False) -> Union[List[ChromiumElement], ChromiumElement]: ...
 
     def attr(self, name: str, value: str, get_all: bool = False) -> Union[List[ChromiumElement], ChromiumElement]: ...
+
+    def filter(self,
+               get_all: bool = False,
+               displayed: Optional[bool] = None,
+               checked: Optional[bool] = None,
+               selected: Optional[bool] = None,
+               enabled: Optional[bool] = None,
+               clickable: Optional[bool] = None,
+               have_rect: Optional[bool] = None,
+               have_text: Optional[bool] = None) -> Union[List[ChromiumElement], ChromiumElement]: ...
+
+    def _get_attr(self,
+                  name: str,
+                  value: str,
+                  method: str,
+                  get_all: bool = False) -> Union[List[ChromiumElement], ChromiumElement]: ...
 
     def _any_state(self, name: str, is_not: bool = False, get_all: bool = False) -> List[ChromiumElement]: ...
 

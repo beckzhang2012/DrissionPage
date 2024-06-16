@@ -119,9 +119,10 @@ class BaseWaiter(OriginWaiter):
         locators = ((get_loc(locators)[1],) if (isinstance(locators, str) or isinstance(locators, tuple)
                                                 and locators[0] in by and len(locators) == 2)
                     else [get_loc(l)[1] for l in locators])
+        method = any if any_one else all
+
         timeout = self._driver.timeout if timeout is None else timeout
         end_time = perf_counter() + timeout
-        method = any if any_one else all
         while perf_counter() < end_time:
             if method([_find(l, self._driver.driver) for l in locators]):
                 return True
