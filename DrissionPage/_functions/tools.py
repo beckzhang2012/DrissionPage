@@ -236,6 +236,9 @@ def raise_error(result, ignore=None):
 
 
 class ElementsList(list):
+    def __init__(self, page=None):
+        super().__init__()
+        self.page = page
 
     def displayed(self, get_all=False):
         """返回显示的元素，默认返回第一个
@@ -337,7 +340,7 @@ class ElementsList(list):
             if i.raw_text:
                 return i
 
-        return NoneElement()
+        return NoneElement(self.page, method='have_text()', args={'get_all': get_all})
 
     def style(self, name, value, get_all=False):
         """返回拥有某个style值的元素，默认返回第一个
@@ -368,7 +371,7 @@ class ElementsList(list):
 
     def filter(self, get_all=False, displayed=None, checked=None, selected=None, enabled=None, clickable=None,
                have_rect=None, have_text=None):
-        """与关系筛选元素
+        """或关系筛选元素
         :param get_all: 是否返回所有筛选到的元素
         :param displayed: 是否显示，bool，None为忽略该项
         :param checked: 是否被选中，bool，None为忽略该项
@@ -377,24 +380,24 @@ class ElementsList(list):
         :param clickable: 是否可点击，bool，None为忽略该项
         :param have_rect: 是否拥有大小和位置，bool，None为忽略该项
         :param have_text: 是否含有文本，bool，None为忽略该项
-        :return:
+        :return: 筛选结果
         """
         if get_all:
             r = ElementsList()
             for i in self:
                 if ((displayed is not None and (displayed is True and i.states.is_displayed) or (
                         displayed is False and not i.states.is_displayed))
-                        and (checked is not None and (checked is True and i.states.is_checked) or (
+                        or (checked is not None and (checked is True and i.states.is_checked) or (
                                 checked is False and not i.states.is_checked))
-                        and (selected is not None and (selected is True and i.states.is_selected) or (
+                        or (selected is not None and (selected is True and i.states.is_selected) or (
                                 selected is False and not i.states.is_selected))
-                        and (enabled is not None and (enabled is True and i.states.is_enabled) or (
+                        or (enabled is not None and (enabled is True and i.states.is_enabled) or (
                                 enabled is False and not i.states.is_enabled))
-                        and (clickable is not None and (clickable is True and i.states.is_clickable) or (
+                        or (clickable is not None and (clickable is True and i.states.is_clickable) or (
                                 clickable is False and not i.states.is_clickable))
-                        and (have_rect is not None and (have_rect is True and i.states.has_rect) or (
+                        or (have_rect is not None and (have_rect is True and i.states.has_rect) or (
                                 have_rect is False and not i.states.has_rect))
-                        and (have_text is not None and (have_text is True and i.raw_text) or (
+                        or (have_text is not None and (have_text is True and i.raw_text) or (
                                 have_text is False and not i.raw_text))):
                     r.append(i)
             return r
@@ -402,21 +405,24 @@ class ElementsList(list):
         for i in self:
             if ((displayed is not None and (displayed is True and i.states.is_displayed) or (
                     displayed is False and not i.states.is_displayed))
-                    and (checked is not None and (checked is True and i.states.is_checked) or (
+                    or (checked is not None and (checked is True and i.states.is_checked) or (
                             checked is False and not i.states.is_checked))
-                    and (selected is not None and (selected is True and i.states.is_selected) or (
+                    or (selected is not None and (selected is True and i.states.is_selected) or (
                             selected is False and not i.states.is_selected))
-                    and (enabled is not None and (enabled is True and i.states.is_enabled) or (
+                    or (enabled is not None and (enabled is True and i.states.is_enabled) or (
                             enabled is False and not i.states.is_enabled))
-                    and (clickable is not None and (clickable is True and i.states.is_clickable) or (
+                    or (clickable is not None and (clickable is True and i.states.is_clickable) or (
                             clickable is False and not i.states.is_clickable))
-                    and (have_rect is not None and (have_rect is True and i.states.has_rect) or (
+                    or (have_rect is not None and (have_rect is True and i.states.has_rect) or (
                             have_rect is False and not i.states.has_rect))
-                    and (have_text is not None and (have_text is True and i.raw_text) or (
+                    or (have_text is not None and (have_text is True and i.raw_text) or (
                             have_text is False and not i.raw_text))):
                 return i
 
-        return NoneElement()
+        return NoneElement(self.page, method='filter()', args={'get_all': get_all, 'displayed': displayed,
+                                                               'checked': checked, 'selected': selected,
+                                                               'enabled': enabled, 'clickable': clickable,
+                                                               'have_rect': have_rect, 'have_text': have_text})
 
     def _get_attr(self, name, value, method, get_all=False):
         """返回通过某个方法可获得某个值的元素，默认返回第一个
@@ -437,7 +443,7 @@ class ElementsList(list):
             if getattr(i, method)(name) == value:
                 return i
 
-        return NoneElement()
+        return NoneElement(self.page, f'{method}()', args={'name': name, 'value': value, 'get_all': get_all})
 
     def _any_state(self, name, is_not=False, get_all=False):
         """
@@ -466,7 +472,7 @@ class ElementsList(list):
                 if getattr(i.states, name):
                     return i
 
-        return NoneElement()
+        return NoneElement(self.page, f'is_{name}()', args={'is_not': is_not, 'get_all': get_all})
 
 
 def get_eles(locators, owner, any_one=False, first_ele=True, timeout=10):

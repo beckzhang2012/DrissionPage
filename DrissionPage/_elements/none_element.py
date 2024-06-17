@@ -11,9 +11,9 @@ from ..errors import ElementNotFoundError
 class NoneElement(object):
     def __init__(self, page=None, method=None, args=None):
         """
-        :param page:
-        :param method:
-        :param args:
+        :param page: 元素所在页面
+        :param method: 查找元素的方法
+        :param args: 查找元素的参数
         """
         if page:
             self._none_ele_value = page._none_ele_value
