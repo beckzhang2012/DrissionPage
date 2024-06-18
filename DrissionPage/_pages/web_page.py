@@ -17,15 +17,14 @@ from .._units.setter import WebPageSetter
 class WebPage(SessionPage, ChromiumPage, BasePage):
     """整合浏览器和request的页面类"""
 
-    def __new__(cls, mode='d', timeout=None, chromium_options=None, session_or_options=None, driver_or_options=None):
+    def __new__(cls, mode='d', timeout=None, chromium_options=None, session_or_options=None):
         """初始化函数
         :param mode: 'd' 或 's'，即driver模式和session模式
         :param timeout: 超时时间（秒），d模式时为寻找元素时间，s模式时为连接时间，默认10秒
         :param chromium_options: Driver对象，只使用s模式时应传入False
         :param session_or_options: Session对象或SessionOptions对象，只使用d模式时应传入False
         """
-        opts = chromium_options or driver_or_options
-        return super().__new__(cls, opts)
+        return super().__new__(cls, chromium_options)
 
     def __init__(self, mode='d', timeout=None, chromium_options=None, session_or_options=None, driver_or_options=None):
         """初始化函数
@@ -431,7 +430,3 @@ class WebPage(SessionPage, ChromiumPage, BasePage):
 
     def __repr__(self):
         return f'<WebPage browser_id={self.browser.id} tab_id={self.tab_id}>'
-
-    # -------即将废弃--------
-    def get_cookies(self, as_dict=False, all_domains=False, all_info=False):
-        return self.cookies(as_dict=as_dict, all_domains=all_domains, all_info=all_info)

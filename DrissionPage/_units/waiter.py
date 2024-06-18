@@ -252,39 +252,6 @@ class BaseWaiter(OriginWaiter):
             else:
                 return False
 
-    # -----------即将废弃-----------
-
-    def data_packets(self, count=1, timeout=None, fix_count: bool = True):
-        """等待符合要求的数据包到达指定数量
-        :param count: 需要捕捉的数据包数量
-        :param timeout: 超时时间，为None无限等待
-        :param fix_count: 是否必须满足总数要求，发生超时，为True返回False，为False返回已捕捉到的数据包
-        :return: count为1时返回数据包对象，大于1时返回列表，超时且fix_count为True时返回False"""
-        return self._driver.listen.wait(count, timeout, fix_count)
-
-    def load_complete(self, timeout=None, raise_err=None):
-        """等待页面加载完成
-        :param timeout: 超时时间，为None时使用页面timeout属性
-        :param raise_err: 等待失败时是否报错，为None时根据Settings设置
-        :return: 是否等待成功
-        """
-        return self._loading(timeout=timeout, start=False, raise_err=raise_err)
-
-    def ele_loaded(self, locator, timeout=None, raise_err=None):
-        """等待元素加载到DOM
-        :param locator: 要等待的元素，输入定位符
-        :param timeout: 超时时间，默认读取页面超时时间
-        :param raise_err: 等待失败时是否报错，为None时根据Settings设置
-        :return: 成功返回元素对象，失败返回False
-        """
-        ele = self._driver._ele(locator, raise_err=False, timeout=timeout)
-        if ele:
-            return ele
-        if raise_err is True or Settings.raise_when_wait_failed is True:
-            raise WaitTimeoutError(f'等待元素加载失败（等待{timeout}秒）。')
-        else:
-            return False
-
 
 class TabWaiter(BaseWaiter):
 

@@ -220,25 +220,6 @@ class ChromiumElement(DrissionElement):
     def value(self):
         return self.property('value')
 
-    # -----即将废弃开始--------
-    @property
-    def location(self):
-        """返回元素左上角的绝对坐标"""
-        return self.rect.location
-
-    @property
-    def size(self):
-        """返回元素宽和高组成的元组"""
-        return self.rect.size
-
-    def prop(self, prop):
-        return self.property(prop)
-
-    def get_src(self, timeout=None, base64_to_bytes=True):
-        return self.src(timeout=timeout, base64_to_bytes=base64_to_bytes)
-
-    # -----即将废弃结束--------
-
     def check(self, uncheck=False, by_js=False):
         """选中或取消选中当前元素
         :param uncheck: 是否取消选中

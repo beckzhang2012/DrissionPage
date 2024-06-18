@@ -343,33 +343,6 @@ class ChromiumFrame(ChromiumBase):
                 except:
                     return None
 
-    # ----------------即将废弃-----------------
-    @property
-    def is_alive(self):
-        """返回是否仍可用"""
-        return self.states.is_alive
-
-    @property
-    def page_size(self):
-        """返回frame内页面尺寸，格式：(宽,, 高)"""
-        return self.rect.size
-
-    @property
-    def size(self):
-        """返回frame元素大小"""
-        return self.frame_ele.rect.size
-
-    @property
-    def location(self):
-        """返回frame元素左上角的绝对坐标"""
-        return self.frame_ele.rect.location
-
-    @property
-    def locations(self):
-        """返回用于获取元素位置的对象"""
-        return self.frame_ele.rect
-    # ----------------即将废弃结束-----------------
-
     def refresh(self):
         """刷新frame页面"""
         self.doc_ele.run_js('this.location.reload();')

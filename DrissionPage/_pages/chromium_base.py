@@ -1122,50 +1122,6 @@ class ChromiumBase(BasePage):
             f.write(png)
         return str(path.absolute())
 
-    # --------------------即将废弃---------------------
-
-    @property
-    def page_load_strategy(self):
-        return self._load_mode
-
-    @property
-    def is_alive(self):
-        return self.states.is_alive
-
-    @property
-    def is_loading(self):
-        """返回页面是否正在加载状态"""
-        return self._is_loading
-
-    @property
-    def ready_state(self):
-        return self._ready_state
-
-    @property
-    def size(self):
-        """返回页面总宽高，格式：(宽, 高)"""
-        return self.rect.size
-
-    def get_session_storage(self, item=None):
-        return self.session_storage(item)
-
-    def get_local_storage(self, item=None):
-        return self.local_storage(item)
-
-    def get_cookies(self, as_dict=False, all_domains=False, all_info=False):
-        return self.cookies(as_dict=as_dict, all_domains=all_domains, all_info=all_info)
-
-    def upload(self, loc_or_ele, file_paths, by_js=False):
-        """触发上传文件选择框并自动填入指定路径
-        :param loc_or_ele: 被点击后会触发文件选择框的元素或它的定位符
-        :param file_paths: 文件路径，如果上传框支持多文件，可传入列表或字符串，字符串时多个文件用回车分隔
-        :param by_js: 是否用js方式点击
-        :return: None
-        """
-        self.set.upload_files(file_paths)
-        self.ele(loc_or_ele).click(by_js=by_js)
-        self.wait.upload_paths_inputted()
-
 
 class Timeout(object):
     """用于保存d模式timeout信息的类"""

@@ -206,16 +206,3 @@ class Clicker(object):
                                 y=client_y, button=button, clickCount=count, _ignore=AlertExistsError)
         self._ele.owner.run_cdp('Input.dispatchMouseEvent', type='mouseReleased', x=client_x,
                                 y=client_y, button=button, _ignore=AlertExistsError)
-
-    # -------------即将废弃--------------
-
-    def twice(self):
-        """双击元素"""
-        self.at(count=2)
-
-    def multiple(self, times=2):
-        """多次点击
-        :param times: 默认双击
-        :return: None
-        """
-        self.at(count=times)
