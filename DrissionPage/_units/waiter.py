@@ -382,7 +382,7 @@ class ElementWaiter(OriginWaiter):
         """等待当前元素被遮盖
         :param timeout: 超时时间，为None使用元素所在页面timeout属性
         :param raise_err: 等待失败时是否报错，为None时根据Settings设置
-        :return: 是否等待成功
+        :return: 成功返回覆盖元素id，返回False
         """
         return self._wait_state('is_covered', True, timeout, raise_err, err_text='等待元素被覆盖失败。')
 
@@ -480,7 +480,7 @@ class ElementWaiter(OriginWaiter):
         """等待当前元素有大小及位置属性
         :param timeout: 超时时间，为None使用元素所在页面timeout属性
         :param raise_err: 等待失败时是否报错，为None时根据Settings设置
-        :return: 是否等待成功
+        :return: 成功返回元素四角坐标（左上 右上 右下 左下），失败返回False
         """
         return self._wait_state('has_rect', True, timeout, raise_err, err_text='等待元素拥有大小及位置失败（等{}秒）。')
 
@@ -493,16 +493,20 @@ class ElementWaiter(OriginWaiter):
         :param err_text: 抛出错误时显示的信息
         :return: 是否等待成功
         """
-        err_text = err_text or '等待元素状态改变失败（等待{}秒）。'
+        a = self._ele.states.__getattribute__(attr)
+        if (a and mode) or (not a and not mode):
+            return a
+
         if timeout is None:
             timeout = self._owner.timeout
         end_time = perf_counter() + timeout
         while perf_counter() < end_time:
             a = self._ele.states.__getattribute__(attr)
             if (a and mode) or (not a and not mode):
-                return True
+                return a
             sleep(.05)
 
+        err_text = err_text or '等待元素状态改变失败（等待{}秒）。'
         if raise_err is True or Settings.raise_when_wait_failed is True:
             raise WaitTimeoutError(err_text.format(timeout))
         else:

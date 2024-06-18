@@ -27,7 +27,8 @@ from .._units.selector import SelectElement
 from .._units.setter import ChromiumElementSetter
 from .._units.states import ElementStates, ShadowRootStates
 from .._units.waiter import ElementWaiter
-from ..errors import ContextLostError, ElementLostError, JavaScriptError, CDPError, NoResourceError, AlertExistsError
+from ..errors import ContextLostError, ElementLostError, JavaScriptError, CDPError, NoResourceError, AlertExistsError, \
+    NoRectError
 
 __FRAME_ELEMENT__ = ('iframe', 'frame')
 
@@ -345,6 +346,34 @@ class ChromiumElement(DrissionElement):
         :return: 本元素后面的元素或节点组成的列表
         """
         return super().afters(locator, timeout, ele_only=ele_only)
+
+    def on(self, timeout=None):
+        """获取覆盖在本元素上最上层的元素
+        :param timeout: 等待元素出现的超时时间（秒）
+        :return: 元素对象
+        """
+        timeout = timeout if timeout is None else self.owner.timeout
+        bid = self.wait.covered(timeout=timeout)
+        if bid:
+            return ChromiumElement(owner=self.owner, backend_id=bid)
+        else:
+            return NoneElement(page=self.owner, method='on()', args={'timeout': timeout})
+
+    def under(self, locator=None):
+        rect = self.states.has_rect
+        if not rect:
+            raise NoRectError
+        y = int(rect[2][1])
+        x = int(self.rect.midpoint[0])
+        while True:
+            y += 1
+            try:
+                ele = self.owner.run_cdp('DOM.getNodeForLocation', x=x, y=y)
+                break
+            except:
+                raise
+                continue
+        return ChromiumElement(owner=self.owner, backend_id=ele['backendNodeId'])
 
     def attr(self, attr):
         """返回一个attribute属性值
