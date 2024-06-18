@@ -144,4 +144,5 @@ class SessionElement(DrissionElement):
 def make_session_ele(html_or_ele: Union[str, SessionElement, SessionPage, ChromiumElement, BaseElement, ChromiumFrame,
 ChromiumBase],
                      loc: Union[str, Tuple[str, str]] = None,
-                     index: Optional[int] = 1) -> Union[SessionElement, List[SessionElement]]: ...
+                     index: Optional[int] = 1,
+                     method: Optional[str] = None) -> Union[SessionElement, List[SessionElement]]: ...

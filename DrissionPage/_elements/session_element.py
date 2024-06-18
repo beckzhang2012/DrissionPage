@@ -293,12 +293,13 @@ class SessionElement(DrissionElement):
         return f'{path_str[1:]}' if mode == 'css' else path_str
 
 
-def make_session_ele(html_or_ele, loc=None, index=1):
+def make_session_ele(html_or_ele, loc=None, index=1, method=None):
     """从接收到的对象或html文本中查找元素，返回SessionElement对象
     如要直接从html生成SessionElement而不在下级查找，loc输入None即可
     :param html_or_ele: html文本、BaseParser对象
     :param loc: 定位元组或字符串，为None时不在下级查找，返回根元素
     :param index: 获取第几个元素，从1开始，可传入负数获取倒数第几个，None获取所有
+    :param method: 调用此方法的方法
     :return: 返回SessionElement元素或列表，或属性文本
     """
     # ---------------处理定位符---------------
@@ -405,7 +406,7 @@ def make_session_ele(html_or_ele, loc=None, index=1):
         else:
             eles_count = len(eles)
             if eles_count == 0 or abs(index) > eles_count:
-                return NoneElement(page)
+                return NoneElement(page, method=method, args={'locator': loc, 'index': index})
             if index < 0:
                 index = eles_count + index + 1
 
@@ -415,7 +416,7 @@ def make_session_ele(html_or_ele, loc=None, index=1):
             elif isinstance(ele, str):
                 return ele
             else:
-                return NoneElement(page)
+                return NoneElement(page, method=method, args={'locator': loc, 'index': index})
 
     except Exception as e:
         if 'Invalid expression' in str(e):

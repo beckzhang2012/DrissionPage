@@ -18,7 +18,6 @@ from .session_element import make_session_ele
 from .._base.base import DrissionElement, BaseElement
 from .._functions.keys import input_text_or_keys
 from .._functions.locator import get_loc
-from .._functions.settings import Settings
 from .._functions.tools import ElementsList
 from .._functions.web import make_absolute_link, get_ele_txt, format_html, is_js_func, offset_scroll, get_blob
 from .._units.clicker import Clicker
@@ -28,8 +27,7 @@ from .._units.selector import SelectElement
 from .._units.setter import ChromiumElementSetter
 from .._units.states import ElementStates, ShadowRootStates
 from .._units.waiter import ElementWaiter
-from ..errors import (ContextLostError, ElementLostError, JavaScriptError, ElementNotFoundError,
-                      CDPError, NoResourceError, AlertExistsError)
+from ..errors import ContextLostError, ElementLostError, JavaScriptError, CDPError, NoResourceError, AlertExistsError
 
 __FRAME_ELEMENT__ = ('iframe', 'frame')
 
@@ -439,14 +437,7 @@ class ChromiumElement(DrissionElement):
         :param index: 获取第几个，从1开始，可传入负数获取倒数第几个
         :return: SessionElement对象或属性、文本
         """
-        r = make_session_ele(self, locator, index=index)
-        if isinstance(r, NoneElement):
-            if Settings.raise_when_ele_not_found:
-                raise ElementNotFoundError(None, 's_ele()', {'locator': locator})
-            else:
-                r.method = 's_ele()'
-                r.args = {'locator': locator}
-        return r
+        return make_session_ele(self, locator, index=index, method='s_ele()')
 
     def s_eles(self, locator=None):
         """查找所有符合条件的元素，以SessionElement列表形式返回
@@ -897,13 +888,8 @@ class ShadowRoot(BaseElement):
 
         loc = f'xpath:./{loc}'
         ele = self._ele(loc, index=index, relative=True)
-        if ele:
-            return ele
 
-        if Settings.raise_when_ele_not_found:
-            raise ElementNotFoundError(None, 'child()', {'locator': locator, 'index': index})
-        else:
-            return NoneElement(self.owner, 'child()', {'locator': locator, 'index': index})
+        return ele if ele else NoneElement(self.owner, 'child()', {'locator': locator, 'index': index})
 
     def next(self, locator='', index=1):
         """返回当前元素后面一个符合条件的同级元素，可用查询语法筛选，可指定返回筛选结果的第几个
@@ -918,13 +904,8 @@ class ShadowRoot(BaseElement):
         loc = loc[1].lstrip('./')
         xpath = f'xpath:./{loc}'
         ele = self.parent_ele._ele(xpath, index=index, relative=True)
-        if ele:
-            return ele
 
-        if Settings.raise_when_ele_not_found:
-            raise ElementNotFoundError(None, 'next()', {'locator': locator, 'index': index})
-        else:
-            return NoneElement(self.owner, 'next()', {'locator': locator, 'index': index})
+        return ele if ele else NoneElement(self.owner, 'next()', {'locator': locator, 'index': index})
 
     def before(self, locator='', index=1):
         """返回文档中当前元素前面符合条件的一个元素，可用查询语法筛选，可指定返回筛选结果的第几个
@@ -940,13 +921,8 @@ class ShadowRoot(BaseElement):
         loc = loc[1].lstrip('./')
         xpath = f'xpath:./preceding::{loc}'
         ele = self.parent_ele._ele(xpath, index=index, relative=True)
-        if ele:
-            return ele
 
-        if Settings.raise_when_ele_not_found:
-            raise ElementNotFoundError(None, 'before()', {'locator': locator, 'index': index})
-        else:
-            return NoneElement(self.owner, 'before()', {'locator': locator, 'index': index})
+        return ele if ele else NoneElement(self.owner, 'before()', {'locator': locator, 'index': index})
 
     def after(self, locator='', index=1):
         """返回文档中此当前元素后面符合条件的一个元素，可用查询语法筛选，可指定返回筛选结果的第几个
@@ -956,12 +932,7 @@ class ShadowRoot(BaseElement):
         :return: 本元素后面的某个元素或节点
         """
         nodes = self.afters(locator=locator)
-        if nodes:
-            return nodes[index - 1]
-        if Settings.raise_when_ele_not_found:
-            raise ElementNotFoundError(None, 'after()', {'locator': locator, 'index': index})
-        else:
-            return NoneElement(self.owner, 'after()', {'locator': locator, 'index': index})
+        return nodes[index - 1] if nodes else NoneElement(self.owner, 'after()', {'locator': locator, 'index': index})
 
     def children(self, locator=''):
         """返回当前元素符合条件的直接子元素或节点组成的列表，可用查询语法筛选

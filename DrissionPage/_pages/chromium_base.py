@@ -30,7 +30,7 @@ from .._units.scroller import PageScroller
 from .._units.setter import ChromiumBaseSetter
 from .._units.states import PageStates
 from .._units.waiter import BaseWaiter
-from ..errors import ContextLostError, CDPError, PageDisconnectedError, ElementNotFoundError, ElementLostError
+from ..errors import ContextLostError, CDPError, PageDisconnectedError, ElementLostError
 
 __ERROR__ = 'error'
 
@@ -517,14 +517,7 @@ class ChromiumBase(BasePage):
         :param index: 获取第几个，从1开始，可传入负数获取倒数第几个
         :return: SessionElement对象或属性、文本
         """
-        r = make_session_ele(self, locator, index=index)
-        if isinstance(r, NoneElement):
-            if Settings.raise_when_ele_not_found:
-                raise ElementNotFoundError(None, 's_ele()', {'locator': locator})
-            else:
-                r.method = 's_ele()'
-                r.args = {'locator': locator}
-        return r
+        return make_session_ele(self, locator, index=index, method='s_ele()')
 
     def s_eles(self, locator):
         """查找所有符合条件的元素以SessionElement列表形式返回
