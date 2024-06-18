@@ -19,7 +19,7 @@ from .._configs.chromium_options import ChromiumOptions
 from .._configs.session_options import SessionOptions
 from .._elements.chromium_element import ChromiumElement
 from .._elements.session_element import SessionElement
-from .._functions.tools import ElementsList
+from .._functions.elements import ElementsList
 from .._units.setter import WebPageSetter
 
 

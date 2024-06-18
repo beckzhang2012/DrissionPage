@@ -8,10 +8,8 @@
 from os import popen
 from pathlib import Path
 from threading import Lock
-from typing import Union, Tuple, List, Optional
+from typing import Union, Tuple
 
-from .._base.base import BaseParser
-from .._elements.chromium_element import ChromiumElement
 from .._pages.chromium_base import ChromiumBase
 
 
@@ -48,69 +46,3 @@ def configs_to_here(file_name: Union[Path, str] = None) -> None: ...
 
 
 def raise_error(result: dict, ignore=None) -> None: ...
-
-
-def get_eles(locators: Union[List[str], tuple],
-             owner: BaseParser,
-             any_one: bool = False,
-             first_ele: bool = True,
-             timeout: float = 10) -> dict: ...
-
-
-class ElementsList(list):
-    page = ...
-
-    def displayed(self, get_all: bool = False) -> Union[List[ChromiumElement], ChromiumElement]: ...
-
-    def hidden(self, get_all: bool = False) -> Union[List[ChromiumElement], ChromiumElement]: ...
-
-    def checked(self, get_all: bool = False) -> Union[List[ChromiumElement], ChromiumElement]: ...
-
-    def not_checked(self, get_all: bool = False) -> Union[List[ChromiumElement], ChromiumElement]: ...
-
-    def selected(self, get_all: bool = False) -> Union[List[ChromiumElement], ChromiumElement]: ...
-
-    def not_selected(self, get_all: bool = False) -> Union[List[ChromiumElement], ChromiumElement]: ...
-
-    def enabled(self, get_all: bool = False) -> Union[List[ChromiumElement], ChromiumElement]: ...
-
-    def disabled(self, get_all: bool = False) -> Union[List[ChromiumElement], ChromiumElement]: ...
-
-    def clickable(self, get_all: bool = False) -> Union[List[ChromiumElement], ChromiumElement]: ...
-
-    def not_clickable(self, get_all: bool = False) -> Union[List[ChromiumElement], ChromiumElement]: ...
-
-    def have_rect(self, get_all: bool = False) -> Union[List[ChromiumElement], ChromiumElement]: ...
-
-    def no_rect(self, get_all: bool = False) -> Union[List[ChromiumElement], ChromiumElement]: ...
-
-    def have_text(self, get_all: bool = False) -> Union[List[ChromiumElement], ChromiumElement]: ...
-
-    def style(self, name: str, value: str, get_all: bool = False) -> Union[List[ChromiumElement], ChromiumElement]: ...
-
-    def property(self,
-                 name: str,
-                 value: str,
-                 get_all: bool = False) -> Union[List[ChromiumElement], ChromiumElement]: ...
-
-    def attr(self, name: str, value: str, get_all: bool = False) -> Union[List[ChromiumElement], ChromiumElement]: ...
-
-    def filter(self,
-               get_all: bool = False,
-               displayed: Optional[bool] = None,
-               checked: Optional[bool] = None,
-               selected: Optional[bool] = None,
-               enabled: Optional[bool] = None,
-               clickable: Optional[bool] = None,
-               have_rect: Optional[bool] = None,
-               have_text: Optional[bool] = None) -> Union[List[ChromiumElement], ChromiumElement]: ...
-
-    def _get_attr(self,
-                  name: str,
-                  value: str,
-                  method: str,
-                  get_all: bool = False) -> Union[List[ChromiumElement], ChromiumElement]: ...
-
-    def _any_state(self, name: str, is_not: bool = False, get_all: bool = False) -> List[ChromiumElement]: ...
-
-    def __next__(self) -> ChromiumElement: ...

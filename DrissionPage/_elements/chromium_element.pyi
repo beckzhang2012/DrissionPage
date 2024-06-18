@@ -10,7 +10,7 @@ from typing import Union, Tuple, List, Any, Literal, Optional
 
 from .._base.base import DrissionElement, BaseElement
 from .._elements.session_element import SessionElement
-from .._functions.tools import ElementsList
+from .._functions.elements import ElementsList
 from .._pages.chromium_base import ChromiumBase
 from .._pages.chromium_frame import ChromiumFrame
 from .._pages.chromium_page import ChromiumPage

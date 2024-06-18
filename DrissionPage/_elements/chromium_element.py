@@ -18,7 +18,7 @@ from .session_element import make_session_ele
 from .._base.base import DrissionElement, BaseElement
 from .._functions.keys import input_text_or_keys
 from .._functions.locator import get_loc
-from .._functions.tools import ElementsList
+from .._functions.elements import ElementsList
 from .._functions.web import make_absolute_link, get_ele_txt, format_html, is_js_func, offset_scroll, get_blob
 from .._units.clicker import Clicker
 from .._units.rect import ElementRect
