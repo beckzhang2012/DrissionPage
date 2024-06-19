@@ -120,6 +120,11 @@ class ChromiumElementsList(SessionElementsList):
 class SessionFilterOne(object):
     def __init__(self, _list):
         self._list = _list
+        self._index = 1
+
+    def __call__(self, index=1):
+        self._index = index
+        return self
 
     def attr(self, name, value, equal=True):
         """以是否拥有某个attribute值为条件筛选元素
@@ -138,15 +143,21 @@ class SessionFilterOne(object):
         :return: 筛选结果
         """
         if contain:
+            num = 0
             for i in self._list:
                 t = i.raw_text
                 if (fuzzy and text in t) or (not fuzzy and text == t):
-                    return i
+                    num += 1
+                    if self._index == num:
+                        return i
         else:
+            num = 0
             for i in self._list:
                 t = i.raw_text
                 if (fuzzy and text not in t) or (not fuzzy and text != t):
-                    return i
+                    num += 1
+                    if self._index == num:
+                        return i
         return NoneElement(self._list._page, 'text()', args={'text': text, 'fuzzy': fuzzy, 'contain': contain})
 
     def _get_attr(self, name, value, method, equal=True):
@@ -157,13 +168,19 @@ class SessionFilterOne(object):
         :return: 筛选结果
         """
         if equal:
+            num = 0
             for i in self._list:
                 if getattr(i, method)(name) == value:
-                    return i
+                    num += 1
+                    if self._index == num:
+                        return i
         else:
+            num = 0
             for i in self._list:
                 if getattr(i, method)(name) != value:
-                    return i
+                    num += 1
+                    if self._index == num:
+                        return i
         return NoneElement(self._list._page, f'{method}()', args={'name': name, 'value': value, 'equal': equal})
 
 
@@ -296,13 +313,19 @@ class ChromiumFilterOne(SessionFilterOne):
         :return: 选中的元素
         """
         if equal:
+            num = 0
             for i in self._list:
                 if getattr(i.states, name):
-                    return i
+                    num += 1
+                    if self._index == num:
+                        return i
         else:
+            num = 0
             for i in self._list:
                 if not getattr(i.states, name):
-                    return i
+                    num += 1
+                    if self._index == num:
+                        return i
         return NoneElement(self._list._page, f'{name}()', args={'equal': equal})
 
 
