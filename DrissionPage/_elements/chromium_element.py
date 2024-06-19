@@ -18,7 +18,7 @@ from .session_element import make_session_ele
 from .._base.base import DrissionElement, BaseElement
 from .._functions.keys import input_text_or_keys
 from .._functions.locator import get_loc
-from .._functions.elements import ElementsList
+from .._functions.elements import ChromiumElementsList
 from .._functions.web import make_absolute_link, get_ele_txt, format_html, is_js_func, offset_scroll, get_blob
 from .._units.clicker import Clicker
 from .._units.rect import ElementRect
@@ -1199,7 +1199,7 @@ def find_by_xpath(ele, xpath, index, timeout, relative=True):
             res = ele.owner.run_cdp('Runtime.getProperties', objectId=res['result']['objectId'],
                                     ownProperties=True)['result'][:-1]
             if index is None:
-                r = ElementsList()
+                r = ChromiumElementsList(ele.owner)
                 for i in res:
                     if i['value']['type'] == 'object':
                         r.append(make_chromium_eles(ele.owner, _ids=i['value']['objectId'], is_obj_id=True))
@@ -1228,7 +1228,7 @@ def find_by_xpath(ele, xpath, index, timeout, relative=True):
 
     if result:
         return result
-    return NoneElement(ele.owner) if index is not None else ElementsList()
+    return NoneElement(ele.owner) if index is not None else ChromiumElementsList(ele.owner)
 
 
 def find_by_css(ele, selector, index, timeout):
@@ -1274,7 +1274,7 @@ def find_by_css(ele, selector, index, timeout):
 
     if result:
         return result
-    return NoneElement(ele.owner) if index is not None else ElementsList()
+    return NoneElement(ele.owner) if index is not None else ChromiumElementsList(ele.owner)
 
 
 def make_chromium_eles(page, _ids, index=1, is_obj_id=True, ele_only=False):
@@ -1306,7 +1306,7 @@ def make_chromium_eles(page, _ids, index=1, is_obj_id=True, ele_only=False):
             return get_node_func(page, obj_id, ele_only)
 
     else:  # 获取全部
-        nodes = ElementsList()
+        nodes = ChromiumElementsList()
         for obj_id in _ids:
             tmp = get_node_func(page, obj_id, ele_only)
             if tmp is False:

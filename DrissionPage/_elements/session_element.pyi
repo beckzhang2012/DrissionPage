@@ -11,6 +11,7 @@ from lxml.html import HtmlElement
 
 from .._base.base import DrissionElement, BaseElement
 from .._elements.chromium_element import ChromiumElement
+from .._functions.elements import SessionElementsList
 from .._pages.chromium_base import ChromiumBase
 from .._pages.chromium_frame import ChromiumFrame
 from .._pages.session_page import SessionPage
@@ -123,20 +124,20 @@ class SessionElement(DrissionElement):
 
     def eles(self,
              locator: Union[Tuple[str, str], str],
-             timeout: float = None) -> List[SessionElement]: ...
+             timeout: float = None) -> SessionElementsList: ...
 
     def s_ele(self,
               locator: Union[Tuple[str, str], str] = None,
               index: int = 1) -> SessionElement: ...
 
-    def s_eles(self, locator: Union[Tuple[str, str], str]) -> List[SessionElement]: ...
+    def s_eles(self, locator: Union[Tuple[str, str], str]) -> SessionElementsList: ...
 
     def _find_elements(self,
                        locator: Union[Tuple[str, str], str],
                        timeout: float = None,
                        index: Optional[int] = 1,
                        relative: bool = False,
-                       raise_err: bool = None) -> Union[SessionElement, List[SessionElement]]: ...
+                       raise_err: bool = None) -> Union[SessionElement, SessionElementsList]: ...
 
     def _get_ele_path(self, mode: str) -> str: ...
 
@@ -145,4 +146,4 @@ def make_session_ele(html_or_ele: Union[str, SessionElement, SessionPage, Chromi
 ChromiumBase],
                      loc: Union[str, Tuple[str, str]] = None,
                      index: Optional[int] = 1,
-                     method: Optional[str] = None) -> Union[SessionElement, List[SessionElement]]: ...
+                     method: Optional[str] = None) -> Union[SessionElement, SessionElementsList]: ...

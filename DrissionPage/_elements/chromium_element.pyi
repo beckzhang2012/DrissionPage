@@ -10,7 +10,7 @@ from typing import Union, Tuple, List, Any, Literal, Optional
 
 from .._base.base import DrissionElement, BaseElement
 from .._elements.session_element import SessionElement
-from .._functions.elements import ElementsList
+from .._functions.elements import SessionElementsList, ChromiumElementsList
 from .._pages.chromium_base import ChromiumBase
 from .._pages.chromium_frame import ChromiumFrame
 from .._pages.chromium_page import ChromiumPage
@@ -201,21 +201,20 @@ class ChromiumElement(DrissionElement):
 
     def eles(self,
              locator: Union[Tuple[str, str], str],
-             timeout: float = None) -> ElementsList: ...
+             timeout: float = None) -> ChromiumElementsList: ...
 
     def s_ele(self,
               locator: Union[Tuple[str, str], str] = None,
               index: int = 1) -> SessionElement: ...
 
-    def s_eles(self, locator: Union[Tuple[str, str], str] = None) -> List[SessionElement]: ...
+    def s_eles(self, locator: Union[Tuple[str, str], str] = None) -> SessionElementsList: ...
 
     def _find_elements(self,
                        locator: Union[Tuple[str, str], str],
                        timeout: float = None,
                        index: Optional[int] = 1,
                        relative: bool = False,
-                       raise_err: bool = False) -> Union[ChromiumElement, ChromiumFrame,
-    List[Union[ChromiumElement, ChromiumFrame]]]: ...
+                       raise_err: bool = False) -> Union[ChromiumElement, ChromiumFrame, ChromiumElementsList]: ...
 
     def style(self, style: str, pseudo_ele: str = '') -> str: ...
 
@@ -331,13 +330,13 @@ class ShadowRoot(BaseElement):
 
     def eles(self,
              locator: Union[Tuple[str, str], str],
-             timeout: float = None) -> ElementsList: ...
+             timeout: float = None) -> ChromiumElementsList: ...
 
     def s_ele(self,
               locator: Union[Tuple[str, str], str] = None,
               index: int = 1) -> SessionElement: ...
 
-    def s_eles(self, locator: Union[Tuple[str, str], str]) -> List[SessionElement]: ...
+    def s_eles(self, locator: Union[Tuple[str, str], str]) -> SessionElementsList: ...
 
     def _find_elements(self,
                        locator: Union[Tuple[str, str], str],
@@ -379,7 +378,7 @@ def make_chromium_eles(page: Union[ChromiumBase, ChromiumPage, WebPage, Chromium
                        index: Optional[int] = 1,
                        is_obj_id: bool = True,
                        ele_only: bool = False
-                       ) -> Union[ChromiumElement, ChromiumFrame, List[Union[ChromiumElement, ChromiumFrame]]]: ...
+                       ) -> Union[ChromiumElement, ChromiumFrame, ChromiumElementsList]: ...
 
 
 def make_js_for_find_ele_by_xpath(xpath: str, type_txt: str, node_txt: str) -> str: ...

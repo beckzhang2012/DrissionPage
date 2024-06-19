@@ -13,6 +13,7 @@ from lxml.html import HtmlElement, fromstring
 
 from .none_element import NoneElement
 from .._base.base import DrissionElement, BasePage, BaseElement
+from .._functions.elements import SessionElementsList
 from .._functions.locator import get_loc
 from .._functions.web import get_ele_txt, make_absolute_link
 
@@ -401,7 +402,11 @@ def make_session_ele(html_or_ele, loc=None, index=1, method=None):
 
         # 把lxml元素对象包装成SessionElement对象并按需要返回一个或全部
         if index is None:
-            return [SessionElement(e, page) if isinstance(e, HtmlElement) else e for e in eles if e != '\n']
+            r = SessionElementsList(page)
+            for e in eles:
+                if e != '\n':
+                    r.append(SessionElement(e, page) if isinstance(e, HtmlElement) else e)
+            return r
 
         else:
             eles_count = len(eles)
