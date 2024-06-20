@@ -111,8 +111,7 @@ class SessionPage(BasePage):
                        timeout: float = None,
                        index: Optional[int] = 1,
                        relative: bool = True,
-                       raise_err: bool = None) \
-            -> Union[SessionElement, SessionElementsList]: ...
+                       raise_err: bool = None) -> Union[SessionElement, SessionElementsList]: ...
 
     def cookies(self,
                 as_dict: bool = False,

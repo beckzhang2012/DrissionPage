@@ -51,13 +51,6 @@ class SessionElement(DrissionElement):
     def __eq__(self, other):
         return self.xpath == getattr(other, 'xpath', None)
 
-    def __getattr__(self, item):
-        """获取元素属性
-        :param item: 属性名
-        :return: 属性值
-        """
-        return self.attr(item)
-
     @property
     def tag(self):
         """返回元素类型"""
@@ -157,7 +150,7 @@ class SessionElement(DrissionElement):
         :param ele_only: 是否只获取元素，为False时把文本、注释节点也纳入
         :return: 直接子元素或节点文本组成的列表
         """
-        return super().children(locator, timeout, ele_only=ele_only)
+        return SessionElementsList(self.owner, super().children(locator, timeout, ele_only=ele_only))
 
     def prevs(self, locator='', timeout=None, ele_only=True):
         """返回当前元素前面符合条件的同级元素或节点组成的列表，可用查询语法筛选
@@ -166,7 +159,7 @@ class SessionElement(DrissionElement):
         :param ele_only: 是否只获取元素，为False时把文本、注释节点也纳入
         :return: 同级元素或节点文本组成的列表
         """
-        return super().prevs(locator, timeout, ele_only=ele_only)
+        return SessionElementsList(self.owner, super().prevs(locator, timeout, ele_only=ele_only))
 
     def nexts(self, locator='', timeout=None, ele_only=True):
         """返回当前元素后面符合条件的同级元素或节点组成的列表，可用查询语法筛选
@@ -175,7 +168,7 @@ class SessionElement(DrissionElement):
         :param ele_only: 是否只获取元素，为False时把文本、注释节点也纳入
         :return: 同级元素或节点文本组成的列表
         """
-        return super().nexts(locator, timeout, ele_only=ele_only)
+        return SessionElementsList(self.owner, super().nexts(locator, timeout, ele_only=ele_only))
 
     def befores(self, locator='', timeout=None, ele_only=True):
         """返回文档中当前元素前面符合条件的元素或节点组成的列表，可用查询语法筛选
@@ -185,7 +178,7 @@ class SessionElement(DrissionElement):
         :param ele_only: 是否只获取元素，为False时把文本、注释节点也纳入
         :return: 本元素前面的元素或节点组成的列表
         """
-        return super().befores(locator, timeout, ele_only=ele_only)
+        return SessionElementsList(self.owner, super().befores(locator, timeout, ele_only=ele_only))
 
     def afters(self, locator='', timeout=None, ele_only=True):
         """返回文档中当前元素后面符合条件的元素或节点组成的列表，可用查询语法筛选
@@ -195,7 +188,7 @@ class SessionElement(DrissionElement):
         :param ele_only: 是否只获取元素，为False时把文本、注释节点也纳入
         :return: 本元素后面的元素或节点组成的列表
         """
-        return super().afters(locator, timeout, ele_only=ele_only)
+        return SessionElementsList(self.owner, super().afters(locator, timeout, ele_only=ele_only))
 
     def attr(self, name):
         """返回attribute属性值
@@ -402,7 +395,7 @@ def make_session_ele(html_or_ele, loc=None, index=1, method=None):
 
         # 把lxml元素对象包装成SessionElement对象并按需要返回一个或全部
         if index is None:
-            r = SessionElementsList(page)
+            r = SessionElementsList(page=page)
             for e in eles:
                 if e != '\n':
                     r.append(SessionElement(e, page) if isinstance(e, HtmlElement) else e)

@@ -91,14 +91,6 @@ class ChromiumElement(DrissionElement):
     def __eq__(self, other):
         return self._backend_id == getattr(other, '_backend_id', None)
 
-    def __getattr__(self, item):
-        """获取元素属性
-        :param item: 属性名
-        :return: 属性值
-        """
-        a = self.attr(item)
-        return a if a is not None else self.property(item)
-
     @property
     def tag(self):
         """返回元素tag"""
@@ -307,7 +299,7 @@ class ChromiumElement(DrissionElement):
         :param ele_only: 是否只获取元素，为False时把文本、注释节点也纳入
         :return: 直接子元素或节点文本组成的列表
         """
-        return super().children(locator, timeout, ele_only=ele_only)
+        return ChromiumElementsList(self.owner, super().children(locator, timeout, ele_only=ele_only))
 
     def prevs(self, locator='', timeout=None, ele_only=True):
         """返回当前元素前面符合条件的同级元素或节点组成的列表，可用查询语法筛选
@@ -316,7 +308,7 @@ class ChromiumElement(DrissionElement):
         :param ele_only: 是否只获取元素，为False时把文本、注释节点也纳入
         :return: 兄弟元素或节点文本组成的列表
         """
-        return super().prevs(locator, timeout, ele_only=ele_only)
+        return ChromiumElementsList(self.owner, super().prevs(locator, timeout, ele_only=ele_only))
 
     def nexts(self, locator='', timeout=None, ele_only=True):
         """返回当前元素后面符合条件的同级元素或节点组成的列表，可用查询语法筛选
@@ -325,7 +317,7 @@ class ChromiumElement(DrissionElement):
         :param ele_only: 是否只获取元素，为False时把文本、注释节点也纳入
         :return: 兄弟元素或节点文本组成的列表
         """
-        return super().nexts(locator, timeout, ele_only=ele_only)
+        return ChromiumElementsList(self.owner, super().nexts(locator, timeout, ele_only=ele_only))
 
     def befores(self, locator='', timeout=None, ele_only=True):
         """返回文档中当前元素前面符合条件的元素或节点组成的列表，可用查询语法筛选
@@ -335,7 +327,7 @@ class ChromiumElement(DrissionElement):
         :param ele_only: 是否只获取元素，为False时把文本、注释节点也纳入
         :return: 本元素前面的元素或节点组成的列表
         """
-        return super().befores(locator, timeout, ele_only=ele_only)
+        return ChromiumElementsList(self.owner, super().befores(locator, timeout, ele_only=ele_only))
 
     def afters(self, locator='', timeout=None, ele_only=True):
         """返回文档中当前元素后面符合条件的元素或节点组成的列表，可用查询语法筛选
@@ -345,7 +337,7 @@ class ChromiumElement(DrissionElement):
         :param ele_only: 是否只获取元素，为False时把文本、注释节点也纳入
         :return: 本元素后面的元素或节点组成的列表
         """
-        return super().afters(locator, timeout, ele_only=ele_only)
+        return ChromiumElementsList(self.owner, super().afters(locator, timeout, ele_only=ele_only))
 
     def on(self, timeout=None):
         """获取覆盖在本元素上最上层的元素
@@ -1199,7 +1191,7 @@ def find_by_xpath(ele, xpath, index, timeout, relative=True):
             res = ele.owner.run_cdp('Runtime.getProperties', objectId=res['result']['objectId'],
                                     ownProperties=True)['result'][:-1]
             if index is None:
-                r = ChromiumElementsList(ele.owner)
+                r = ChromiumElementsList(page=ele.owner)
                 for i in res:
                     if i['value']['type'] == 'object':
                         r.append(make_chromium_eles(ele.owner, _ids=i['value']['objectId'], is_obj_id=True))
@@ -1228,7 +1220,7 @@ def find_by_xpath(ele, xpath, index, timeout, relative=True):
 
     if result:
         return result
-    return NoneElement(ele.owner) if index is not None else ChromiumElementsList(ele.owner)
+    return NoneElement(ele.owner) if index is not None else ChromiumElementsList(page=ele.owner)
 
 
 def find_by_css(ele, selector, index, timeout):
@@ -1274,7 +1266,7 @@ def find_by_css(ele, selector, index, timeout):
 
     if result:
         return result
-    return NoneElement(ele.owner) if index is not None else ChromiumElementsList(ele.owner)
+    return NoneElement(ele.owner) if index is not None else ChromiumElementsList(page=ele.owner)
 
 
 def make_chromium_eles(page, _ids, index=1, is_obj_id=True, ele_only=False):
@@ -1306,7 +1298,7 @@ def make_chromium_eles(page, _ids, index=1, is_obj_id=True, ele_only=False):
             return get_node_func(page, obj_id, ele_only)
 
     else:  # 获取全部
-        nodes = ChromiumElementsList()
+        nodes = ChromiumElementsList(page=page)
         for obj_id in _ids:
             tmp = get_node_func(page, obj_id, ele_only)
             if tmp is False:
