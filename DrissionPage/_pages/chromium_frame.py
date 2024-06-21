@@ -453,7 +453,7 @@ class ChromiumFrame(ChromiumBase):
         """返回文档中当前元素前面符合条件的元素或节点组成的列表，可用查询语法筛选
         查找范围不限同级元素，而是整个DOM文档
         :param locator: 用于筛选的查询语法
-        :param timeout: 查找节点的超时时间
+        :param timeout: 查找节点的超时时间（秒）
         :param ele_only: 是否只获取元素，为False时把文本、注释节点也纳入
         :return: 本元素前面的元素或节点组成的列表
         """
@@ -463,7 +463,7 @@ class ChromiumFrame(ChromiumBase):
         """返回文档中当前元素后面符合条件的元素或节点组成的列表，可用查询语法筛选
         查找范围不限同级元素，而是整个DOM文档
         :param locator: 用于筛选的查询语法
-        :param timeout: 查找节点的超时时间
+        :param timeout: 查找节点的超时时间（秒）
         :param ele_only: 是否只获取元素，为False时把文本、注释节点也纳入
         :return: 本元素前面的元素或节点组成的列表
         """
@@ -559,7 +559,7 @@ class ChromiumFrame(ChromiumBase):
     def _find_elements(self, locator, timeout=None, index=1, relative=False, raise_err=None):
         """在frame内查找单个元素
         :param locator: 定位符或元素对象
-        :param timeout: 查找超时时间
+        :param timeout: 查找超时时间（秒）
         :param index: 第几个结果，从1开始，可传入负数获取倒数第几个，为None返回所有
         :param relative: WebPage用的表示是否相对定位的参数
         :param raise_err: 找不到元素是是否抛出异常，为None时根据全局设置

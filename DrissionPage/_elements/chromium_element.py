@@ -17,7 +17,7 @@ from .none_element import NoneElement
 from .session_element import make_session_ele
 from .._base.base import DrissionElement, BaseElement
 from .._functions.keys import input_text_or_keys
-from .._functions.locator import get_loc
+from .._functions.locator import get_loc, locator_to_tuple
 from .._functions.elements import ChromiumElementsList
 from .._functions.web import make_absolute_link, get_ele_txt, format_html, is_js_func, offset_scroll, get_blob
 from .._units.clicker import Clicker
@@ -339,7 +339,7 @@ class ChromiumElement(DrissionElement):
         """
         return ChromiumElementsList(self.owner, super().afters(locator, timeout, ele_only=ele_only))
 
-    def on(self, timeout=None):
+    def over(self, timeout=None):
         """获取覆盖在本元素上最上层的元素
         :param timeout: 等待元素出现的超时时间（秒）
         :return: 元素对象
@@ -351,21 +351,110 @@ class ChromiumElement(DrissionElement):
         else:
             return NoneElement(page=self.owner, method='on()', args={'timeout': timeout})
 
-    def under(self, locator=None):
+    def east(self, locator=None, index=1):
+        """获取元素右边某个指定元素
+        :param locator: 定位符，只支持str，且不支持xpath和css方式，传入int按像素距离获取
+        :param index: 第几个，从1开始
+        :return: 获取到的元素对象
+        """
+        return self._get_relative_eles(mode='east', locator=locator, index=index)
+
+    def south(self, locator=None, index=1):
+        """获取元素下方某个指定元素
+        :param locator: 定位符，只支持str，且不支持xpath和css方式，传入int按像素距离获取
+        :param index: 第几个，从1开始
+        :return: 获取到的元素对象
+        """
+        return self._get_relative_eles(mode='south', locator=locator, index=index)
+
+    def west(self, locator=None, index=1):
+        """获取元素左边某个指定元素
+        :param locator: 定位符，只支持str，且不支持xpath和css方式，传入int按像素距离获取
+        :param index: 第几个，从1开始
+        :return: 获取到的元素对象
+        """
+        return self._get_relative_eles(mode='west', locator=locator, index=index)
+
+    def north(self, locator=None, index=1):
+        """获取元素上方某个指定元素
+        :param locator: 定位符，只支持str，且不支持xpath和css方式，传入int按像素距离获取
+        :param index: 第几个，从1开始
+        :return: 获取到的元素对象
+        """
+        return self._get_relative_eles(mode='north', locator=locator, index=index)
+
+    def _get_relative_eles(self, mode='north', locator=None, index=1):
+        """获取元素下方某个指定元素
+        :param locator: 定位符，只支持str，且不支持xpath和css方式
+        :param index: 第几个，从1开始
+        :return: 获取到的元素对象
+        """
+        if locator and not (isinstance(locator, str) and not locator.startswith(
+                ('x:', 'xpath:', 'x=', 'xpath=', 'c:', 'css:', 'c=', 'css=')) or isinstance(locator, int)):
+            raise ValueError('locator参数只能是str格式且不支持xpath和css形式。')
         rect = self.states.has_rect
         if not rect:
             raise NoRectError
-        y = int(rect[2][1])
-        x = int(self.rect.midpoint[0])
-        while True:
-            y += 1
+
+        if mode == 'east':
+            cdp_data = {'x': int(rect[1][0]), 'y': int(self.rect.midpoint[1]),
+                        'includeUserAgentShadowDOM': True, 'ignorePointerEventsNone': False}
+            variable = 'x'
+            minus = False
+        elif mode == 'south':
+            cdp_data = {'x': int(self.rect.midpoint[0]), 'y': int(rect[2][1]),
+                        'includeUserAgentShadowDOM': True, 'ignorePointerEventsNone': False}
+            variable = 'y'
+            minus = False
+        elif mode == 'west':
+            cdp_data = {'x': int(rect[0][0]), 'y': int(self.rect.midpoint[1]),
+                        'includeUserAgentShadowDOM': True, 'ignorePointerEventsNone': False}
+            variable = 'x'
+            minus = True
+        else:  # north
+            cdp_data = {'x': int(self.rect.midpoint[0]), 'y': int(rect[0][1]),
+                        'includeUserAgentShadowDOM': True, 'ignorePointerEventsNone': False}
+            variable = 'y'
+            minus = True
+
+        if isinstance(locator, int):
+            if minus:
+                cdp_data[variable] -= locator
+            else:
+                cdp_data[variable] += locator
             try:
-                ele = self.owner.run_cdp('DOM.getNodeForLocation', x=x, y=y)
-                break
+                return ChromiumElement(owner=self.owner,
+                                       backend_id=self.owner.run_cdp('DOM.getNodeForLocation',
+                                                                     **cdp_data)['backendNodeId'])
+            except CDPError:
+                return NoneElement(page=self.owner, method=f'{mode}()', args={'locator': locator})
+
+        num = 0
+        value = -3 if minus else 3
+        size = self.owner.rect.size
+        max_len = size[0] if mode == 'east' else size[1]
+        # loc_data = {'tag': None, 'and': True, 'args': [('属性名称', '匹配内容', '匹配方式', '是否否定')]}
+        loc_data = locator_to_tuple(locator) if locator else None
+        curr_ele = None
+        while 0 < cdp_data[variable] < max_len:
+            cdp_data[variable] += value
+            try:
+                bid = self.owner.run_cdp('DOM.getNodeForLocation', **cdp_data)['backendNodeId']
+                if bid == curr_ele:
+                    continue
+                else:
+                    curr_ele = bid
+                ele = self.owner.run_cdp('DOM.describeNode', backendNodeId=bid)['node']
+
+                # print(ele)
+                if loc_data is None:  # todo
+                    num += 1
+                    if num == index:
+                        return ChromiumElement(owner=self.owner, backend_id=bid)
             except:
-                raise
-                continue
-        return ChromiumElement(owner=self.owner, backend_id=ele['backendNodeId'])
+                pass
+
+        return NoneElement(page=self.owner, method=f'{mode}()', args={'locator': locator})
 
     def attr(self, attr):
         """返回一个attribute属性值

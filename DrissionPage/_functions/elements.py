@@ -14,13 +14,10 @@ class SessionElementsList(list):
     def __init__(self, page=None, *args):
         super().__init__(*args)
         self._page = page
-        self._getter = None
 
     @property
     def get(self):
-        if self._getter is None:
-            self._getter = Getter(self)
-        return self._getter
+        return Getter(self)
 
     @property
     def filter(self):
@@ -83,7 +80,6 @@ class SessionFilterOne(object):
         :param index: 元素序号，从1开始
         :return: 对象自身
         """
-        print('s')
         self._index = index
         return self
 

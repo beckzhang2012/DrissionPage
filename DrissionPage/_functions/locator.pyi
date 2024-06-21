@@ -8,6 +8,9 @@
 from typing import Union
 
 
+def locator_to_tuple(loc: str) -> dict: ...
+
+
 def is_loc(text: str) -> bool: ...
 
 

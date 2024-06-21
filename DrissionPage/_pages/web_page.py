@@ -401,7 +401,7 @@ class WebPage(SessionPage, ChromiumPage, BasePage):
     def _find_elements(self, locator, timeout=None, index=1, relative=False, raise_err=None):
         """返回页面中符合条件的元素、属性或节点文本，默认返回第一个
         :param locator: 元素的定位信息，可以是元素对象，loc元组，或查询字符串
-        :param timeout: 查找元素超时时间，d模式专用
+        :param timeout: 查找元素超时时间（秒），d模式专用
         :param index: 第几个结果，从1开始，可传入负数获取倒数第几个，为None返回所有
         :param relative: WebPage用的表示是否相对定位的参数
         :param raise_err: 找不到元素是是否抛出异常，为None时根据全局设置
@@ -414,7 +414,7 @@ class WebPage(SessionPage, ChromiumPage, BasePage):
 
     def quit(self, timeout=5, force=True):
         """关闭浏览器和Session
-        :param timeout: 等待浏览器关闭超时时间
+        :param timeout: 等待浏览器关闭超时时间（秒）
         :param force: 关闭超时是否强制终止进程
         :return: None
         """
