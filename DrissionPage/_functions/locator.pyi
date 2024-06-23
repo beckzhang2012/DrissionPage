@@ -20,6 +20,9 @@ def get_loc(loc: Union[tuple, str], translate_css: bool = False, css_mode: bool 
 def str_to_xpath_loc(loc: str) -> tuple: ...
 
 
+def str_to_css_loc(loc: str) -> tuple: ...
+
+
 def translate_loc(loc: tuple) -> tuple: ...
 
 

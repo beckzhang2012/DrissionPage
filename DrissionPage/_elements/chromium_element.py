@@ -351,6 +351,21 @@ class ChromiumElement(DrissionElement):
         else:
             return NoneElement(page=self.owner, method='on()', args={'timeout': timeout})
 
+    def offset(self, offset_x, offset_y):
+        """获取相对本元素左上角左边指定偏移量位置的元素
+        :param offset_x: 横坐标偏移量，向右为正
+        :param offset_y: 纵坐标偏移量，向下为正
+        :return: 元素对象
+        """
+        x, y = self.rect.location
+        try:
+            return ChromiumElement(owner=self.owner,
+                                   backend_id=self.owner.run_cdp('DOM.getNodeForLocation', x=x + offset_x,
+                                                                 y=y + offset_y, includeUserAgentShadowDOM=True,
+                                                                 ignorePointerEventsNone=False)['backendNodeId'])
+        except CDPError:
+            return NoneElement(page=self.owner, method='offset()', args={'offset_x': offset_x, 'offset_y': offset_y})
+
     def east(self, locator=None, index=1):
         """获取元素右边某个指定元素
         :param locator: 定位符，只支持str，且不支持xpath和css方式，传入int按像素距离获取
@@ -433,7 +448,6 @@ class ChromiumElement(DrissionElement):
         value = -3 if minus else 3
         size = self.owner.rect.size
         max_len = size[0] if mode == 'east' else size[1]
-        # loc_data = {'tag': None, 'and': True, 'args': [('属性名称', '匹配内容', '匹配方式', '是否否定')]}
         loc_data = locator_to_tuple(locator) if locator else None
         curr_ele = None
         while 0 < cdp_data[variable] < max_len:
@@ -444,13 +458,12 @@ class ChromiumElement(DrissionElement):
                     continue
                 else:
                     curr_ele = bid
-                ele = self.owner.run_cdp('DOM.describeNode', backendNodeId=bid)['node']
+                ele = ChromiumElement(self.owner, backend_id=bid)
 
-                # print(ele)
-                if loc_data is None:  # todo
+                if loc_data is None or _check_ele(ele, loc_data):
                     num += 1
                     if num == index:
-                        return ChromiumElement(owner=self.owner, backend_id=bid)
+                        return ele
             except:
                 pass
 
@@ -1634,3 +1647,59 @@ class Pseudo(object):
     def after(self):
         """返回当前元素的::after伪元素内容"""
         return self._ele.style('content', 'after')
+
+
+def _check_ele(ele, loc_data):
+    """检查元素是否符合loc_data指定的要求
+    :param ele: 元素对象
+    :param loc_data: 格式： {'and': bool, 'args': ['属性名称', '匹配方式', '属性值', 是否否定]}
+    :return: bool
+    """
+    attrs = ele.attrs
+    if loc_data['and']:
+        ok = True
+        for i in loc_data['args']:
+            name, symbol, value, deny = i
+            if name == 'tag()':
+                arg = ele.tag
+                symbol = '='
+            elif name == 'text()':
+                arg = ele.raw_text
+            elif name is None:
+                arg = None
+            else:
+                arg = attrs.get(name, '')
+
+            if ((symbol == '=' and ((deny and arg == value) or (not deny and arg != value)))
+                    or (symbol == ':' and ((deny and value in arg) or (not deny and value not in arg)))
+                    or (symbol == '^' and ((deny and arg.startswith(value))
+                                           or (not deny and not arg.startswith(value))))
+                    or (symbol == '$' and ((deny and arg.endswith(value)) or (not deny and not arg.endswith(value))))
+                    or (arg is None and attrs)):
+                ok = False
+                break
+
+    else:
+        ok = False
+        for i in loc_data['args']:
+            name, value, symbol, deny = i
+            if name == 'tag()':
+                arg = ele.tag
+                symbol = '='
+            elif name == 'text()':
+                arg = ele.text
+            elif name is None:
+                arg = None
+            else:
+                arg = attrs.get(name, '')
+
+            if ((symbol == '=' and ((not deny and arg == value) or (deny and arg != value)))
+                    or (symbol == ':' and ((not deny and value in arg) or (deny and value not in arg)))
+                    or (symbol == '^' and ((not deny and arg.startswith(value))
+                                           or (deny and not arg.startswith(value))))
+                    or (symbol == '$' and ((not deny and arg.endswith(value)) or (deny and not arg.endswith(value))))
+                    or (arg is None and not attrs)):
+                ok = True
+                break
+
+    return ok
