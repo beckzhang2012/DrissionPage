@@ -495,7 +495,7 @@ class ElementWaiter(OriginWaiter):
         """
         a = self._ele.states.__getattribute__(attr)
         if (a and mode) or (not a and not mode):
-            return a
+            return True if isinstance(a, bool) else a
 
         if timeout is None:
             timeout = self._owner.timeout
@@ -503,7 +503,7 @@ class ElementWaiter(OriginWaiter):
         while perf_counter() < end_time:
             a = self._ele.states.__getattribute__(attr)
             if (a and mode) or (not a and not mode):
-                return a
+                return True if isinstance(a, bool) else a
             sleep(.05)
 
         err_text = err_text or '等待元素状态改变失败（等待{}秒）。'
