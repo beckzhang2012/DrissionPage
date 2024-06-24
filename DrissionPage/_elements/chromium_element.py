@@ -366,37 +366,37 @@ class ChromiumElement(DrissionElement):
         except CDPError:
             return NoneElement(page=self.owner, method='offset()', args={'offset_x': offset_x, 'offset_y': offset_y})
 
-    def east(self, locator=None, index=1):
+    def east(self, loc_or_pixel=None, index=1):
         """获取元素右边某个指定元素
-        :param locator: 定位符，只支持str，且不支持xpath和css方式，传入int按像素距离获取
+        :param loc_or_pixel: 定位符，只支持str，且不支持xpath和css方式，传入int按像素距离获取
         :param index: 第几个，从1开始
         :return: 获取到的元素对象
         """
-        return self._get_relative_eles(mode='east', locator=locator, index=index)
+        return self._get_relative_eles(mode='east', locator=loc_or_pixel, index=index)
 
-    def south(self, locator=None, index=1):
+    def south(self, loc_or_pixel=None, index=1):
         """获取元素下方某个指定元素
-        :param locator: 定位符，只支持str，且不支持xpath和css方式，传入int按像素距离获取
+        :param loc_or_pixel: 定位符，只支持str，且不支持xpath和css方式，传入int按像素距离获取
         :param index: 第几个，从1开始
         :return: 获取到的元素对象
         """
-        return self._get_relative_eles(mode='south', locator=locator, index=index)
+        return self._get_relative_eles(mode='south', locator=loc_or_pixel, index=index)
 
-    def west(self, locator=None, index=1):
+    def west(self, loc_or_pixel=None, index=1):
         """获取元素左边某个指定元素
-        :param locator: 定位符，只支持str，且不支持xpath和css方式，传入int按像素距离获取
+        :param loc_or_pixel: 定位符，只支持str，且不支持xpath和css方式，传入int按像素距离获取
         :param index: 第几个，从1开始
         :return: 获取到的元素对象
         """
-        return self._get_relative_eles(mode='west', locator=locator, index=index)
+        return self._get_relative_eles(mode='west', locator=loc_or_pixel, index=index)
 
-    def north(self, locator=None, index=1):
+    def north(self, loc_or_pixel=None, index=1):
         """获取元素上方某个指定元素
-        :param locator: 定位符，只支持str，且不支持xpath和css方式，传入int按像素距离获取
+        :param loc_or_pixel: 定位符，只支持str，且不支持xpath和css方式，传入int按像素距离获取
         :param index: 第几个，从1开始
         :return: 获取到的元素对象
         """
-        return self._get_relative_eles(mode='north', locator=locator, index=index)
+        return self._get_relative_eles(mode='north', locator=loc_or_pixel, index=index)
 
     def _get_relative_eles(self, mode='north', locator=None, index=1):
         """获取元素下方某个指定元素
@@ -445,7 +445,7 @@ class ChromiumElement(DrissionElement):
                 return NoneElement(page=self.owner, method=f'{mode}()', args={'locator': locator})
 
         num = 0
-        value = -3 if minus else 3
+        value = -8 if minus else 8
         size = self.owner.rect.size
         max_len = size[0] if mode == 'east' else size[1]
         loc_data = locator_to_tuple(locator) if locator else None

@@ -7,9 +7,10 @@
 """
 from ._elements.session_element import make_session_ele
 from ._functions.by import By
+from ._functions.elements import get_eles
 from ._functions.keys import Keys
 from ._functions.settings import Settings
-from ._functions.tools import wait_until, configs_to_here, get_eles
+from ._functions.tools import wait_until, configs_to_here
 from ._functions.web import get_blob, tree
 from ._pages.chromium_page import ChromiumPage
 from ._units.actions import Actions
