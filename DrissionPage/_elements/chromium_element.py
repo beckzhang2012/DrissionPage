@@ -368,7 +368,7 @@ class ChromiumElement(DrissionElement):
 
     def east(self, loc_or_pixel=None, index=1):
         """获取元素右边某个指定元素
-        :param loc_or_pixel: 定位符，只支持str，且不支持xpath和css方式，传入int按像素距离获取
+        :param loc_or_pixel: 定位符，只支持str或int，且不支持xpath和css方式，传入int按像素距离获取
         :param index: 第几个，从1开始
         :return: 获取到的元素对象
         """
@@ -376,7 +376,7 @@ class ChromiumElement(DrissionElement):
 
     def south(self, loc_or_pixel=None, index=1):
         """获取元素下方某个指定元素
-        :param loc_or_pixel: 定位符，只支持str，且不支持xpath和css方式，传入int按像素距离获取
+        :param loc_or_pixel: 定位符，只支持str或int，且不支持xpath和css方式，传入int按像素距离获取
         :param index: 第几个，从1开始
         :return: 获取到的元素对象
         """
@@ -384,7 +384,7 @@ class ChromiumElement(DrissionElement):
 
     def west(self, loc_or_pixel=None, index=1):
         """获取元素左边某个指定元素
-        :param loc_or_pixel: 定位符，只支持str，且不支持xpath和css方式，传入int按像素距离获取
+        :param loc_or_pixel: 定位符，只支持str或int，且不支持xpath和css方式，传入int按像素距离获取
         :param index: 第几个，从1开始
         :return: 获取到的元素对象
         """
@@ -392,7 +392,7 @@ class ChromiumElement(DrissionElement):
 
     def north(self, loc_or_pixel=None, index=1):
         """获取元素上方某个指定元素
-        :param loc_or_pixel: 定位符，只支持str，且不支持xpath和css方式，传入int按像素距离获取
+        :param loc_or_pixel: 定位符，只支持str或int，且不支持xpath和css方式，传入int按像素距离获取
         :param index: 第几个，从1开始
         :return: 获取到的元素对象
         """
@@ -400,7 +400,7 @@ class ChromiumElement(DrissionElement):
 
     def _get_relative_eles(self, mode='north', locator=None, index=1):
         """获取元素下方某个指定元素
-        :param locator: 定位符，只支持str，且不支持xpath和css方式
+        :param locator: 定位符，只支持str或int，且不支持xpath和css方式
         :param index: 第几个，从1开始
         :return: 获取到的元素对象
         """

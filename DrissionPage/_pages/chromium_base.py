@@ -478,7 +478,7 @@ class ChromiumBase(BasePage):
 
     def cookies(self, as_dict=False, all_domains=False, all_info=False):
         """返回cookies信息
-        :param as_dict: 为True时以dict格式返回，为False时返回list且all_info无效
+        :param as_dict: 为True时以dict格式返回且all_info无效，为False时返回list
         :param all_domains: 是否返回所有域的cookies
         :param all_info: 是否返回所有信息，为False时只返回name、value、domain
         :return: cookies信息
