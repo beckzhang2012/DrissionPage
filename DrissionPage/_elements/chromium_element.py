@@ -732,7 +732,7 @@ class ChromiumElement(DrissionElement):
             self.run_js('this.dispatchEvent(new Event("change", {bubbles: true}));')
             return
 
-        self.wait.clickable(timeout=.5)
+        self.wait.clickable(wait_moved=False, timeout=.5)
         if clear and vals not in ('\n', '\ue007'):
             self.clear(by_js=False)
         else:
