@@ -10,7 +10,6 @@ from pathlib import Path
 from threading import Lock
 from typing import Union, Tuple
 
-from ..errors import BaseError
 from .._pages.chromium_base import ChromiumBase
 
 
@@ -46,4 +45,4 @@ def wait_until(function: callable, kwargs: dict = None, timeout: float = 10): ..
 def configs_to_here(file_name: Union[Path, str] = None) -> None: ...
 
 
-def raise_error(result: dict, ignore: BaseError = None) -> None: ...
+def raise_error(result: dict, ignore=None) -> None: ...

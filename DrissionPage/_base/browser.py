@@ -5,7 +5,6 @@
 @Copyright: (c) 2024 by g1879, Inc. All Rights Reserved.
 @License  : BSD 3-Clause.
 """
-from os import waitpid
 from pathlib import Path
 from shutil import rmtree
 from time import perf_counter, sleep
@@ -135,7 +134,8 @@ class Browser(object):
     def tab_ids(self):
         """返回所有标签页id组成的列表"""
         j = self._driver.get(f'http://{self.address}/json').json()  # 不要改用cdp，因为顺序不对
-        return [i['id'] for i in j if i['type'] in ('page', 'webview') and not i['url'].startswith('devtools://')]
+        return [i['id'] for i in j if i['type'] in ('page', 'webview')
+                and not i['url'].startswith('devtools://')]
 
     @property
     def process_id(self):
@@ -143,7 +143,7 @@ class Browser(object):
         return self._process_id
 
     def find_tabs(self, title=None, url=None, tab_type=None):
-        """查找符合条件的tab，返回它们组成的列表
+        """查找符合条件的tab，返回它们组成的列表，title和url是与关系
         :param title: 要匹配title的文本
         :param url: 要匹配url的文本
         :param tab_type: tab类型，可用列表输入多个
@@ -274,10 +274,6 @@ class Browser(object):
 
             if ok:
                 break
-            sleep(.05)
-
-        if self.process_id:
-            waitpid(self.process_id, 0)
 
     def _on_disconnect(self):
         self.page._on_disconnect()
@@ -293,4 +289,4 @@ class Browser(object):
                     break
                 except (PermissionError, FileNotFoundError, OSError):
                     pass
-                sleep(.05)
+                sleep(.03)

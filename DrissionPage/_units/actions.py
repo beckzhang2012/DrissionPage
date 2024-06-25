@@ -24,6 +24,7 @@ class Actions:
         self.modifier = 0  # 修饰符，Alt=1, Ctrl=2, Meta/Command=4, Shift=8
         self.curr_x = 0  # 视口坐标
         self.curr_y = 0
+        self._holding = 'left'
 
     def move_to(self, ele_or_loc, offset_x=0, offset_y=0, duration=.5):
         """鼠标移动到元素中点，或页面上的某个绝对坐标。可设置偏移量
@@ -86,7 +87,7 @@ class Actions:
             t = perf_counter()
             self.curr_x = x
             self.curr_y = y
-            self._dr.run('Input.dispatchMouseEvent', type='mouseMoved',
+            self._dr.run('Input.dispatchMouseEvent', type='mouseMoved', button=self._holding,
                          x=self.curr_x, y=self.curr_y, modifiers=self.modifier)
             ss = .02 - perf_counter() + t
             if ss > 0:
@@ -140,7 +141,7 @@ class Actions:
         :return: self
         """
         if on_ele:
-            self.move_to(on_ele, duration=0)
+            self.move_to(on_ele, duration=.2)
         self._release('left')
         return self
 
@@ -158,7 +159,7 @@ class Actions:
         :return: self
         """
         if on_ele:
-            self.move_to(on_ele, duration=0)
+            self.move_to(on_ele, duration=.2)
         self._release('right')
         return self
 
@@ -176,7 +177,7 @@ class Actions:
         :return: self
         """
         if on_ele:
-            self.move_to(on_ele, duration=0)
+            self.move_to(on_ele, duration=.2)
         self._release('middle')
         return self
 
@@ -188,9 +189,10 @@ class Actions:
         :return: self
         """
         if on_ele:
-            self.move_to(on_ele, duration=0)
+            self.move_to(on_ele, duration=.2)
         self._dr.run('Input.dispatchMouseEvent', type='mousePressed', button=button, clickCount=count,
                      x=self.curr_x, y=self.curr_y, modifiers=self.modifier)
+        self._holding = button
         return self
 
     def _release(self, button):
@@ -200,17 +202,18 @@ class Actions:
         """
         self._dr.run('Input.dispatchMouseEvent', type='mouseReleased', button=button, clickCount=1,
                      x=self.curr_x, y=self.curr_y, modifiers=self.modifier)
+        self._holding = 'left'
         return self
 
-    def scroll(self, delta_x=0, delta_y=0, on_ele=None):
+    def scroll(self, delta_y=0, delta_x=0, on_ele=None):
         """滚动鼠标滚轮，可先移动到元素上
-        :param delta_x: 滚轮变化值x
         :param delta_y: 滚轮变化值y
+        :param delta_x: 滚轮变化值x
         :param on_ele: ChromiumElement元素
         :return: self
         """
         if on_ele:
-            self.move_to(on_ele, duration=0)
+            self.move_to(on_ele, duration=.2)
         self._dr.run('Input.dispatchMouseEvent', type='mouseWheel', x=self.curr_x, y=self.curr_y,
                      deltaX=delta_x, deltaY=delta_y, modifiers=self.modifier)
         return self

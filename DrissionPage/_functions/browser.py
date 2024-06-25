@@ -8,12 +8,11 @@
 from json import load, dump, JSONDecodeError
 from os import environ
 from pathlib import Path
-from platform import system
 from subprocess import Popen, DEVNULL
 from tempfile import gettempdir
 from time import perf_counter, sleep
 
-from requests import get as requests_get
+from requests import Session
 
 from .tools import port_is_using
 from .._configs.options_manage import OptionsManager
@@ -200,16 +199,21 @@ def test_connect(ip, port, timeout=30):
     :return: None
     """
     end_time = perf_counter() + timeout
+    s = Session()
+    s.trust_env = False
     while perf_counter() < end_time:
         try:
-            tabs = requests_get(f'http://{ip}:{port}/json', timeout=10, headers={'Connection': 'close'},
-                                proxies={'http': None, 'https': None}).json()
-            for tab in tabs:
+            r = s.get(f'http://{ip}:{port}/json', timeout=10, headers={'Connection': 'close'})
+            for tab in r.json():
                 if tab['type'] in ('page', 'webview'):
+                    r.close()
+                    s.close()
                     return
+            r.close()
         except Exception:
             sleep(.2)
 
+    s.close()
     raise BrowserConnectError(f'\n{ip}:{port}浏览器无法链接。\n请确认：\n1、该端口为浏览器\n'
                               f'2、已添加\'--remote-debugging-port={port}\'启动项\n'
                               f'3、用户文件夹没有和已打开的浏览器冲突\n'

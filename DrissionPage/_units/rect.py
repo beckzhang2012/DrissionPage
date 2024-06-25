@@ -16,7 +16,7 @@ class ElementRect(object):
 
     @property
     def corners(self):
-        """返回元素四个角坐标，顺序：坐上、右上、右下、左下，没有大小的元素抛出NoRectError"""
+        """返回元素四个角坐标，顺序：左上、右上、右下、左下，没有大小的元素抛出NoRectError"""
         vr = self._get_viewport_rect('border')
         r = self._ele.owner.run_cdp_loaded('Page.getLayoutMetrics')['visualViewport']
         sx = r['pageX']
@@ -25,7 +25,7 @@ class ElementRect(object):
 
     @property
     def viewport_corners(self):
-        """返回元素四个角视口坐标，顺序：坐上、右上、右下、左下，没有大小的元素抛出NoRectError"""
+        """返回元素四个角视口坐标，顺序：左上、右上、右下、左下，没有大小的元素抛出NoRectError"""
         r = self._get_viewport_rect('border')
         return (r[0], r[1]), (r[2], r[3]), (r[4], r[5]), (r[6], r[7])
 
@@ -225,10 +225,10 @@ class FrameRect(object):
 
     @property
     def corners(self):
-        """返回元素四个角坐标，顺序：坐上、右上、右下、左下"""
+        """返回元素四个角坐标，顺序：左上、右上、右下、左下"""
         return self._frame.frame_ele.rect.corners
 
     @property
     def viewport_corners(self):
-        """返回元素四个角视口坐标，顺序：坐上、右上、右下、左下"""
+        """返回元素四个角视口坐标，顺序：左上、右上、右下、左下"""
         return self._frame.frame_ele.rect.viewport_corners

@@ -14,7 +14,7 @@ from .cookies_setter import SessionCookiesSetter, CookiesSetter, WebPageCookiesS
 from .._functions.settings import Settings
 from .._functions.tools import show_or_hide_browser
 from .._functions.web import format_headers
-from ..errors import ElementLostError
+from ..errors import ElementLostError, JavaScriptError
 
 
 class BasePageSetter(object):
@@ -172,13 +172,6 @@ class ChromiumBaseSetter(BasePageSetter):
             raise TypeError('urls需传入str、list或tuple类型。')
         self._owner.run_cdp('Network.enable')
         self._owner.run_cdp('Network.setBlockedURLs', urls=urls)
-
-    # --------------即将废弃---------------
-
-    @property
-    def load_strategy(self):
-        """返回用于设置页面加载策略的对象"""
-        return LoadMode(self._owner)
 
 
 class TabSetter(ChromiumBaseSetter):
@@ -493,6 +486,17 @@ class ChromiumElementSetter(object):
         """
         value = value.replace('"', r'\"')
         self._ele.run_js(f'this.{name}="{value}";')
+
+    def style(self, name, value):
+        """设置元素style样式
+        :param name: 样式名称
+        :param value: 样式值
+        :return: None
+        """
+        try:
+            self._ele.run_js(f'this.style.{name}="{value}";')
+        except JavaScriptError:
+            raise ValueError(f'设置失败，请检查属性名{name}')
 
     def innerHTML(self, html):
         """设置元素innerHTML

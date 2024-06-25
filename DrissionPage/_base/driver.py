@@ -10,12 +10,12 @@ from queue import Queue, Empty
 from threading import Thread, Event
 from time import perf_counter, sleep
 
-from requests import get
+from requests import Session
 from websocket import (WebSocketTimeoutException, WebSocketConnectionClosedException, create_connection,
                        WebSocketException, WebSocketBadStatusException)
 
 from .._functions.settings import Settings
-from ..errors import PageDisconnectedError, TargetNotFoundError
+from ..errors import PageDisconnectedError
 
 
 class Driver(object):
@@ -201,13 +201,10 @@ class Driver(object):
         try:
             self._ws = create_connection(self._websocket_url, enable_multithread=True, suppress_origin=True)
         except WebSocketBadStatusException as e:
-            txt = str(e)
-            if 'No such target id' in txt:
-                raise TargetNotFoundError(f'找不到页面：{self.id}。')
-            elif 'Handshake status 403 Forbidden' in txt:
+            if 'Handshake status 403 Forbidden' in str(e):
                 raise RuntimeError('请升级websocket-client库。')
             else:
-                raise e
+                return
         self._recv_th.start()
         self._handle_event_th.start()
         return True
@@ -274,11 +271,13 @@ class BrowserDriver(Driver):
         self._created = True
         BrowserDriver.BROWSERS[tab_id] = self
         super().__init__(tab_id, tab_type, address, owner)
+        self._control_session = Session()
+        self._control_session.trust_env = False
 
     def __repr__(self):
         return f'<BrowserDriver {self.id}>'
 
     def get(self, url):
-        r = get(url, headers={'Connection': 'close'})
+        r = self._control_session.get(url, headers={'Connection': 'close'})
         r.close()
         return r

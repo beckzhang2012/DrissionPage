@@ -8,9 +8,12 @@
 from datetime import datetime
 from html import unescape
 from http.cookiejar import Cookie, CookieJar
-from re import sub
+from os.path import sep
+from pathlib import Path
+from re import sub, match
 from urllib.parse import urlparse, urljoin, urlunparse
 
+from DataRecorder.tools import make_valid_name
 from tldextract import extract
 
 
@@ -138,8 +141,11 @@ def make_absolute_link(link, baseURI=None):
     if not link:
         return link
 
-    link = link.strip()
+    link = link.strip().replace('\\', '/')
     parsed = urlparse(link)._asdict()
+    if baseURI:
+        p = urlparse(baseURI)._asdict()
+        baseURI = f'{p["scheme"]}://{p["netloc"]}'
 
     # 是相对路径，与页面url拼接并返回
     if not parsed['netloc']:
@@ -207,7 +213,16 @@ def cookies_to_tuple(cookies):
 
     elif isinstance(cookies, str):
         c_dict = {}
-        for attr in cookies.strip().rstrip(';, ').split(',' if ',' in cookies else ';'):
+        cookies = cookies.rstrip('; ')
+        cookies = cookies.split(';')
+        # r = match(r'.*?=([^=]+)=', cookies)
+        # if not r:  # 只有一个
+        #     cookies = [cookies.rstrip(',;')]
+        # else:
+        #     s = match(r'.*([,;]).*', r.group(1)).group(1)
+        #     cookies = cookies.rstrip(s).split(s)
+
+        for attr in cookies:
             attr_val = attr.strip().split('=', 1)
             c_dict[attr_val[0]] = attr_val[1] if len(attr_val) == 2 else True
         cookies = _dict_cookies_to_tuple(c_dict)
@@ -314,8 +329,7 @@ def set_browser_cookies(page, cookies):
                 tmp.append(i)
 
         for i in range(len(tmp)):
-            d = ''.join(tmp[i:])
-            cookie['domain'] = d
+            cookie['domain'] = ''.join(tmp[i:])
             page.run_cdp_loaded('Network.setCookie', **cookie)
             if is_cookie_in_driver(page, cookie):
                 break
@@ -374,9 +388,92 @@ def get_blob(page, url, as_bytes=True):
         return result
 
 
-def tree(ele_or_page):
+def save_page(tab, path=None, name=None, as_pdf=False, kwargs=None):
+    """把当前页面保存为文件，如果path和name参数都为None，只返回文本
+    :param tab: Tab或Page对象
+    :param path: 保存路径，为None且name不为None时保存在当前路径
+    :param name: 文件名，为None且path不为None时用title属性值
+    :param as_pdf: 为Ture保存为pdf，否则为mhtml且忽略kwargs参数
+    :param kwargs: pdf生成参数
+    :return: as_pdf为True时返回bytes，否则返回文件文本
+    """
+    if name:
+        if name.endswith('.pdf'):
+            name = name[:-4]
+            as_pdf = True
+        elif name.endswith('.mhtml'):
+            name = name[:-6]
+            as_pdf = False
+
+    if path:
+        path = Path(path)
+        if path.suffix.lower() == '.mhtml':
+            name = path.stem
+            path = path.parent
+            as_pdf = False
+        elif path.suffix.lower() == '.pdf':
+            name = path.stem
+            path = path.parent
+            as_pdf = True
+
+    return get_pdf(tab, path, name, kwargs) if as_pdf else get_mhtml(tab, path, name)
+
+
+def get_mhtml(page, path=None, name=None):
+    """把当前页面保存为mhtml文件，如果path和name参数都为None，只返回mhtml文本
+    :param page: 要保存的页面对象
+    :param path: 保存路径，为None且name不为None时保存在当前路径
+    :param name: 文件名，为None且path不为None时用title属性值
+    :return: mhtml文本
+    """
+    r = page.run_cdp('Page.captureSnapshot')['data']
+    if path is None and name is None:
+        return r
+
+    path = path or '.'
+    Path(path).mkdir(parents=True, exist_ok=True)
+    name = make_valid_name(name or page.title)
+    with open(f'{path}{sep}{name}.mhtml', 'w', encoding='utf-8') as f:
+        f.write(r.replace('\r\n', '\n'))
+    return r
+
+
+def get_pdf(page, path=None, name=None, kwargs=None):
+    """把当前页面保存为pdf文件，如果path和name参数都为None，只返回字节
+    :param page: 要保存的页面对象
+    :param path: 保存路径，为None且name不为None时保存在当前路径
+    :param name: 文件名，为None且path不为None时用title属性值
+    :param kwargs: pdf生成参数
+    :return: pdf文本
+    """
+    if not kwargs:
+        kwargs = {}
+    kwargs['transferMode'] = 'ReturnAsBase64'
+    if 'printBackground' not in kwargs:
+        kwargs['printBackground'] = True
+    try:
+        r = page.run_cdp('Page.printToPDF', **kwargs)['data']
+    except:
+        raise RuntimeError('保存失败，可能浏览器版本不支持。')
+    from base64 import b64decode
+    r = b64decode(r)
+    if path is None and name is None:
+        return r
+
+    path = path or '.'
+    Path(path).mkdir(parents=True, exist_ok=True)
+    name = make_valid_name(name or page.title)
+    with open(f'{path}{sep}{name}.pdf', 'wb') as f:
+        f.write(r)
+    return r
+
+
+def tree(ele_or_page, text=False, show_js=False, show_css=False):
     """把页面或元素对象DOM结构打印出来
     :param ele_or_page: 页面或元素对象
+    :param text: 是否打印文本，输入数字可指定打印文本长度上线
+    :param show_js: 打印文本时是否包含<script>内文本，text参数为False时无效
+    :param show_css: 打印文本时是否包含<style>内文本，text参数为False时无效
     :return: None
     """
 
@@ -396,13 +493,33 @@ def tree(ele_or_page):
                 e = list_ele[i]
 
                 attrs = ' '.join([f"{k}='{v}'" for k, v in e.attrs.items()])
-                print(f'{new_body}{tail}<{e.tag} {attrs}>'.replace('\n', ' '))
+                show_text = f'{new_body}{tail}<{e.tag} {attrs}>'.replace('\n', ' ')
+                if text:
+                    t = e('x:/text()')
+                    if t:
+                        t = t.replace('\n', ' ')
+                        if (e.tag not in ('script', 'style') or (e.tag == 'script' and show_js)
+                                or (e.tag == 'style' and show_css)):
+                            if text is not True:
+                                t = t[:text]
+                            show_text = f'{show_text} {t}'
+                print(show_text)
 
                 _tree(e, new_last_one, new_body)
 
     ele = ele_or_page.s_ele()
     attrs = ' '.join([f"{k}='{v}'" for k, v in ele.attrs.items()])
-    print(f'<{ele.tag} {attrs}>'.replace('\n', ' '))
+    show_text = f'<{ele.tag} {attrs}>'.replace('\n', ' ')
+    if text:
+        t = ele('x:/text()')
+        if t:
+            t = t.replace('\n', ' ')
+            if (ele.tag not in ('script', 'style') or (ele.tag == 'script' and show_js)
+                    or (ele.tag == 'style' and show_css)):
+                if text is not True:
+                    t = t[:text]
+                show_text = f'{show_text} {t}'
+    print(show_text)
     _tree(ele)
 
 

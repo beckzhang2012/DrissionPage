@@ -6,7 +6,8 @@
 @License  : BSD 3-Clause.
 """
 from http.cookiejar import Cookie
-from typing import Union
+from pathlib import Path
+from typing import Union, Optional
 
 from requests import Session
 from requests.cookies import RequestsCookieJar
@@ -14,6 +15,8 @@ from requests.cookies import RequestsCookieJar
 from .._base.base import DrissionElement, BaseParser
 from .._elements.chromium_element import ChromiumElement
 from .._pages.chromium_base import ChromiumBase
+from .._pages.chromium_page import ChromiumPage
+from .._pages.chromium_tab import ChromiumTab
 
 
 def get_ele_txt(e: DrissionElement) -> str: ...
@@ -52,7 +55,28 @@ def is_cookie_in_driver(page: ChromiumBase, cookie: dict) -> bool: ...
 def get_blob(page: ChromiumBase, url: str, as_bytes: bool = True) -> bytes: ...
 
 
-def tree(ele_or_page: BaseParser) -> None: ...
+def save_page(tab: Union[ChromiumPage, ChromiumTab],
+              path: Union[Path, str, None] = None,
+              name: Optional[str] = None,
+              as_pdf: bool = False,
+              kwargs: dict = None) -> Union[bytes, str]: ...
+
+
+def get_mhtml(page: Union[ChromiumPage, ChromiumTab],
+              path: Optional[Path] = None,
+              name: Optional[str] = None) -> Union[bytes, str]: ...
+
+
+def get_pdf(page: Union[ChromiumPage, ChromiumTab],
+            path: Optional[Path] = None,
+            name: Optional[str] = None,
+            kwargs: dict = None) -> Union[bytes, str]: ...
+
+
+def tree(ele_or_page: BaseParser,
+         text: Union[int, bool] = False,
+         show_js: bool = False,
+         show_css: bool = False) -> None: ...
 
 
 def format_headers(txt: str) -> dict: ...

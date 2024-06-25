@@ -9,7 +9,7 @@ from queue import Queue
 from threading import Thread, Event
 from typing import Union, Callable, Dict, Optional
 
-from requests import Response
+from requests import Response, Session
 from websocket import WebSocket
 
 from .browser import Browser
@@ -68,14 +68,10 @@ class Driver(object):
 class BrowserDriver(Driver):
     BROWSERS: Dict[str, Driver] = ...
     owner: Browser = ...
+    _control_session: Session = ...
 
     def __new__(cls, tab_id: str, tab_type: str, address: str, owner: Browser): ...
 
-    def __init__(self, tab_id: str, tab_type: str, address: str, owner: Browser):
-        """
-
-        :rtype: object
-        """
-        ...
+    def __init__(self, tab_id: str, tab_type: str, address: str, owner: Browser): ...
 
     def get(self, url) -> Response: ...

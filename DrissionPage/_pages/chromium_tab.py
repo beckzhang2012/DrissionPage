@@ -11,8 +11,8 @@ from time import sleep
 from .._base.base import BasePage
 from .._configs.session_options import SessionOptions
 from .._functions.settings import Settings
-from .._functions.web import set_session_cookies, set_browser_cookies
-from .._pages.chromium_base import ChromiumBase, get_mhtml, get_pdf
+from .._functions.web import set_session_cookies, set_browser_cookies, save_page
+from .._pages.chromium_base import ChromiumBase
 from .._pages.session_page import SessionPage
 from .._units.setter import TabSetter, WebPageTabSetter
 from .._units.waiter import TabWaiter
@@ -91,7 +91,7 @@ class ChromiumTab(ChromiumBase):
         :param kwargs: pdf生成参数
         :return: as_pdf为True时返回bytes，否则返回文件文本
         """
-        return get_pdf(self, path, name, kwargs) if as_pdf else get_mhtml(self, path, name)
+        return save_page(self, path, name, as_pdf, kwargs)
 
     def __repr__(self):
         return f'<ChromiumTab browser_id={self.browser.id} tab_id={self.tab_id}>'
@@ -399,7 +399,3 @@ class WebPageTab(SessionPage, ChromiumTab, BasePage):
 
     def __repr__(self):
         return f'<WebPageTab browser_id={self.browser.id} tab_id={self.tab_id}>'
-
-    # --------即将废弃-------
-    def get_cookies(self, as_dict=False, all_domains=False, all_info=False):
-        return self.cookies(as_dict=as_dict, all_domains=all_domains, all_info=all_info)

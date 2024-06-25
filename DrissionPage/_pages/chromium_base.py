@@ -30,7 +30,7 @@ from .._units.scroller import PageScroller
 from .._units.setter import ChromiumBaseSetter
 from .._units.states import PageStates
 from .._units.waiter import BaseWaiter
-from ..errors import ContextLostError, CDPError, PageDisconnectedError, ElementNotFoundError, ElementLostError
+from ..errors import ContextLostError, CDPError, PageDisconnectedError, ElementLostError
 
 __ERROR__ = 'error'
 
@@ -478,7 +478,7 @@ class ChromiumBase(BasePage):
 
     def cookies(self, as_dict=False, all_domains=False, all_info=False):
         """返回cookies信息
-        :param as_dict: 为True时以dict格式返回，为False时返回list且all_info无效
+        :param as_dict: 为True时以dict格式返回且all_info无效，为False时返回list
         :param all_domains: 是否返回所有域的cookies
         :param all_info: 是否返回所有信息，为False时只返回name、value、domain
         :return: cookies信息
@@ -517,14 +517,7 @@ class ChromiumBase(BasePage):
         :param index: 获取第几个，从1开始，可传入负数获取倒数第几个
         :return: SessionElement对象或属性、文本
         """
-        r = make_session_ele(self, locator, index=index)
-        if isinstance(r, NoneElement):
-            if Settings.raise_when_ele_not_found:
-                raise ElementNotFoundError(None, 's_ele()', {'locator': locator})
-            else:
-                r.method = 's_ele()'
-                r.args = {'locator': locator}
-        return r
+        return make_session_ele(self, locator, index=index, method='s_ele()')
 
     def s_eles(self, locator):
         """查找所有符合条件的元素以SessionElement列表形式返回
@@ -585,6 +578,9 @@ class ChromiumBase(BasePage):
                             if r is not False:
                                 break
 
+                    elif nIds[__ERROR__] == 'connection disconnected':
+                        raise PageDisconnectedError
+
             if perf_counter() >= end_time:
                 return NoneElement(self) if index is not None else []
 
@@ -592,9 +588,11 @@ class ChromiumBase(BasePage):
             timeout = end_time - perf_counter()
             timeout = .5 if timeout <= 0 else timeout
             result = self.driver.run('DOM.performSearch', query=loc, _timeout=timeout, includeUserAgentShadowDOM=True)
-            if not result or __ERROR__ not in result:
+            if result and __ERROR__ not in result:
                 num = result['resultCount']
                 search_ids.append(result['searchId'])
+            elif result and result[__ERROR__] == 'connection disconnected':
+                raise PageDisconnectedError
 
         for _id in search_ids:
             self._driver.run('DOM.discardSearchResults', searchId=_id)
@@ -1065,7 +1063,7 @@ class ChromiumBase(BasePage):
                     name = f'{self.title}.jpg'
                 elif not name.endswith(('.jpg', '.jpeg', '.png', '.webp')):
                     name = f'{name}.jpg'
-                path = f'{path}{sep}{name}'
+                path = f'{path}{sep}{make_valid_name(name)}'
 
             path = Path(path)
             pic_type = path.suffix.lower()
@@ -1116,50 +1114,6 @@ class ChromiumBase(BasePage):
         with open(path, 'wb') as f:
             f.write(png)
         return str(path.absolute())
-
-    # --------------------即将废弃---------------------
-
-    @property
-    def page_load_strategy(self):
-        return self._load_mode
-
-    @property
-    def is_alive(self):
-        return self.states.is_alive
-
-    @property
-    def is_loading(self):
-        """返回页面是否正在加载状态"""
-        return self._is_loading
-
-    @property
-    def ready_state(self):
-        return self._ready_state
-
-    @property
-    def size(self):
-        """返回页面总宽高，格式：(宽, 高)"""
-        return self.rect.size
-
-    def get_session_storage(self, item=None):
-        return self.session_storage(item)
-
-    def get_local_storage(self, item=None):
-        return self.local_storage(item)
-
-    def get_cookies(self, as_dict=False, all_domains=False, all_info=False):
-        return self.cookies(as_dict=as_dict, all_domains=all_domains, all_info=all_info)
-
-    def upload(self, loc_or_ele, file_paths, by_js=False):
-        """触发上传文件选择框并自动填入指定路径
-        :param loc_or_ele: 被点击后会触发文件选择框的元素或它的定位符
-        :param file_paths: 文件路径，如果上传框支持多文件，可传入列表或字符串，字符串时多个文件用回车分隔
-        :param by_js: 是否用js方式点击
-        :return: None
-        """
-        self.set.upload_files(file_paths)
-        self.ele(loc_or_ele).click(by_js=by_js)
-        self.wait.upload_paths_inputted()
 
 
 class Timeout(object):
@@ -1228,50 +1182,3 @@ def close_privacy_dialog(page, tid):
 
     except:
         pass
-
-
-def get_mhtml(page, path=None, name=None):
-    """把当前页面保存为mhtml文件，如果path和name参数都为None，只返回mhtml文本
-    :param page: 要保存的页面对象
-    :param path: 保存路径，为None且name不为None时保存在当前路径
-    :param name: 文件名，为None且path不为None时用title属性值
-    :return: mhtml文本
-    """
-    r = page.run_cdp('Page.captureSnapshot')['data']
-    if path is None and name is None:
-        return r
-    path = path or '.'
-    Path(path).mkdir(parents=True, exist_ok=True)
-    name = make_valid_name(name or page.title)
-    with open(f'{path}{sep}{name}.mhtml', 'w', encoding='utf-8') as f:
-        f.write(r.replace('\r\n', '\n'))
-    return r
-
-
-def get_pdf(page, path=None, name=None, kwargs=None):
-    """把当前页面保存为pdf文件，如果path和name参数都为None，只返回字节
-    :param page: 要保存的页面对象
-    :param path: 保存路径，为None且name不为None时保存在当前路径
-    :param name: 文件名，为None且path不为None时用title属性值
-    :param kwargs: pdf生成参数
-    :return: pdf文本
-    """
-    if not kwargs:
-        kwargs = {}
-    kwargs['transferMode'] = 'ReturnAsBase64'
-    if 'printBackground' not in kwargs:
-        kwargs['printBackground'] = True
-    try:
-        r = page.run_cdp('Page.printToPDF', **kwargs)['data']
-    except:
-        raise RuntimeError('保存失败，可能浏览器版本不支持。')
-    from base64 import b64decode
-    r = b64decode(r)
-    if path is None and name is None:
-        return r
-    path = path or '.'
-    Path(path).mkdir(parents=True, exist_ok=True)
-    name = make_valid_name(name or page.title)
-    with open(f'{path}{sep}{name}.pdf', 'wb') as f:
-        f.write(r)
-    return r
