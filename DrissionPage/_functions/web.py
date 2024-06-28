@@ -10,7 +10,7 @@ from html import unescape
 from http.cookiejar import Cookie, CookieJar
 from os.path import sep
 from pathlib import Path
-from re import sub, match
+from re import sub
 from urllib.parse import urlparse, urljoin, urlunparse
 
 from DataRecorder.tools import make_valid_name
@@ -144,8 +144,11 @@ def make_absolute_link(link, baseURI=None):
     link = link.strip().replace('\\', '/')
     parsed = urlparse(link)._asdict()
     if baseURI:
-        p = urlparse(baseURI)._asdict()
-        baseURI = f'{p["scheme"]}://{p["netloc"]}'
+        if link.startswith('./'):
+            baseURI = baseURI[:baseURI.rfind('/') + 1]
+        else:
+            p = urlparse(baseURI)._asdict()
+            baseURI = f'{p["scheme"]}://{p["netloc"]}'
 
     # 是相对路径，与页面url拼接并返回
     if not parsed['netloc']:
