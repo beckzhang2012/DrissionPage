@@ -54,7 +54,7 @@ class BaseElement(BaseParser):
 
     def __init__(self, owner=None):
         self.owner = owner
-        self.page = owner._page if owner else None
+        # self.page = owner._page if owner else None
         self._type = 'BaseElement'
 
     # ----------------以下属性或方法由后代实现----------------
@@ -365,11 +365,6 @@ class BasePage(BaseParser):
     def timeout(self):
         """返回查找元素时等待的秒数"""
         return self._timeout
-
-    @timeout.setter
-    def timeout(self, second):
-        """设置查找元素时等待的秒数"""
-        self._timeout = second
 
     @property
     def url_available(self):

@@ -6,7 +6,7 @@
 @License  : BSD 3-Clause.
 """
 from .chromium_page import ChromiumPage
-from .chromium_tab import WebPageTab
+from .chromium_tab import MixTab
 from .session_page import SessionPage
 from .._base.base import BasePage
 from .._configs.chromium_options import ChromiumOptions
@@ -149,14 +149,6 @@ class WebPage(SessionPage, ChromiumPage, BasePage):
     def timeout(self):
         """返回通用timeout设置"""
         return self.timeouts.base
-
-    @timeout.setter
-    def timeout(self, second):
-        """设置通用超时时间
-        :param second: 秒数
-        :return: None
-        """
-        self.set.timeouts(base=second)
 
     def get(self, url, show_errmsg=False, retry=None, interval=None, timeout=None, **kwargs):
         """跳转到一个url
@@ -321,7 +313,7 @@ class WebPage(SessionPage, ChromiumPage, BasePage):
                 id_or_num = id_or_num
             elif isinstance(id_or_num, int):
                 id_or_num = self.tab_ids[id_or_num - 1 if id_or_num > 0 else id_or_num]
-            elif isinstance(id_or_num, WebPageTab):
+            elif isinstance(id_or_num, MixTab):
                 return id_or_num.tab_id if as_id else id_or_num
 
         elif title == url == tab_type is None:
@@ -338,7 +330,7 @@ class WebPage(SessionPage, ChromiumPage, BasePage):
             return id_or_num
 
         with self._lock:
-            return WebPageTab(self, id_or_num)
+            return MixTab(self, id_or_num)
 
     def get_tabs(self, title=None, url=None, tab_type='page', as_id=False):
         """查找符合条件的tab，返回它们组成的列表
@@ -351,7 +343,7 @@ class WebPage(SessionPage, ChromiumPage, BasePage):
         if as_id:
             return [tab['id'] for tab in self._browser.find_tabs(title, url, tab_type)]
         with self._lock:
-            return [WebPageTab(self, tab['id']) for tab in self._browser.find_tabs(title, url, tab_type)]
+            return [MixTab(self, tab['id']) for tab in self._browser.find_tabs(title, url, tab_type)]
 
     def new_tab(self, url=None, new_window=False, background=False, new_context=False):
         """新建一个标签页
@@ -361,7 +353,7 @@ class WebPage(SessionPage, ChromiumPage, BasePage):
         :param new_context: 是否创建新的上下文
         :return: 新标签页对象
         """
-        tab = WebPageTab(self, tab_id=self.browser.new_tab(new_window, background, new_context))
+        tab = MixTab(self, tab_id=self.browser.new_tab(new_window, background, new_context))
         if url:
             tab.get(url)
         return tab

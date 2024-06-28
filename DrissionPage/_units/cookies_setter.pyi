@@ -9,7 +9,7 @@ from http.cookiejar import Cookie, CookieJar
 from typing import Union
 
 from .._pages.chromium_base import ChromiumBase
-from .._pages.chromium_tab import WebPageTab
+from .._pages.chromium_tab import MixTab
 from .._pages.session_page import SessionPage
 from .._pages.web_page import WebPage
 
@@ -39,7 +39,7 @@ class SessionCookiesSetter(object):
 
 
 class WebPageCookiesSetter(CookiesSetter, SessionCookiesSetter):
-    _owner: Union[WebPage, WebPageTab]
+    _owner: Union[WebPage, MixTab]
 
     def __init__(self, page: SessionPage): ...
 

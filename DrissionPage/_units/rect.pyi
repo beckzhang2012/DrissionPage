@@ -12,7 +12,7 @@ from .._elements.chromium_element import ChromiumElement
 from .._pages.chromium_base import ChromiumBase
 from .._pages.chromium_frame import ChromiumFrame
 from .._pages.chromium_page import ChromiumPage
-from .._pages.chromium_tab import ChromiumTab, WebPageTab
+from .._pages.chromium_tab import ChromiumTab, MixTab
 from .._pages.web_page import WebPage
 
 
@@ -63,7 +63,7 @@ class ElementRect(object):
 
 class TabRect(object):
     def __init__(self, owner: ChromiumBase):
-        self._owner: Union[ChromiumPage, ChromiumTab, WebPage, WebPageTab] = ...
+        self._owner: Union[ChromiumPage, ChromiumTab, WebPage, MixTab] = ...
 
     @property
     def window_state(self) -> str: ...

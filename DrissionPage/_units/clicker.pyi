@@ -10,7 +10,7 @@ from typing import Union
 
 from .downloader import DownloadMission
 from .._elements.chromium_element import ChromiumElement
-from .._pages.chromium_tab import WebPageTab, ChromiumTab
+from .._pages.chromium_tab import MixTab, ChromiumTab
 
 
 class Clicker(object):
@@ -23,7 +23,7 @@ class Clicker(object):
 
     def right(self) -> None: ...
 
-    def middle(self, get_tab: bool = True) -> Union[ChromiumTab, WebPageTab, None]: ...
+    def middle(self, get_tab: bool = True) -> Union[ChromiumTab, MixTab, None]: ...
 
     def at(self,
            offset_x: float = None,
@@ -43,6 +43,6 @@ class Clicker(object):
 
     def to_upload(self, file_paths: Union[str, Path, list, tuple], by_js: bool = False) -> None: ...
 
-    def for_new_tab(self, by_js: bool = False) -> Union[ChromiumTab, WebPageTab]: ...
+    def for_new_tab(self, by_js: bool = False, timeout: float = 3) -> Union[ChromiumTab, MixTab]: ...
 
     def _click(self, client_x: float, client_y: float, button: str = 'left', count: int = 1) -> None: ...

@@ -184,7 +184,7 @@ class TabRect(object):
 
     def _get_window_rect(self):
         """获取窗口范围信息"""
-        return self._owner.browser.get_window_bounds(self._owner.tab_id)
+        return self._owner.browser._driver.run('Browser.getWindowForTarget', targetId=self._owner.tab_id)['bounds']
 
 
 class FrameRect(object):

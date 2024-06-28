@@ -8,6 +8,7 @@
 from typing import Union, Tuple, Literal, List
 
 from .downloader import DownloadMission
+from .._base.browser import Browser
 from .._elements.chromium_element import ChromiumElement
 from .._pages.chromium_base import ChromiumBase
 from .._pages.chromium_frame import ChromiumFrame
@@ -16,6 +17,17 @@ from .._pages.chromium_page import ChromiumPage
 
 class OriginWaiter(object):
     def __call__(self, second: float, scope: float = None) -> None: ...
+
+
+class BrowserWaiter(OriginWaiter):
+    def __init__(self, owner: Browser):
+        self._owner = owner
+
+    def download_begin(self, timeout: float = None, cancel_it: bool = False) -> DownloadMission: ...
+
+    def new_tab(self, timeout: float = None, curr_tab: str = None, raise_err: bool = None) -> Union[str, bool]: ...
+
+    def all_downloads_done(self, timeout: float = None, cancel_if_timeout: bool = True): ...
 
 
 class BaseWaiter(OriginWaiter):

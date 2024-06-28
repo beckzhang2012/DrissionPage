@@ -120,12 +120,13 @@ class Clicker(object):
         """
         self._ele.owner.scroll.to_see(self._ele)
         x, y = self._ele.rect.viewport_click_point
+        curr_tid = self._ele.tab.browser.tab_ids[0]
         self._click(x, y, 'middle')
         if get_tab:
-            tid = self._ele.page.wait.new_tab()
+            tid = self._ele.tab.browser.wait.new_tab(curr_tab=curr_tid)
             if not tid:
                 raise RuntimeError('没有出现新标签页。')
-            return self._ele.page.get_tab(tid)
+            return self._ele.tab.browser.get_tab(tid)
 
     def at(self, offset_x=None, offset_y=None, button='left', count=1):
         """带偏移量点击本元素，相对于左上角坐标。不传入x或y值时点击元素中间点
@@ -162,16 +163,15 @@ class Clicker(object):
         """
         if save_path:
             self._ele.owner.tab.set.download_path(save_path)
-        elif not self._ele.page._browser._dl_mgr._running:
-            self._ele.page.set.download_path('.')
+        elif not self._ele.tab._browser._dl_mgr._running:
+            self._ele.owner.tab._browser.set.download_path('.')
 
+        obj = self._ele.tab._browser if new_tab else self._ele.owner.tab
         if rename or suffix:
-            self._ele.owner.tab.set.download_file_name(rename, suffix)
-
-        tab = self._ele.page if new_tab else self._ele.owner
+            obj.set.download_file_name(rename, suffix)
 
         self.left(by_js=by_js)
-        return tab.wait.download_begin(timeout=timeout)
+        return obj.wait.download_begin(timeout=timeout)
 
     def to_upload(self, file_paths, by_js=False):
         """触发上传文件选择框并自动填入指定路径
@@ -183,16 +183,18 @@ class Clicker(object):
         self.left(by_js=by_js)
         self._ele.owner.wait.upload_paths_inputted()
 
-    def for_new_tab(self, by_js=False):
+    def for_new_tab(self, by_js=False, timeout=3):
         """点击后等待新tab出现并返回其对象
         :param by_js: 是否使用js点击，逻辑与click()一致
+        :param timeout: 等待超时时间
         :return: 新标签页对象，如果没有等到新标签页出现则抛出异常
         """
+        curr_tid = self._ele.tab.browser.tab_ids[0]
         self.left(by_js=by_js)
-        tid = self._ele.page.wait.new_tab()
+        tid = self._ele.tab.browser.wait.new_tab(timeout=timeout, curr_tab=curr_tid)
         if not tid:
             raise RuntimeError('没有出现新标签页。')
-        return self._ele.page.get_tab(tid)
+        return self._ele.tab.browser.get_tab(tid)
 
     def _click(self, client_x, client_y, button='left', count=1):
         """实施点击

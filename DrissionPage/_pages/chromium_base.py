@@ -38,11 +38,10 @@ __ERROR__ = 'error'
 class ChromiumBase(BasePage):
     """标签页、frame、页面基类"""
 
-    def __init__(self, address, tab_id=None, timeout=None):
+    def __init__(self, address, tab_id=None):
         """
         :param address: 浏览器 ip:port
         :param tab_id: 要控制的标签页id，不指定默认为激活的
-        :param timeout: 超时时间（秒）
         """
         super().__init__()
         self._is_loading = None
@@ -71,8 +70,6 @@ class ChromiumBase(BasePage):
         self._d_set_start_options(address)
         self._d_set_runtime_settings()
         self._connect_browser(tab_id)
-        if timeout is not None:
-            self.timeout = timeout
 
     def _d_set_start_options(self, address):
         """设置浏览器启动属性
@@ -93,7 +90,7 @@ class ChromiumBase(BasePage):
         self._is_reading = False
 
         if not tab_id:
-            tabs = self.browser.driver.get(f'http://{self.address}/json').json()
+            tabs = self.browser._driver.get(f'http://{self.address}/json').json()
             tabs = [(i['id'], i['url']) for i in tabs
                     if i['type'] in ('page', 'webview') and not i['url'].startswith('devtools://')]
             dialog = None
@@ -861,7 +858,8 @@ class ChromiumBase(BasePage):
     def disconnect(self):
         """断开与页面的连接，不关闭页面"""
         if self._driver:
-            self.browser.stop_driver(self._driver)
+            self._driver.stop()
+            self.browser._all_drivers.get(self._driver.id, set()).discard(self._driver)
 
     def reconnect(self, wait=0):
         """断开与页面原来的页面，重新建立连接
@@ -1119,15 +1117,12 @@ class ChromiumBase(BasePage):
 class Timeout(object):
     """用于保存d模式timeout信息的类"""
 
-    def __init__(self, page, base=None, page_load=None, script=None, implicit=None):
+    def __init__(self, base=None, page_load=None, script=None):
         """
-        :param page: ChromiumBase页面
         :param base: 默认超时时间
         :param page_load: 页面加载超时时间
         :param script: js超时时间
         """
-        self._page = page
-        base = base if base is not None else implicit
         self.base = 10 if base is None else base
         self.page_load = 30 if page_load is None else page_load
         self.script = 30 if script is None else script

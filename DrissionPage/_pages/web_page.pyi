@@ -11,7 +11,7 @@ from requests import Session, Response
 
 from .chromium_frame import ChromiumFrame
 from .chromium_page import ChromiumPage
-from .chromium_tab import WebPageTab
+from .chromium_tab import MixTab
 from .session_page import SessionPage
 from .._base.base import BasePage
 from .._base.driver import Driver
@@ -129,23 +129,23 @@ class WebPage(SessionPage, ChromiumPage, BasePage):
                 all_info: bool = False) -> Union[dict, list]: ...
 
     def get_tab(self,
-                id_or_num: Union[str, WebPageTab, int] = None,
+                id_or_num: Union[str, MixTab, int] = None,
                 title: str = None,
                 url: str = None,
                 tab_type: Union[str, list, tuple] = 'page',
-                as_id: bool = False) -> Union[WebPageTab, str, None]: ...
+                as_id: bool = False) -> Union[MixTab, str, None]: ...
 
     def get_tabs(self,
                  title: str = None,
                  url: str = None,
                  tab_type: Union[str, list, tuple] = 'page',
-                 as_id: bool = False) -> Union[List[WebPageTab], List[str]]: ...
+                 as_id: bool = False) -> Union[List[MixTab], List[str]]: ...
 
     def new_tab(self,
                 url: str = None,
                 new_window: bool = False,
                 background: bool = False,
-                new_context: bool = False) -> WebPageTab: ...
+                new_context: bool = False) -> MixTab: ...
 
     def close_driver(self) -> None: ...
 
@@ -175,7 +175,7 @@ class WebPage(SessionPage, ChromiumPage, BasePage):
              cert: Any | None = ...) -> Union[bool, Response]: ...
 
     @property
-    def latest_tab(self) -> Union[WebPageTab, WebPage]: ...
+    def latest_tab(self) -> Union[MixTab, WebPage]: ...
 
     @property
     def set(self) -> WebPageSetter: ...

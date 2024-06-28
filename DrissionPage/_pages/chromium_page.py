@@ -34,19 +34,16 @@ class ChromiumPage(ChromiumBase):
         :param tab_id: 要控制的标签页id，不指定默认为激活的
         :param timeout: 超时时间（秒）
         """
-        opt = handle_options(addr_or_opts)
-        is_exist, browser_id = run_browser(opt)
-        if browser_id in cls._PAGES:
-            r = cls._PAGES[browser_id]
+        browser = Browser(addr_or_opts=addr_or_opts)
+        if browser.id in cls._PAGES:
+            r = cls._PAGES[browser.id]
             while not hasattr(r, '_frame_id'):
                 sleep(.1)
             return r
+
         r = object.__new__(cls)
-        r._chromium_options = opt
-        r._is_exist = is_exist
-        r._browser_id = browser_id
-        r.address = opt.address
-        cls._PAGES[browser_id] = r
+        r._browser = browser
+        cls._PAGES[browser.id] = r
         return r
 
     def __init__(self, addr_or_opts=None, tab_id=None, timeout=None):
@@ -59,12 +56,9 @@ class ChromiumPage(ChromiumBase):
             return
         self._created = True
 
-        self._page = self
         self.tab = self
-        self._run_browser()
-        super().__init__(self.address, tab_id)
+        super().__init__(self.browser.address, tab_id)
         self._type = 'ChromiumPage'
-        self._lock = Lock()
         self.set.timeouts(base=timeout)
         self._page_init()
 
@@ -86,7 +80,7 @@ class ChromiumPage(ChromiumBase):
 
     def _d_set_runtime_settings(self):
         """设置运行时用到的属性"""
-        self._timeouts = Timeout(self, page_load=self._chromium_options.timeouts['page_load'],
+        self._timeouts = Timeout(page_load=self._chromium_options.timeouts['page_load'],
                                  script=self._chromium_options.timeouts['script'],
                                  base=self._chromium_options.timeouts['base'])
         if self._chromium_options.timeouts['base'] is not None:
@@ -196,7 +190,7 @@ class ChromiumPage(ChromiumBase):
             return id_or_num
 
         with self._lock:
-            return ChromiumTab(self, id_or_num)
+            return ChromiumTab(self.browser, id_or_num)
 
     def get_tabs(self, title=None, url=None, tab_type='page', as_id=False):
         """查找符合条件的tab，返回它们组成的列表
@@ -209,7 +203,7 @@ class ChromiumPage(ChromiumBase):
         if as_id:
             return [tab['id'] for tab in self._browser.find_tabs(title, url, tab_type)]
         with self._lock:
-            return [ChromiumTab(self, tab['id']) for tab in self._browser.find_tabs(title, url, tab_type)]
+            return [ChromiumTab(self.browser, tab['id']) for tab in self._browser.find_tabs(title, url, tab_type)]
 
     def new_tab(self, url=None, new_window=False, background=False, new_context=False):
         """新建一个标签页
@@ -219,7 +213,7 @@ class ChromiumPage(ChromiumBase):
         :param new_context: 是否创建新的上下文
         :return: 新标签页对象
         """
-        tab = ChromiumTab(self, tab_id=self.browser.new_tab(new_window, background, new_context))
+        tab = ChromiumTab(self.browser, tab_id=self.browser.new_tab(new_window, background, new_context))
         if url:
             tab.get(url)
         return tab

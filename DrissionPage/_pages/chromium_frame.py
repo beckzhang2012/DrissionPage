@@ -27,14 +27,17 @@ class ChromiumFrame(ChromiumBase):
         :param ele: frame所在元素
         :param info: frame所在元素信息
         """
-        if owner._type in ('ChromiumPage', 'WebPage'):
-            self._page = self._target_page = self.tab = owner
-            self._browser = owner.browser
-        else:  # Tab、Frame
-            self._page = owner.page
-            self._browser = self._page.browser
-            self._target_page = owner
-            self.tab = owner.tab if owner._type == 'ChromiumFrame' else owner
+        self.tab = owner.tab
+        self._browser = owner.browser
+        self._target_page = owner
+        # if owner._type in ('ChromiumPage', 'WebPage'):
+        #     self._target_page = self.tab = owner
+        #     self._browser = owner.browser
+        # else:  # ChromiumTab、Frame
+        #     # self._page = owner.page
+        #     self._browser = self._page.browser
+        #     self._target_page = owner
+        #     self.tab = owner.tab if owner._type == 'ChromiumFrame' else owner
 
         self.address = owner.address
         self._tab_id = owner.tab_id
@@ -250,10 +253,10 @@ class ChromiumFrame(ChromiumBase):
         """返回cdp中的node id"""
         return self.frame_ele._node_id
 
-    @property
-    def page(self):
-        """返回所属Page对象"""
-        return self._page
+    # @property
+    # def page(self):
+    #     """返回所属Page对象"""
+    #     return self._page
 
     @property
     def owner(self):

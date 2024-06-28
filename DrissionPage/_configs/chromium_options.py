@@ -36,7 +36,7 @@ class ChromiumOptions(object):
         om = OptionsManager(ini_path)
 
         options = om.chromium_options
-        self._download_path = om.paths.get('download_path', None) or None
+        self._download_path = om.paths.get('download_path', '.') or '.'
         self._tmp_path = om.paths.get('tmp_path', None) or None
         self._arguments = options.get('arguments', [])
         self._browser_path = options.get('browser_path', '')
@@ -282,14 +282,13 @@ class ChromiumOptions(object):
         self._prefs = {}
         return self
 
-    def set_timeouts(self, base=None, page_load=None, script=None, implicit=None):
+    def set_timeouts(self, base=None, page_load=None, script=None):
         """设置超时时间，单位为秒
         :param base: 默认超时时间
         :param page_load: 页面加载超时时间
         :param script: 脚本运行超时时间
         :return: 当前对象
         """
-        base = base if base is not None else implicit
         if base is not None:
             self._timeouts['base'] = base
         if page_load is not None:
@@ -450,7 +449,7 @@ class ChromiumOptions(object):
         :param path: 下载路径
         :return: 当前对象
         """
-        self._download_path = str(path)
+        self._download_path = '.' if path is None else str(path)
         return self
 
     def set_tmp_path(self, path):

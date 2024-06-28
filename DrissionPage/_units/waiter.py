@@ -26,6 +26,84 @@ class OriginWaiter(object):
             sleep(uniform(second, scope))
 
 
+class BrowserWaiter(OriginWaiter):
+    def __init__(self, owner):
+        self._owner = owner
+
+    def download_begin(self, timeout=None, cancel_it=False):
+        """等待浏览器下载开始，可将其拦截
+        :param timeout: 超时时间（秒），None使用页面对象超时时间
+        :param cancel_it: 是否取消该任务
+        :return: 成功返回任务对象，失败返回False
+        """
+        if not self._owner._dl_mgr._running:
+            raise RuntimeError('此功能需显式设置下载路径（使用set.download_path()方法、配置对象或ini文件均可）。')
+        self._owner._dl_mgr.set_flag('browser', False if cancel_it else True)
+        if timeout is None:
+            timeout = self._owner.timeout
+
+        r = False
+        end_time = perf_counter() + timeout
+        while perf_counter() < end_time:
+            v = self._owner._dl_mgr.get_flag('browser')
+            if not isinstance(v, bool):
+                r = v
+                break
+            sleep(.005)
+
+        self._owner._dl_mgr.set_flag('browser', None)
+        return r
+
+    def new_tab(self, timeout=None, curr_tab=None, raise_err=None):
+        """等待新标签页出现
+        :param timeout: 超时时间（秒），为None则使用页面对象timeout属性
+        :param curr_tab: 指定当前最新的tab id，为None自动获取
+        :param raise_err: 等待失败时是否报错，为None时根据Settings设置
+        :return: 等到新标签页返回其id，否则返回False
+        """
+        curr_tid = curr_tab if curr_tab else self._owner.tab_ids[0]
+        timeout = timeout if timeout is not None else self._owner.timeout
+        end_time = perf_counter() + timeout
+        while perf_counter() < end_time:
+            latest_tid = self._owner.tab_ids[0]
+            if curr_tid != latest_tid:
+                return latest_tid
+            sleep(.01)
+
+        if raise_err is True or Settings.raise_when_wait_failed is True:
+            raise WaitTimeoutError(f'等待新标签页失败（等待{timeout}秒）。')
+        else:
+            return False
+
+    def all_downloads_done(self, timeout=None, cancel_if_timeout=True):
+        """等待所有浏览器下载任务结束
+        :param timeout: 超时时间（秒），为None时无限等待
+        :param cancel_if_timeout: 超时时是否取消剩余任务
+        :return: 是否等待成功
+        """
+        if not self._owner._dl_mgr._running:
+            raise RuntimeError('此功能需显式设置下载路径（使用set.download_path()方法、配置对象或ini文件均可）。')
+        if not timeout:
+            while self._owner._dl_mgr._missions:
+                sleep(.5)
+            return True
+
+        else:
+            end_time = perf_counter() + timeout
+            while perf_counter() < end_time:
+                if not self._owner._dl_mgr._missions:
+                    return True
+                sleep(.5)
+
+            if self._owner._dl_mgr._missions:
+                if cancel_if_timeout:
+                    for m in list(self._owner._dl_mgr._missions.values()):
+                        m.cancel()
+                return False
+            else:
+                return True
+
+
 class BaseWaiter(OriginWaiter):
     def __init__(self, page_or_ele):
         """

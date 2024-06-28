@@ -33,8 +33,101 @@ class BasePageSetter(object):
         self._owner._none_ele_return_value = on_off
         self._owner._none_ele_value = value
 
+    def retry_times(self, times):
+        """设置连接失败重连次数"""
+        self._owner.retry_times = times
 
-class ChromiumBaseSetter(BasePageSetter):
+    def retry_interval(self, interval):
+        """设置连接失败重连间隔"""
+        self._owner.retry_interval = interval
+
+    def download_path(self, path):
+        """设置下载路径
+        :param path: 下载路径
+        :return: None
+        """
+        if path is None:
+            path = '.'
+        self._owner._download_path = str(Path(path).absolute())
+
+
+class BrowserBaseSetter(BasePageSetter):
+
+    @property
+    def load_mode(self):
+        """返回用于设置页面加载策略的对象"""
+        return LoadMode(self._owner)
+
+    def timeouts(self, base=None, page_load=None, script=None):
+        """设置超时时间，单位为秒
+        :param base: 基本等待时间，除页面加载和脚本超时，其它等待默认使用
+        :param page_load: 页面加载超时时间
+        :param script: 脚本运行超时时间
+        :return: None
+        """
+        if base is not None:
+            self._owner.timeouts.base = base
+            self._owner._timeout = base
+
+        if page_load is not None:
+            self._owner.timeouts.page_load = page_load
+
+        if script is not None:
+            self._owner.timeouts.script = script
+
+
+class BrowserSetter(BrowserBaseSetter):
+
+    def cookies(self, cookies):
+        pass  # todo: 研究Storage.setCookies和Network.setCookies差别
+
+    def tab_to_front(self, tab_or_id):
+        """激活标签页使其处于最前面
+        :param tab_or_id: 标签页对象或id
+        :return: None
+        """
+        if not isinstance(tab_or_id, str):  # 传入Tab对象
+            tab_or_id = tab_or_id.tab_id
+        self._owner.activate_tab(tab_or_id)
+
+    def auto_handle_alert(self, on_off=True, accept=True):
+        """设置是否启用自动处理弹窗
+        :param on_off: bool表示开或关
+        :param accept: bool表示确定还是取消
+        :return: None
+        """
+        Settings.auto_handle_alert = accept if on_off else None
+
+    def download_path(self, path):
+        """设置下载路径
+        :param path: 下载路径
+        :return: None
+        """
+        super().download_path(path)
+        self._owner._dl_mgr.set_path('browser', self._owner._download_path)
+
+    def download_file_name(self, name=None, suffix=None):
+        """设置下一个被下载文件的名称
+        :param name: 文件名，可不含后缀，会自动使用远程文件后缀
+        :param suffix: 后缀名，显式设置后缀名，不使用远程文件后缀
+        :return: None
+        """
+        self._owner._dl_mgr.set_rename('browser', name, suffix)
+
+    def when_download_file_exists(self, mode):
+        """设置当存在同名文件时的处理方式
+        :param mode: 可在 'rename', 'overwrite', 'skip', 'r', 'o', 's'中选择
+        :return: None
+        """
+        types = {'rename': 'rename', 'overwrite': 'overwrite', 'skip': 'skip', 'r': 'rename', 'o': 'overwrite',
+                 's': 'skip'}
+        mode = types.get(mode, mode)
+        if mode not in types:
+            raise ValueError(f'''mode参数只能是 '{"', '".join(types.keys())}' 之一，现在是：{mode}''')
+        self._owner._dl_mgr.set_file_exists('browser', mode)
+
+
+class ChromiumBaseSetter(BrowserBaseSetter):
     def __init__(self, owner):
         """
         :param owner: ChromiumBase对象
@@ -42,10 +135,10 @@ class ChromiumBaseSetter(BasePageSetter):
         super().__init__(owner)
         self._cookies_setter = None
 
-    @property
-    def load_mode(self):
-        """返回用于设置页面加载策略的对象"""
-        return LoadMode(self._owner)
+    # @property
+    # def load_mode(self):
+    #     """返回用于设置页面加载策略的对象"""
+    #     return LoadMode(self._owner)
 
     @property
     def scroll(self):
@@ -59,31 +152,30 @@ class ChromiumBaseSetter(BasePageSetter):
             self._cookies_setter = CookiesSetter(self._owner)
         return self._cookies_setter
 
-    def retry_times(self, times):
-        """设置连接失败重连次数"""
-        self._owner.retry_times = times
-
-    def retry_interval(self, interval):
-        """设置连接失败重连间隔"""
-        self._owner.retry_interval = interval
-
-    def timeouts(self, base=None, page_load=None, script=None, implicit=None):
-        """设置超时时间，单位为秒
-        :param base: 基本等待时间，除页面加载和脚本超时，其它等待默认使用
-        :param page_load: 页面加载超时时间
-        :param script: 脚本运行超时时间
-        :return: None
-        """
-        base = base if base is not None else implicit
-        if base is not None:
-            self._owner.timeouts.base = base
-            self._owner._timeout = base
-
-        if page_load is not None:
-            self._owner.timeouts.page_load = page_load
-
-        if script is not None:
-            self._owner.timeouts.script = script
+    # def retry_times(self, times):
+    #     """设置连接失败重连次数"""
+    #     self._owner.retry_times = times
+    #
+    # def retry_interval(self, interval):
+    #     """设置连接失败重连间隔"""
+    #     self._owner.retry_interval = interval
+    #
+    # def timeouts(self, base=None, page_load=None, script=None):
+    #     """设置超时时间，单位为秒
+    #     :param base: 基本等待时间，除页面加载和脚本超时，其它等待默认使用
+    #     :param page_load: 页面加载超时时间
+    #     :param script: 脚本运行超时时间
+    #     :return: None
+    #     """
+    #     if base is not None:
+    #         self._owner.timeouts.base = base
+    #         self._owner._timeout = base
+    #
+    #     if page_load is not None:
+    #         self._owner.timeouts.page_load = page_load
+    #
+    #     if script is not None:
+    #         self._owner.timeouts.script = script
 
     def user_agent(self, ua, platform=None):
         """为当前tab设置user agent，只在当前tab有效
@@ -191,11 +283,10 @@ class TabSetter(ChromiumBaseSetter):
         :param path: 下载路径
         :return: None
         """
-        path = str(Path(path).absolute())
-        self._owner._download_path = path
-        self._owner.browser._dl_mgr.set_path(self._owner, path)
+        super().download_path(path)
+        self._owner.browser._dl_mgr.set_path(self._owner, self._owner._download_path)
         if self._owner._DownloadKit:
-            self._owner._DownloadKit.set.goal_path(path)
+            self._owner._DownloadKit.set.goal_path(self._owner._download_path)
 
     def download_file_name(self, name=None, suffix=None):
         """设置下一个被下载文件的名称
@@ -215,7 +306,6 @@ class TabSetter(ChromiumBaseSetter):
         mode = types.get(mode, mode)
         if mode not in types:
             raise ValueError(f'''mode参数只能是 '{"', '".join(types.keys())}' 之一，现在是：{mode}''')
-
         self._owner.browser._dl_mgr.set_file_exists(self._owner.tab_id, mode)
 
     def activate(self):
@@ -264,23 +354,22 @@ class SessionPageSetter(BasePageSetter):
             self._cookies_setter = SessionCookiesSetter(self._owner)
         return self._cookies_setter
 
-    def retry_times(self, times):
-        """设置连接失败时重连次数"""
-        self._owner.retry_times = times
-
-    def retry_interval(self, interval):
-        """设置连接失败时重连间隔"""
-        self._owner.retry_interval = interval
+    # def retry_times(self, times):
+    #     """设置连接失败时重连次数"""
+    #     self._owner.retry_times = times
+    #
+    # def retry_interval(self, interval):
+    #     """设置连接失败时重连间隔"""
+    #     self._owner.retry_interval = interval
 
     def download_path(self, path):
         """设置下载路径
         :param path: 下载路径
         :return: None
         """
-        path = str(Path(path).absolute())
-        self._owner._download_path = path
+        super().download_path(path)
         if self._owner._DownloadKit:
-            self._owner._DownloadKit.set.goal_path(path)
+            self._owner._DownloadKit.set.goal_path(self._owner._download_path)
 
     def timeout(self, second):
         """设置连接超时时间
@@ -464,7 +553,7 @@ class ChromiumElementSetter(object):
         """
         self._ele = ele
 
-    def attr(self, name, value):
+    def attr(self, name, value=''):
         """设置元素attribute属性
         :param name: 属性名
         :param value: 属性值

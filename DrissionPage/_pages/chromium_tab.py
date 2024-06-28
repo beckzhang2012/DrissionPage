@@ -22,10 +22,10 @@ class ChromiumTab(ChromiumBase):
     """实现浏览器标签页的类"""
     _TABS = {}
 
-    def __new__(cls, page, tab_id):
+    def __new__(cls, browser, tab_id):
         """
-        :param page: ChromiumPage对象
-        :param tab_id: 要控制的标签页id
+        :param browser: Browser对象
+        :param tab_id: 标签页id
         """
         if Settings.singleton_tab_obj and tab_id in cls._TABS:
             r = cls._TABS[tab_id]
@@ -36,38 +36,32 @@ class ChromiumTab(ChromiumBase):
         cls._TABS[tab_id] = r
         return r
 
-    def __init__(self, page, tab_id):
+    def __init__(self, browser, tab_id):
         """
-        :param page: ChromiumPage对象
-        :param tab_id: 要控制的标签页id
+        :param browser: Browser对象
+        :param tab_id: 标签页id
         """
         if Settings.singleton_tab_obj and hasattr(self, '_created'):
             return
         self._created = True
 
-        self._page = page
         self.tab = self
-        self._browser = page.browser
-        super().__init__(page.address, tab_id, page.timeout)
+        self._browser = browser
+        super().__init__(browser.address, tab_id, browser.timeout)
         self._rect = None
         self._type = 'ChromiumTab'
 
     def _d_set_runtime_settings(self):
         """重写设置浏览器运行参数方法"""
-        self._timeouts = copy(self.page.timeouts)
-        self.retry_times = self.page.retry_times
-        self.retry_interval = self.page.retry_interval
-        self._load_mode = self.page._load_mode
-        self._download_path = self.page.download_path
+        self._timeouts = copy(self.browser.timeouts)
+        self.retry_times = self.browser.retry_times
+        self.retry_interval = self.browser.retry_interval
+        self._load_mode = self.browser._load_mode
+        self._download_path = self.browser.download_path
 
     def close(self):
         """关闭当前标签页"""
-        self.page.close_tabs(self.tab_id)
-
-    @property
-    def page(self):
-        """返回总体page对象"""
-        return self._page
+        self.browser.close_tabs(self.tab_id)
 
     @property
     def set(self):
@@ -100,11 +94,11 @@ class ChromiumTab(ChromiumBase):
         ChromiumTab._TABS.pop(self.tab_id, None)
 
 
-class WebPageTab(SessionPage, ChromiumTab, BasePage):
-    def __init__(self, page, tab_id):
+class MixTab(SessionPage, ChromiumTab, BasePage):
+    def __init__(self, browser, tab_id):
         """
-        :param page: WebPage对象
-        :param tab_id: 要控制的标签页id
+        :param browser: Browser对象
+        :param tab_id: 标签页id
         """
         if Settings.singleton_tab_obj and hasattr(self, '_created'):
             return
@@ -112,10 +106,9 @@ class WebPageTab(SessionPage, ChromiumTab, BasePage):
         self._mode = 'd'
         self._has_driver = True
         self._has_session = True
-        super().__init__(session_or_options=SessionOptions(read_file=False).from_session(copy(page.session),
-                                                                                         page._headers))
-        super(SessionPage, self).__init__(page=page, tab_id=tab_id)
-        self._type = 'WebPageTab'
+        super().__init__(session_or_options=browser._session_options if browser._session_options else SessionOptions())
+        super(SessionPage, self).__init__(browser=browser, tab_id=tab_id)
+        self._type = 'MixTab'
 
     def __call__(self, locator, index=1, timeout=None):
         """在内部查找元素
@@ -318,7 +311,9 @@ class WebPageTab(SessionPage, ChromiumTab, BasePage):
         # s模式转d模式
         if self._mode == 'd':
             if self._driver is None:
-                self._connect_browser(self.page._chromium_options)
+                tabs = self.browser.tab_ids
+                tid = self.tab_id if self.tab_id in tabs else tabs[0]
+                self._connect_browser(tid)
 
             self._url = None if not self._has_driver else super(SessionPage, self).url
             self._has_driver = True
@@ -378,7 +373,7 @@ class WebPageTab(SessionPage, ChromiumTab, BasePage):
 
     def close(self):
         """关闭当前标签页"""
-        self.page.close_tabs(self.tab_id)
+        self.browser.close_tabs(self.tab_id)
         self._session.close()
         if self._response is not None:
             self._response.close()
@@ -398,4 +393,4 @@ class WebPageTab(SessionPage, ChromiumTab, BasePage):
             return super(SessionPage, self)._find_elements(locator, timeout=timeout, index=index, relative=relative)
 
     def __repr__(self):
-        return f'<WebPageTab browser_id={self.browser.id} tab_id={self.tab_id}>'
+        return f'<MixTab browser_id={self.browser.id} tab_id={self.tab_id}>'
