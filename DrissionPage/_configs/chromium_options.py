@@ -21,7 +21,7 @@ class ChromiumOptions(object):
         self._user = 'Default'
         self._prefs_to_del = []
         self.clear_file_flags = False
-        self._headless = None
+        self._is_headless = False
 
         if read_file is False:
             ini_path = False
@@ -47,6 +47,10 @@ class ChromiumOptions(object):
         self._load_mode = options.get('load_mode', 'normal')
         self._system_user_path = options.get('system_user_path', False)
         self._existing_only = options.get('existing_only', False)
+        for i in self._arguments:
+            if i.startswith('--headless'):
+                self._is_headless = True
+                break
 
         self._proxy = om.proxies.get('http', None) or om.proxies.get('https', None)
 
@@ -164,6 +168,11 @@ class ChromiumOptions(object):
         """返回连接失败时的重试间隔（秒）"""
         return self._retry_interval
 
+    @property
+    def is_headless(self):
+        """返回是否无头模式"""
+        return self._is_headless
+
     def set_retry(self, times=None, interval=None):
         """设置连接失败时的重试操作
         :param times: 重试次数
@@ -184,11 +193,19 @@ class ChromiumOptions(object):
         """
         self.remove_argument(arg)
         if value is not False:
-            if arg == '--headless' and value is None:
-                self._arguments.append('--headless=new')
+            if arg == '--headless':
+                if value == 'false':
+                    self._is_headless = False
+                else:
+                    if value is None:
+                        value = 'new'
+                    self._arguments.append(f'--headless={value}')
+                    self._is_headless = True
             else:
                 arg_str = arg if value is None else f'{arg}={value}'
                 self._arguments.append(arg_str)
+        elif arg == '--headless':
+            self._is_headless = False
         return self
 
     def remove_argument(self, value):
@@ -312,7 +329,7 @@ class ChromiumOptions(object):
         :param on_off: 开或关
         :return: 当前对象
         """
-        on_off = 'new' if on_off else 'false'
+        on_off = 'new' if on_off else on_off
         return self.set_argument('--headless', on_off)
 
     def no_imgs(self, on_off=True):

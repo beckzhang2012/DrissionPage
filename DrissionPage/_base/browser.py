@@ -40,13 +40,12 @@ class Browser(object):
         :param session_options: 使用双模Tab时使用的默认Session配置，为True使用ini文件配置
         """
         opt = handle_options(addr_or_opts)
-        is_exist, browser_id = run_browser(opt)
+        is_headless, browser_id = run_browser(opt)
         if browser_id in cls._BROWSERS:
-            r = cls._BROWSERS[browser_id]
-            return r
+            return cls._BROWSERS[browser_id]
         r = object.__new__(cls)
         r._chromium_options = opt
-        r._is_exist = is_exist
+        r.is_headless = is_headless
         r.id = browser_id
         r.address = opt.address
         cls._BROWSERS[browser_id] = r
@@ -63,7 +62,6 @@ class Browser(object):
 
         self._type = 'Browser'
         self._driver = BrowserDriver(self.id, 'browser', self.address, self)
-        self.version = self.run_cdp('Browser.getVersion')['product']
 
         self._frames = {}
         self._drivers = {}
@@ -82,9 +80,25 @@ class Browser(object):
         self.retry_times = self._chromium_options.retry_times
         self.retry_interval = self._chromium_options.retry_interval
 
+        if self.is_headless != self._chromium_options.is_headless:
+            self.quit(3, True)
+            connect_browser(self._chromium_options)
+            s = Session()
+            s.trust_env = False
+            ws = s.get(f'http://{self._chromium_options.address}/json/version', headers={'Connection': 'close'})
+            self.id = ws.json()['webSocketDebuggerUrl'].split('/')[-1]
+            self._driver = BrowserDriver(self.id, 'browser', self.address, self)
+            ws.close()
+            s.close()
+            self._frames = {}
+            self._drivers = {}
+            self._all_drivers = {}
+
+        self.version = self._run_cdp('Browser.getVersion')['product']
+
         self._process_id = None
         try:
-            r = self.run_cdp('SystemInfo.getProcessInfo')
+            r = self._run_cdp('SystemInfo.getProcessInfo')
             for i in r.get('processInfo', []):
                 if i['type'] == 'browser':
                     self._process_id = i['id']
@@ -92,7 +106,7 @@ class Browser(object):
         except:
             pass
 
-        self.run_cdp('Target.setDiscoverTargets', discover=True)
+        self._run_cdp('Target.setDiscoverTargets', discover=True)
         self._driver.set_callback('Target.targetDestroyed', self._onTargetDestroyed)
         self._driver.set_callback('Target.targetCreated', self._onTargetCreated)
         self._dl_mgr = DownloadManager(self)
@@ -137,7 +151,7 @@ class Browser(object):
         self._drivers.pop(tab_id, None)
         self._all_drivers.pop(tab_id, None)
 
-    def run_cdp(self, cmd, **cmd_args):
+    def _run_cdp(self, cmd, **cmd_args):
         """执行Chrome DevTools Protocol语句
         :param cmd: 协议项目
         :param cmd_args: 参数
@@ -183,7 +197,7 @@ class Browser(object):
     @property
     def tabs_count(self):
         """返回标签页数量"""
-        j = self.run_cdp('Target.getTargets')['targetInfos']  # 不要改用get，避免卡死
+        j = self._run_cdp('Target.getTargets')['targetInfos']  # 不要改用get，避免卡死
         return len([i for i in j if i['type'] in ('page', 'webview') and not i['url'].startswith('devtools://')])
 
     @property
@@ -235,7 +249,7 @@ class Browser(object):
         """
         tab = None
         if new_context:
-            tab = self.run_cdp('Target.createBrowserContext')['browserContextId']
+            tab = self._run_cdp('Target.createBrowserContext')['browserContextId']
 
         kwargs = {'url': ''}
         if new_window:
@@ -245,7 +259,7 @@ class Browser(object):
         if tab:
             kwargs['browserContextId'] = tab
 
-        tab = self.run_cdp('Target.createTarget', **kwargs)['targetId']
+        tab = self._run_cdp('Target.createTarget', **kwargs)['targetId']
         while tab not in self._drivers:
             sleep(.1)
         tab = obj(self, tab)
@@ -401,14 +415,14 @@ class Browser(object):
         :param tab_id: 标签页id
         :return: None
         """
-        self.run_cdp('Target.activateTarget', targetId=tab_id)
+        self._run_cdp('Target.activateTarget', targetId=tab_id)
 
     def reconnect(self):
         """断开重连"""
         self._driver.stop()
         BrowserDriver.BROWSERS.pop(self.id)
         self._driver = BrowserDriver(self.id, 'browser', self.address, self)
-        self.run_cdp('Target.setDiscoverTargets', discover=True)
+        self._run_cdp('Target.setDiscoverTargets', discover=True)
         self._driver.set_callback('Target.targetDestroyed', self._onTargetDestroyed)
         self._driver.set_callback('Target.targetCreated', self._onTargetCreated)
 
@@ -419,7 +433,7 @@ class Browser(object):
         :return: None
         """
         try:
-            self.run_cdp('Browser.close')
+            self._run_cdp('Browser.close')
         except PageDisconnectedError:
             pass
         self._driver.stop()
@@ -433,7 +447,7 @@ class Browser(object):
             return
 
         try:
-            pids = [pid['id'] for pid in self.run_cdp('SystemInfo.getProcessInfo')['processInfo']]
+            pids = [pid['id'] for pid in self._run_cdp('SystemInfo.getProcessInfo')['processInfo']]
         except:
             return
 
@@ -516,18 +530,20 @@ def handle_options(addr_or_opts):
 
 def run_browser(chromium_options):
     """连接浏览器"""
-    is_exist = connect_browser(chromium_options)
+    connect_browser(chromium_options)
     try:
         s = Session()
         s.trust_env = False
         ws = s.get(f'http://{chromium_options.address}/json/version', headers={'Connection': 'close'})
         if not ws:
-            raise BrowserConnectError('\n浏览器连接失败，如使用全局代理，须设置不代理127.0.0.1地址。')
-        browser_id = ws.json()['webSocketDebuggerUrl'].split('/')[-1]
+            raise BrowserConnectError('\n浏览器连接失败，请确认浏览器是否启动。')
+        json = ws.json()
+        browser_id = json['webSocketDebuggerUrl'].split('/')[-1]
+        is_headless = 'headless' in json['User-Agent'].lower()
         ws.close()
         s.close()
     except KeyError:
         raise BrowserConnectError('浏览器版本太旧或此浏览器不支持接管。')
     except:
-        raise BrowserConnectError('\n浏览器连接失败，如使用全局代理，须设置不代理127.0.0.1地址。')
-    return is_exist, browser_id
+        raise BrowserConnectError('\n浏览器连接失败，请确认浏览器是否启动。')
+    return is_headless, browser_id

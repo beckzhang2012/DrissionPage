@@ -30,11 +30,6 @@ def connect_browser(option):
     ip, port = address.split(':')
     if ip != '127.0.0.1' or port_is_using(ip, port) or option.is_existing_only:
         test_connect(ip, port)
-        option._headless = False
-        for i in option.arguments:
-            if i.startswith('--headless') and not i.endswith('=false'):
-                option._headless = True
-                break
         return True
 
     # ----------创建浏览器进程----------
@@ -65,7 +60,6 @@ def get_launch_args(opt):
     # ----------处理arguments-----------
     result = set()
     has_user_path = False
-    headless = None
     for i in opt.arguments:
         if i.startswith(('--load-extension=', '--remote-debugging-port=')):
             continue
@@ -73,16 +67,6 @@ def get_launch_args(opt):
             result.add(f'--user-data-dir={Path(i[16:]).absolute()}')
             has_user_path = True
             continue
-        elif i.startswith('--headless'):
-            if i == '--headless=false':
-                headless = False
-                continue
-            elif i == '--headless':
-                i = '--headless=new'
-                headless = True
-            else:
-                headless = True
-
         result.add(i)
 
     if not has_user_path and not opt.system_user_path:
@@ -93,15 +77,7 @@ def get_launch_args(opt):
         opt.set_user_data_path(path)
         result.add(f'--user-data-dir={path}')
 
-    # if headless is None and system().lower() == 'linux':  # 无界面Linux自动加入无头
-    #     from os import popen
-    #     r = popen('systemctl list-units | grep graphical.target')
-    #     if 'graphical.target' not in r.read():
-    #         headless = True
-    #         result.add('--headless=new')
-
     result = list(result)
-    opt._headless = headless
 
     # ----------处理插件extensions-------------
     ext = [str(Path(e).absolute()) for e in opt.extensions]
