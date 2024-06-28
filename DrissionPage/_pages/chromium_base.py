@@ -38,12 +38,13 @@ __ERROR__ = 'error'
 class ChromiumBase(BasePage):
     """标签页、frame、页面基类"""
 
-    def __init__(self, address, tab_id=None):
+    def __init__(self, browser, tab_id=None):
         """
-        :param address: 浏览器 ip:port
+        :param browser: Browser
         :param tab_id: 要控制的标签页id，不指定默认为激活的
         """
         super().__init__()
+        self._browser = browser
         self._is_loading = None
         self._root_id = None  # object id
         self._set = None
@@ -64,19 +65,19 @@ class ChromiumBase(BasePage):
         if not hasattr(self, '_listener'):
             self._listener = None
 
-        if isinstance(address, int) or (isinstance(address, str) and address.isdigit()):
-            address = f'127.0.0.1:{address}'
+        # if isinstance(address, int) or (isinstance(address, str) and address.isdigit()):
+        #     address = f'127.0.0.1:{address}'
 
-        self._d_set_start_options(address)
+        # self._d_set_start_options(address)
         self._d_set_runtime_settings()
         self._connect_browser(tab_id)
 
-    def _d_set_start_options(self, address):
-        """设置浏览器启动属性
-        :param address: 'ip:port'
-        :return: None
-        """
-        self.address = address.replace('localhost', '127.0.0.1').lstrip('http://').lstrip('https://')
+    # def _d_set_start_options(self, address):
+    #     """设置浏览器启动属性
+    #     :param address: 'ip:port'
+    #     :return: None
+    #     """
+    #     self.address = address.replace('localhost', '127.0.0.1').lstrip('http://').lstrip('https://')
 
     def _d_set_runtime_settings(self):
         self._timeouts = Timeout(self)
@@ -90,7 +91,7 @@ class ChromiumBase(BasePage):
         self._is_reading = False
 
         if not tab_id:
-            tabs = self.browser._driver.get(f'http://{self.address}/json').json()
+            tabs = self.browser._driver.get(f'http://{self.browser.address}/json').json()
             tabs = [(i['id'], i['url']) for i in tabs
                     if i['type'] in ('page', 'webview') and not i['url'].startswith('devtools://')]
             dialog = None

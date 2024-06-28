@@ -28,7 +28,6 @@ class ChromiumFrame(ChromiumBase):
         :param info: frame所在元素信息
         """
         self.tab = owner.tab
-        self._browser = owner.browser
         self._target_page = owner
         # if owner._type in ('ChromiumPage', 'WebPage'):
         #     self._target_page = self.tab = owner
@@ -39,8 +38,8 @@ class ChromiumFrame(ChromiumBase):
         #     self._target_page = owner
         #     self.tab = owner.tab if owner._type == 'ChromiumFrame' else owner
 
-        self.address = owner.address
-        self._tab_id = owner.tab_id
+        # self.address = owner.address
+        # self._tab_id = owner.tab_id
         self._backend_id = ele._backend_id
         self._frame_ele = ele
         self._states = None
@@ -51,11 +50,11 @@ class ChromiumFrame(ChromiumBase):
         if self._is_inner_frame():
             self._is_diff_domain = False
             self.doc_ele = ChromiumElement(self._target_page, backend_id=node['contentDocument']['backendNodeId'])
-            super().__init__(owner.address, owner.tab_id, owner.timeout)
+            super().__init__(owner.browser, owner.tab_id)
         else:
             self._is_diff_domain = True
             delattr(self, '_frame_id')
-            super().__init__(owner.address, node['frameId'], owner.timeout)
+            super().__init__(owner.browser, node['frameId'])
             obj_id = super().run_js('document;', as_expr=True)['objectId']
             self.doc_ele = ChromiumElement(self, obj_id=obj_id)
 
@@ -101,7 +100,7 @@ class ChromiumFrame(ChromiumBase):
         try:
             super()._driver_init(tab_id)
         except:
-            self.browser.driver.get(f'http://{self.address}/json')
+            self.browser._driver.get(f'http://{self._browser.address}/json')
             super()._driver_init(tab_id)
         self._driver.set_callback('Inspector.detached', self._onInspectorDetached, immediate=True)
         self._driver.set_callback('Page.frameDetached', None)
@@ -135,16 +134,16 @@ class ChromiumFrame(ChromiumBase):
             self.doc_ele = ChromiumElement(self._target_page, backend_id=node['contentDocument']['backendNodeId'])
             self._frame_id = node['frameId']
             if self._listener:
-                self._listener._to_target(self._target_page.tab_id, self.address, self)
-            super().__init__(self.address, self._target_page.tab_id, self._target_page.timeout)
+                self._listener._to_target(self._target_page.tab_id, self._browser.address, self)
+            super().__init__(self._browser, self._target_page.tab_id)
             # self.driver._debug = d_debug
 
         else:
             self._is_diff_domain = True
             if self._listener:
-                self._listener._to_target(node['frameId'], self.address, self)
+                self._listener._to_target(node['frameId'], self._browser.address, self)
             end_time = perf_counter() + self.timeouts.page_load
-            super().__init__(self.address, node['frameId'], self._target_page.timeout)
+            super().__init__(self._browser, node['frameId'])
             timeout = end_time - perf_counter()
             if timeout <= 0:
                 timeout = .5
@@ -323,7 +322,7 @@ class ChromiumFrame(ChromiumBase):
     @property
     def tab_id(self):
         """返回frame所在tab的id"""
-        return self._tab_id
+        return self.tab.tab_id
 
     @property
     def download_path(self):

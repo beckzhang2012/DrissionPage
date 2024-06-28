@@ -317,9 +317,9 @@ class Browser(object):
                 elif Settings.singleton_tab_obj:
                     return id_or_num
                 else:
-                    return self._get_tab(id_or_num.tab_id)  # todo: 循环调用
+                    return self._get_tab(id_or_num.tab_id)  # fixme: 这里会出现循环调用
 
-        elif title == url == tab_type is None:
+        elif title == url is None and tab_type == 'page':
             id_or_num = self.tab_ids[0]
 
         else:

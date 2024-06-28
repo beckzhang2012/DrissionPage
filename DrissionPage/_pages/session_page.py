@@ -25,10 +25,9 @@ from .._units.setter import SessionPageSetter
 class SessionPage(BasePage):
     """SessionPage封装了页面操作的常用功能，使用requests来获取、解析网页"""
 
-    def __init__(self, session_or_options=None, timeout=None):
+    def __init__(self, session_or_options=None):
         """
         :param session_or_options: Session对象或SessionOptions对象
-        :param timeout: 连接超时时间（秒），为None时从ini文件读取或默认10
         """
         super(SessionPage, SessionPage).__init__(self)
         self._headers = None
@@ -41,8 +40,6 @@ class SessionPage(BasePage):
         self._s_set_start_options(session_or_options)
         self._s_set_runtime_settings()
         self._create_session()
-        if timeout is not None:
-            self.timeout = timeout
 
     def _s_set_start_options(self, session_or_options):
         """启动配置

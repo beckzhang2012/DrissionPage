@@ -20,8 +20,7 @@ from .._units.setter import SessionPageSetter
 
 class SessionPage(BasePage):
     def __init__(self,
-                 session_or_options: Union[Session, SessionOptions] = None,
-                 timeout: float = None):
+                 session_or_options: Union[Session, SessionOptions] = None):
         self._headers: Optional[CaseInsensitiveDict] = ...
         self._session: Session = ...
         self._session_options: SessionOptions = ...
