@@ -213,9 +213,6 @@ class BasePage(BaseParser):
     @property
     def timeout(self) -> float: ...
 
-    @timeout.setter
-    def timeout(self, second: float) -> None: ...
-
     @property
     def url_available(self) -> bool: ...
 

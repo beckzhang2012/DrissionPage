@@ -61,8 +61,7 @@ class SessionPage(BasePage):
     def _s_set_runtime_settings(self):
         """设置运行时用到的属性"""
         self._timeout = self._session_options.timeout
-        self._download_path = None if self._session_options.download_path is None \
-            else str(Path(self._session_options.download_path).absolute())
+        self._download_path = str(Path(self._session_options.download_path or '.').absolute())
         self.retry_times = self._session_options.retry_times
         self.retry_interval = self._session_options.retry_interval
 

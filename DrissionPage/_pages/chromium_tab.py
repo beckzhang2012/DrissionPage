@@ -45,10 +45,8 @@ class ChromiumTab(ChromiumBase):
             return
         self._created = True
 
-        self.tab = self
-        self._browser = browser
         super().__init__(browser, tab_id)
-        self._rect = None
+        self._tab = self
         self._type = 'ChromiumTab'
 
     def _d_set_runtime_settings(self):
@@ -209,14 +207,6 @@ class MixTab(SessionPage, ChromiumTab, BasePage):
     def timeout(self):
         """返回通用timeout设置"""
         return self.timeouts.base
-
-    @timeout.setter
-    def timeout(self, second):
-        """设置通用超时时间
-        :param second: 秒数
-        :return: None
-        """
-        self.set.timeouts(base=second)
 
     def get(self, url, show_errmsg=False, retry=None, interval=None, timeout=None, **kwargs):
         """跳转到一个url

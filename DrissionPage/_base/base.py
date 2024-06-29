@@ -54,7 +54,6 @@ class BaseElement(BaseParser):
 
     def __init__(self, owner=None):
         self.owner = owner
-        # self.page = owner._page if owner else None
         self._type = 'BaseElement'
 
     # ----------------以下属性或方法由后代实现----------------

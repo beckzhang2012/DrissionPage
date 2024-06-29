@@ -27,22 +27,10 @@ class ChromiumFrame(ChromiumBase):
         :param ele: frame所在元素
         :param info: frame所在元素信息
         """
-        self.tab = owner.tab
+        self._tab = owner._tab
         self._target_page = owner
-        # if owner._type in ('ChromiumPage', 'WebPage'):
-        #     self._target_page = self.tab = owner
-        #     self._browser = owner.browser
-        # else:  # ChromiumTab、Frame
-        #     # self._page = owner.page
-        #     self._browser = self._page.browser
-        #     self._target_page = owner
-        #     self.tab = owner.tab if owner._type == 'ChromiumFrame' else owner
-
-        # self.address = owner.address
-        # self._tab_id = owner.tab_id
         self._backend_id = ele._backend_id
         self._frame_ele = ele
-        self._states = None
         self._reloading = False
 
         node = info['node'] if not info else owner.run_cdp('DOM.describeNode', backendNodeId=ele._backend_id)['node']
@@ -58,13 +46,7 @@ class ChromiumFrame(ChromiumBase):
             obj_id = super().run_js('document;', as_expr=True)['objectId']
             self.doc_ele = ChromiumElement(self, obj_id=obj_id)
 
-        self._rect = None
         self._type = 'ChromiumFrame'
-        # end_time = perf_counter() + 2
-        # while perf_counter() < end_time:
-        #     if self.url not in (None, 'about:blank'):
-        #         break
-        #     sleep(.1)
 
     def __call__(self, locator, index=1, timeout=None):
         """在内部查找元素
@@ -252,11 +234,6 @@ class ChromiumFrame(ChromiumBase):
         """返回cdp中的node id"""
         return self.frame_ele._node_id
 
-    # @property
-    # def page(self):
-    #     """返回所属Page对象"""
-    #     return self._page
-
     @property
     def owner(self):
         """返回所属页面对象"""
@@ -318,6 +295,11 @@ class ChromiumFrame(ChromiumBase):
     def css_path(self):
         """返回frame的css selector绝对路径"""
         return self.frame_ele.css_path
+
+    @property
+    def tab(self):
+        """返回frame所在tab的id"""
+        return self._tab
 
     @property
     def tab_id(self):

@@ -52,6 +52,7 @@ class BasePageSetter(object):
 
 
 class BrowserBaseSetter(BasePageSetter):
+    """Browser和ChromiumBase设置"""
 
     @property
     def load_mode(self):
@@ -67,7 +68,6 @@ class BrowserBaseSetter(BasePageSetter):
         """
         if base is not None:
             self._owner.timeouts.base = base
-            self._owner._timeout = base
 
         if page_load is not None:
             self._owner.timeouts.page_load = page_load
@@ -135,11 +135,6 @@ class ChromiumBaseSetter(BrowserBaseSetter):
         super().__init__(owner)
         self._cookies_setter = None
 
-    # @property
-    # def load_mode(self):
-    #     """返回用于设置页面加载策略的对象"""
-    #     return LoadMode(self._owner)
-
     @property
     def scroll(self):
         """返回用于设置页面滚动设置的对象"""
@@ -151,31 +146,6 @@ class ChromiumBaseSetter(BrowserBaseSetter):
         if self._cookies_setter is None:
             self._cookies_setter = CookiesSetter(self._owner)
         return self._cookies_setter
-
-    # def retry_times(self, times):
-    #     """设置连接失败重连次数"""
-    #     self._owner.retry_times = times
-    #
-    # def retry_interval(self, interval):
-    #     """设置连接失败重连间隔"""
-    #     self._owner.retry_interval = interval
-    #
-    # def timeouts(self, base=None, page_load=None, script=None):
-    #     """设置超时时间，单位为秒
-    #     :param base: 基本等待时间，除页面加载和脚本超时，其它等待默认使用
-    #     :param page_load: 页面加载超时时间
-    #     :param script: 脚本运行超时时间
-    #     :return: None
-    #     """
-    #     if base is not None:
-    #         self._owner.timeouts.base = base
-    #         self._owner._timeout = base
-    #
-    #     if page_load is not None:
-    #         self._owner.timeouts.page_load = page_load
-    #
-    #     if script is not None:
-    #         self._owner.timeouts.script = script
 
     def user_agent(self, ua, platform=None):
         """为当前tab设置user agent，只在当前tab有效
@@ -354,14 +324,6 @@ class SessionPageSetter(BasePageSetter):
             self._cookies_setter = SessionCookiesSetter(self._owner)
         return self._cookies_setter
 
-    # def retry_times(self, times):
-    #     """设置连接失败时重连次数"""
-    #     self._owner.retry_times = times
-    #
-    # def retry_interval(self, interval):
-    #     """设置连接失败时重连间隔"""
-    #     self._owner.retry_interval = interval
-
     def download_path(self, path):
         """设置下载路径
         :param path: 下载路径
@@ -376,7 +338,7 @@ class SessionPageSetter(BasePageSetter):
         :param second: 秒数
         :return: None
         """
-        self._owner.timeout = second
+        self._owner._timeout = second
 
     def encoding(self, encoding, set_all=True):
         """设置编码

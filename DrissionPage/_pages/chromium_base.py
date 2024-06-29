@@ -65,23 +65,11 @@ class ChromiumBase(BasePage):
         if not hasattr(self, '_listener'):
             self._listener = None
 
-        # if isinstance(address, int) or (isinstance(address, str) and address.isdigit()):
-        #     address = f'127.0.0.1:{address}'
-
-        # self._d_set_start_options(address)
         self._d_set_runtime_settings()
         self._connect_browser(tab_id)
 
-    # def _d_set_start_options(self, address):
-    #     """设置浏览器启动属性
-    #     :param address: 'ip:port'
-    #     :return: None
-    #     """
-    #     self.address = address.replace('localhost', '127.0.0.1').lstrip('http://').lstrip('https://')
-
     def _d_set_runtime_settings(self):
-        self._timeouts = Timeout(self)
-        self._load_mode = 'normal'
+        pass
 
     def _connect_browser(self, tab_id=None):
         """连接浏览器，在第一次时运行

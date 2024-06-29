@@ -79,9 +79,6 @@ class WebPage(SessionPage, ChromiumPage, BasePage):
     @property
     def timeout(self) -> float: ...
 
-    @timeout.setter
-    def timeout(self, second: float) -> None: ...
-
     def get(self,
             url: str,
             show_errmsg: bool = False,

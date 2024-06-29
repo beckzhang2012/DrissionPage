@@ -44,7 +44,7 @@ class ChromiumElement(DrissionElement):
         :param backend_id: backend id
         """
         super().__init__(owner)
-        self.tab = self.owner.tab
+        self.tab = self.owner._tab
         self._select = None
         self._scroll = None
         self._rect = None
@@ -900,7 +900,7 @@ class ShadowRoot(BaseElement):
         :param backend_id: cdp中的backend id
         """
         super().__init__(parent_ele.owner)
-        self.tab = self.owner.tab
+        self.tab = self.owner._tab
         self.parent_ele = parent_ele
         if backend_id:
             self._backend_id = backend_id

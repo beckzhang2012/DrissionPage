@@ -162,9 +162,9 @@ class Clicker(object):
         :return: DownloadMission对象
         """
         if save_path:
-            self._ele.owner.tab.set.download_path(save_path)
+            self._ele.tab.set.download_path(save_path)
         elif not self._ele.tab._browser._dl_mgr._running:
-            self._ele.owner.tab._browser.set.download_path('.')
+            self._ele.tab._browser.set.download_path('.')
 
         obj = self._ele.tab._browser if new_tab else self._ele.owner.tab
         if rename or suffix:
