@@ -8,7 +8,7 @@
 from pathlib import Path
 from platform import system
 from shutil import rmtree
-from tempfile import gettempdir, TemporaryDirectory
+from tempfile import gettempdir
 from threading import Lock
 from time import perf_counter, sleep
 
@@ -18,8 +18,10 @@ from ..errors import (ContextLostError, ElementLostError, CDPError, PageDisconne
 
 
 class PortFinder(object):
-    used_port = {}
+    used_port = set()
+    prev_time = None
     lock = Lock()
+    checked_paths = set()
 
     def __init__(self, path=None):
         """
@@ -28,34 +30,39 @@ class PortFinder(object):
         tmp = Path(path) if path else Path(gettempdir()) / 'DrissionPage'
         self.tmp_dir = tmp / 'UserTempFolder'
         self.tmp_dir.mkdir(parents=True, exist_ok=True)
-        if not PortFinder.used_port:
-            clean_folder(self.tmp_dir)
+        if str(self.tmp_dir.absolute()) not in PortFinder.checked_paths:
+            for i in self.tmp_dir.iterdir():
+                if i.is_dir() and i.stem.startswith('AutoPort') and not port_is_using('127.0.0.1', i.name[8:]):
+                    rmtree(i, ignore_errors=True)
+            PortFinder.checked_paths.add(str(self.tmp_dir.absolute()))
 
     def get_port(self, scope=None):
         """查找一个可用端口
         :param scope: 指定端口范围，不含最后的数字，为None则使用[9600-19600)
         :return: 可以使用的端口和用户文件夹路径组成的元组
         """
+        from random import randint
         with PortFinder.lock:
+            if PortFinder.prev_time and perf_counter() - PortFinder.prev_time > 30:
+                PortFinder.used_port.clear()
+            PortFinder.prev_time = perf_counter()
             if scope in (True, None):
                 scope = (9600, 19600)
-            for i in range(scope[0], scope[1]):
-                if i in PortFinder.used_port:
+            msx_times = scope[1] - scope[0]
+            times = 0
+            while times < msx_times:
+                times += 1
+                port = randint(*scope)
+                if port in PortFinder.used_port or port_is_using('127.0.0.1', port):
                     continue
-                elif port_is_using('127.0.0.1', i):
-                    PortFinder.used_port[i] = None
-                    continue
-                path = TemporaryDirectory(dir=self.tmp_dir).name
-                PortFinder.used_port[i] = path
-                return i, path
-
-            for i in range(scope[0], scope[1]):
-                if port_is_using('127.0.0.1', i):
-                    continue
-                rmtree(PortFinder.used_port[i], ignore_errors=True)
-                return i, TemporaryDirectory(dir=self.tmp_dir).name
-
-        raise OSError('未找到可用端口。')
+                path = self.tmp_dir / f'AutoPort{port}'
+                if path.exists():
+                    try:
+                        rmtree(path)
+                    except:
+                        continue
+                return port, str(path)
+            raise OSError('未找到可用端口。')
 
 
 def port_is_using(ip, port):
@@ -95,7 +102,7 @@ def show_or_hide_browser(page, hide=True):
     :param hide: 是否隐藏
     :return: None
     """
-    if not page.address.startswith(('127.0.0.1', 'localhost')):
+    if not page.browser.address.startswith(('127.0.0.1', 'localhost')):
         return
 
     if system().lower() != 'windows':

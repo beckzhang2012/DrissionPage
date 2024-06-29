@@ -512,7 +512,7 @@ class ChromiumOptions(object):
         :return: 当前对象
         """
         if on_off:
-            self._auto_port = scope if scope else True
+            self._auto_port = scope if scope else (9600, 19600)
             if tmp_path:
                 self._tmp_path = str(tmp_path)
         else:
