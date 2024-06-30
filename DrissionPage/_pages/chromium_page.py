@@ -6,7 +6,6 @@
 @License  : BSD 3-Clause.
 """
 from pathlib import Path
-from threading import Lock
 from time import sleep, perf_counter
 
 from requests import Session
@@ -65,7 +64,7 @@ class ChromiumPage(ChromiumBase):
     def _run_browser(self):
         """连接浏览器"""
         self._browser = Browser(self._chromium_options.address, self._browser_id, self)
-        r = self._browser.run_cdp('Browser.getVersion')
+        r = self._browser._run_cdp('Browser.getVersion')
         self._browser_version = r['product']
         if self._is_exist and self._chromium_options._headless is False and 'headless' in r['userAgent'].lower():
             self._browser.quit(3)

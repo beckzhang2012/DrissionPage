@@ -142,6 +142,12 @@ class ChromiumFrame(ChromiumBase):
                as_expr: bool = False,
                timeout: float = None) -> Any: ...
 
+    def _run_js(self,
+               script: str,
+               *args,
+               as_expr: bool = False,
+               timeout: float = None) -> Any: ...
+
     def parent(self,
                level_or_loc: Union[Tuple[str, str], str, int] = 1,
                index: int = 1) -> ChromiumElement: ...

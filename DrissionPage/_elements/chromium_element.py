@@ -16,9 +16,9 @@ from DataRecorder.tools import get_usable_path, make_valid_name
 from .none_element import NoneElement
 from .session_element import make_session_ele
 from .._base.base import DrissionElement, BaseElement
+from .._functions.elements import ChromiumElementsList
 from .._functions.keys import input_text_or_keys
 from .._functions.locator import get_loc, locator_to_tuple
-from .._functions.elements import ChromiumElementsList
 from .._functions.web import make_absolute_link, get_ele_txt, format_html, is_js_func, offset_scroll, get_blob
 from .._units.clicker import Clicker
 from .._units.rect import ElementRect
@@ -95,29 +95,29 @@ class ChromiumElement(DrissionElement):
     def tag(self):
         """返回元素tag"""
         if self._tag is None:
-            self._tag = self.owner.run_cdp('DOM.describeNode',
-                                           backendNodeId=self._backend_id)['node']['localName'].lower()
+            self._tag = self.owner._run_cdp('DOM.describeNode',
+                                            backendNodeId=self._backend_id)['node']['localName'].lower()
         return self._tag
 
     @property
     def html(self):
         """返回元素outerHTML文本"""
-        return self.owner.run_cdp('DOM.getOuterHTML', backendNodeId=self._backend_id)['outerHTML']
+        return self.owner._run_cdp('DOM.getOuterHTML', backendNodeId=self._backend_id)['outerHTML']
 
     @property
     def inner_html(self):
         """返回元素innerHTML文本"""
-        return self.run_js('return this.innerHTML;')
+        return self._run_js('return this.innerHTML;')
 
     @property
     def attrs(self):
         """返回元素所有attribute属性"""
         try:
-            attrs = self.owner.run_cdp('DOM.getAttributes', nodeId=self._node_id)['attributes']
+            attrs = self.owner._run_cdp('DOM.getAttributes', nodeId=self._node_id)['attributes']
             return {attrs[i]: attrs[i + 1] for i in range(0, len(attrs), 2)}
         except ElementLostError:
             self._refresh_id()
-            attrs = self.owner.run_cdp('DOM.getAttributes', nodeId=self._node_id)['attributes']
+            attrs = self.owner._run_cdp('DOM.getAttributes', nodeId=self._node_id)['attributes']
             return {attrs[i]: attrs[i + 1] for i in range(0, len(attrs), 2)}
         except CDPError:  # 文档根元素不能调用此方法
             return {}
@@ -164,7 +164,7 @@ class ChromiumElement(DrissionElement):
     @property
     def shadow_root(self):
         """返回当前元素的shadow_root元素对象"""
-        info = self.owner.run_cdp('DOM.describeNode', backendNodeId=self._backend_id)['node']
+        info = self.owner._run_cdp('DOM.describeNode', backendNodeId=self._backend_id)['node']
         if not info.get('shadowRoots', None):
             return None
 
@@ -225,8 +225,8 @@ class ChromiumElement(DrissionElement):
             elif not is_checked and not uncheck:
                 js = 'this.checked=true'
             if js:
-                self.run_js(js)
-                self.run_js('this.dispatchEvent(new Event("change", {bubbles: true}));')
+                self._run_js(js)
+                self._run_js('this.dispatchEvent(new Event("change", {bubbles: true}));')
 
         else:
             if (is_checked and uncheck) or (not is_checked and not uncheck):
@@ -360,9 +360,9 @@ class ChromiumElement(DrissionElement):
         x, y = self.rect.location
         try:
             return ChromiumElement(owner=self.owner,
-                                   backend_id=self.owner.run_cdp('DOM.getNodeForLocation', x=x + offset_x,
-                                                                 y=y + offset_y, includeUserAgentShadowDOM=True,
-                                                                 ignorePointerEventsNone=False)['backendNodeId'])
+                                   backend_id=self.owner._run_cdp('DOM.getNodeForLocation', x=x + offset_x,
+                                                                  y=y + offset_y, includeUserAgentShadowDOM=True,
+                                                                  ignorePointerEventsNone=False)['backendNodeId'])
         except CDPError:
             return NoneElement(page=self.owner, method='offset()', args={'offset_x': offset_x, 'offset_y': offset_y})
 
@@ -439,8 +439,8 @@ class ChromiumElement(DrissionElement):
                 cdp_data[variable] += locator
             try:
                 return ChromiumElement(owner=self.owner,
-                                       backend_id=self.owner.run_cdp('DOM.getNodeForLocation',
-                                                                     **cdp_data)['backendNodeId'])
+                                       backend_id=self.owner._run_cdp('DOM.getNodeForLocation',
+                                                                      **cdp_data)['backendNodeId'])
             except CDPError:
                 return NoneElement(page=self.owner, method=f'{mode}()', args={'locator': locator})
 
@@ -453,7 +453,7 @@ class ChromiumElement(DrissionElement):
         while 0 < cdp_data[variable] < max_len:
             cdp_data[variable] += value
             try:
-                bid = self.owner.run_cdp('DOM.getNodeForLocation', **cdp_data)['backendNodeId']
+                bid = self.owner._run_cdp('DOM.getNodeForLocation', **cdp_data)['backendNodeId']
                 if bid == curr_ele:
                     continue
                 else:
@@ -505,7 +505,7 @@ class ChromiumElement(DrissionElement):
         :param name: 属性名
         :return: None
         """
-        self.run_js(f'this.removeAttribute("{name}");')
+        self._run_js(f'this.removeAttribute("{name}");')
 
     def property(self, name):
         """获取一个property属性值
@@ -513,12 +513,22 @@ class ChromiumElement(DrissionElement):
         :return: 属性值文本
         """
         try:
-            value = self.run_js(f'return this.{name};')
+            value = self._run_js(f'return this.{name};')
             return format_html(value) if isinstance(value, str) else value
         except:
             return None
 
     def run_js(self, script, *args, as_expr=False, timeout=None):
+        """对本元素执行javascript代码
+        :param script: js文本，文本中用this表示本元素
+        :param args: 参数，按顺序在js文本中对应arguments[0]、arguments[1]...
+        :param as_expr: 是否作为表达式运行，为True时args无效
+        :param timeout: js超时时间（秒），为None则使用页面timeouts.script设置
+        :return: 运行的结果
+        """
+        return self._run_js(script, *args, as_expr=as_expr, timeout=timeout)
+
+    def _run_js(self, script, *args, as_expr=False, timeout=None):
         """对本元素执行javascript代码
         :param script: js文本，文本中用this表示本元素
         :param args: 参数，按顺序在js文本中对应arguments[0]、arguments[1]...
@@ -588,7 +598,7 @@ class ChromiumElement(DrissionElement):
         """
         if pseudo_ele:
             pseudo_ele = f', "{pseudo_ele}"' if pseudo_ele.startswith(':') else f', "::{pseudo_ele}"'
-        return self.run_js(f'return window.getComputedStyle(this{pseudo_ele}).getPropertyValue("{style}");')
+        return self._run_js(f'return window.getComputedStyle(this{pseudo_ele}).getPropertyValue("{style}");')
 
     def src(self, timeout=None, base64_to_bytes=True):
         """返回元素src资源，base64的可转为bytes返回，其它返回str
@@ -602,7 +612,7 @@ class ChromiumElement(DrissionElement):
                   '&& this.naturalWidth > 0 && typeof this.naturalHeight != "undefined" '
                   '&& this.naturalHeight > 0')
             end_time = perf_counter() + timeout
-            while not self.run_js(js) and perf_counter() < end_time:
+            while not self._run_js(js) and perf_counter() < end_time:
                 sleep(.1)
 
         src = self.attr('src')
@@ -631,11 +641,11 @@ class ChromiumElement(DrissionElement):
                 if not src:
                     continue
 
-                node = self.owner.run_cdp('DOM.describeNode', backendNodeId=self._backend_id)['node']
+                node = self.owner._run_cdp('DOM.describeNode', backendNodeId=self._backend_id)['node']
                 frame = node.get('frameId', None) or self.owner._frame_id
 
                 try:
-                    result = self.owner.run_cdp('Page.getResourceContent', frameId=frame, url=src)
+                    result = self.owner._run_cdp('Page.getResourceContent', frameId=frame, url=src)
                     break
                 except CDPError:
                     pass
@@ -698,7 +708,7 @@ class ChromiumElement(DrissionElement):
             js = ('return this.complete && typeof this.naturalWidth != "undefined" && this.naturalWidth > 0 '
                   '&& typeof this.naturalHeight != "undefined" && this.naturalHeight > 0')
             end_time = perf_counter() + self.owner.timeout
-            while not self.run_js(js) and perf_counter() < end_time:
+            while not self._run_js(js) and perf_counter() < end_time:
                 sleep(.1)
         if scroll_to_center:
             self.scroll.to_see(center=True)
@@ -729,7 +739,7 @@ class ChromiumElement(DrissionElement):
             if isinstance(vals, (list, tuple)):
                 vals = ''.join([str(i) for i in vals])
             self.set.property('value', str(vals))
-            self.run_js('this.dispatchEvent(new Event("change", {bubbles: true}));')
+            self._run_js('this.dispatchEvent(new Event("change", {bubbles: true}));')
             return
 
         self.wait.clickable(wait_moved=False, timeout=.5)
@@ -746,8 +756,8 @@ class ChromiumElement(DrissionElement):
         :return: None
         """
         if by_js:
-            self.run_js("this.value='';")
-            self.run_js('this.dispatchEvent(new Event("change", {bubbles: true}));')
+            self._run_js("this.value='';")
+            self._run_js('this.dispatchEvent(new Event("change", {bubbles: true}));')
             return
 
         self._input_focus()
@@ -756,16 +766,16 @@ class ChromiumElement(DrissionElement):
     def _input_focus(self):
         """输入前使元素获取焦点"""
         try:
-            self.owner.run_cdp('DOM.focus', backendNodeId=self._backend_id)
+            self.owner._run_cdp('DOM.focus', backendNodeId=self._backend_id)
         except Exception:
             self.click(by_js=None)
 
     def focus(self):
         """使元素获取焦点"""
         try:
-            self.owner.run_cdp('DOM.focus', backendNodeId=self._backend_id)
+            self.owner._run_cdp('DOM.focus', backendNodeId=self._backend_id)
         except Exception:
-            self.run_js('this.focus();')
+            self._run_js('this.focus();')
 
     def hover(self, offset_x=None, offset_y=None):
         """鼠标悬停，可接受偏移量，偏移量相对于元素左上角坐标。不传入x或y值时悬停在元素中点
@@ -775,7 +785,7 @@ class ChromiumElement(DrissionElement):
         """
         self.owner.scroll.to_see(self)
         x, y = offset_scroll(self, offset_x, offset_y)
-        self.owner.run_cdp('Input.dispatchMouseEvent', type='mouseMoved', x=x, y=y, _ignore=AlertExistsError)
+        self.owner._run_cdp('Input.dispatchMouseEvent', type='mouseMoved', x=x, y=y, _ignore=AlertExistsError)
 
     def drag(self, offset_x=0, offset_y=0, duration=.5):
         """拖拽当前元素到相对位置
@@ -808,9 +818,9 @@ class ChromiumElement(DrissionElement):
         :return: js中的object id
         """
         if node_id:
-            return self.owner.run_cdp('DOM.resolveNode', nodeId=node_id)['object']['objectId']
+            return self.owner._run_cdp('DOM.resolveNode', nodeId=node_id)['object']['objectId']
         else:
-            return self.owner.run_cdp('DOM.resolveNode', backendNodeId=backend_id)['object']['objectId']
+            return self.owner._run_cdp('DOM.resolveNode', backendNodeId=backend_id)['object']['objectId']
 
     def _get_node_id(self, obj_id=None, backend_id=None):
         """根据传入object id或backend id获取cdp中的node id
@@ -819,9 +829,9 @@ class ChromiumElement(DrissionElement):
         :return: cdp中的node id
         """
         if obj_id:
-            return self.owner.run_cdp('DOM.requestNode', objectId=obj_id)['nodeId']
+            return self.owner._run_cdp('DOM.requestNode', objectId=obj_id)['nodeId']
         else:
-            n = self.owner.run_cdp('DOM.describeNode', backendNodeId=backend_id)['node']
+            n = self.owner._run_cdp('DOM.describeNode', backendNodeId=backend_id)['node']
             self._tag = n['localName']
             return n['nodeId']
 
@@ -830,7 +840,7 @@ class ChromiumElement(DrissionElement):
         :param node_id:
         :return: backend id
         """
-        n = self.owner.run_cdp('DOM.describeNode', nodeId=node_id)['node']
+        n = self.owner._run_cdp('DOM.describeNode', nodeId=node_id)['node']
         self._tag = n['localName']
         return n['backendNodeId']
 
@@ -876,7 +886,7 @@ class ChromiumElement(DrissionElement):
         }
         return e(this);}
         '''
-        t = self.run_js(js)
+        t = self._run_js(js)
         return f'{t}' if mode == 'css' else t
 
     def _set_file_input(self, files):
@@ -887,7 +897,7 @@ class ChromiumElement(DrissionElement):
         if isinstance(files, str):
             files = files.split('\n')
         files = [str(Path(i).absolute()) for i in files]
-        self.owner.run_cdp('DOM.setFileInputFiles', files=files, backendNodeId=self._backend_id)
+        self.owner._run_cdp('DOM.setFileInputFiles', files=files, backendNodeId=self._backend_id)
 
 
 class ShadowRoot(BaseElement):
@@ -942,7 +952,7 @@ class ShadowRoot(BaseElement):
     @property
     def inner_html(self):
         """返回内部的html文本"""
-        return self.run_js('return this.innerHTML;')
+        return self._run_js('return this.innerHTML;')
 
     @property
     def states(self):
@@ -952,6 +962,16 @@ class ShadowRoot(BaseElement):
         return self._states
 
     def run_js(self, script, *args, as_expr=False, timeout=None):
+        """运行javascript代码
+        :param script: js文本
+        :param args: 参数，按顺序在js文本中对应arguments[0]、arguments[1]...
+        :param as_expr: 是否作为表达式运行，为True时args无效
+        :param timeout: js超时时间（秒），为None则使用页面timeouts.script设置
+        :return: 运行的结果
+        """
+        return self._run_js(script, *args, as_expr=as_expr, timeout=timeout)
+
+    def _run_js(self, script, *args, as_expr=False, timeout=None):
         """运行javascript代码
         :param script: js文本
         :param args: 参数，按顺序在js文本中对应arguments[0]、arguments[1]...
@@ -1163,14 +1183,14 @@ class ShadowRoot(BaseElement):
         def do_find():
             if loc[0] == 'css selector':
                 if index == 1:
-                    nod_id = self.owner.run_cdp('DOM.querySelector', nodeId=self._node_id, selector=loc[1])['nodeId']
+                    nod_id = self.owner._run_cdp('DOM.querySelector', nodeId=self._node_id, selector=loc[1])['nodeId']
                     if nod_id:
                         r = make_chromium_eles(self.owner, _ids=nod_id, is_obj_id=False)
                         return None if r is False else r
 
                 else:
-                    nod_ids = self.owner.run_cdp('DOM.querySelectorAll',
-                                                 nodeId=self._node_id, selector=loc[1])['nodeId']
+                    nod_ids = self.owner._run_cdp('DOM.querySelectorAll',
+                                                  nodeId=self._node_id, selector=loc[1])['nodeId']
                     r = make_chromium_eles(self.owner, _ids=nod_ids, index=index, is_obj_id=False)
                     return None if r is False else r
 
@@ -1182,14 +1202,14 @@ class ShadowRoot(BaseElement):
                 css = [i.css_path[61:] for i in eles]
                 if index is not None:
                     try:
-                        node_id = self.owner.run_cdp('DOM.querySelector', nodeId=self._node_id,
-                                                     selector=css[index - 1])['nodeId']
+                        node_id = self.owner._run_cdp('DOM.querySelector', nodeId=self._node_id,
+                                                      selector=css[index - 1])['nodeId']
                     except IndexError:
                         return None
                     r = make_chromium_eles(self.owner, _ids=node_id, is_obj_id=False)
                     return None if r is False else r
                 else:
-                    node_ids = [self.owner.run_cdp('DOM.querySelector', nodeId=self._node_id, selector=i)['nodeId']
+                    node_ids = [self.owner._run_cdp('DOM.querySelector', nodeId=self._node_id, selector=i)['nodeId']
                                 for i in css]
                     if 0 in node_ids:
                         return None
@@ -1209,15 +1229,15 @@ class ShadowRoot(BaseElement):
 
     def _get_node_id(self, obj_id):
         """返回元素node id"""
-        return self.owner.run_cdp('DOM.requestNode', objectId=obj_id)['nodeId']
+        return self.owner._run_cdp('DOM.requestNode', objectId=obj_id)['nodeId']
 
     def _get_obj_id(self, back_id):
         """返回元素object id"""
-        return self.owner.run_cdp('DOM.resolveNode', backendNodeId=back_id)['object']['objectId']
+        return self.owner._run_cdp('DOM.resolveNode', backendNodeId=back_id)['object']['objectId']
 
     def _get_backend_id(self, node_id):
         """返回元素object id"""
-        r = self.owner.run_cdp('DOM.describeNode', nodeId=node_id)['node']
+        r = self.owner._run_cdp('DOM.describeNode', nodeId=node_id)['node']
         self._tag = r['localName'].lower()
         return r['backendNodeId']
 
@@ -1269,15 +1289,15 @@ def find_by_xpath(ele, xpath, index, timeout, relative=True):
     ele.owner.wait.doc_loaded()
 
     def do_find():
-        res = ele.owner.run_cdp('Runtime.callFunctionOn', functionDeclaration=js, objectId=ele._obj_id,
-                                returnByValue=False, awaitPromise=True, userGesture=True)
+        res = ele.owner._run_cdp('Runtime.callFunctionOn', functionDeclaration=js, objectId=ele._obj_id,
+                                 returnByValue=False, awaitPromise=True, userGesture=True)
         if res['result']['type'] == 'string':
             return res['result']['value']
         if 'exceptionDetails' in res:
             if 'The result is not a node set' in res['result']['description']:
                 js1 = make_js_for_find_ele_by_xpath(xpath, '1', node_txt)
-                res = ele.owner.run_cdp('Runtime.callFunctionOn', functionDeclaration=js1, objectId=ele._obj_id,
-                                        returnByValue=False, awaitPromise=True, userGesture=True)
+                res = ele.owner._run_cdp('Runtime.callFunctionOn', functionDeclaration=js1, objectId=ele._obj_id,
+                                         returnByValue=False, awaitPromise=True, userGesture=True)
                 return res['result']['value']
             else:
                 raise SyntaxError(f'查询语句错误：\n{res}')
@@ -1290,8 +1310,8 @@ def find_by_xpath(ele, xpath, index, timeout, relative=True):
             return None if r is False else r
 
         else:
-            res = ele.owner.run_cdp('Runtime.getProperties', objectId=res['result']['objectId'],
-                                    ownProperties=True)['result'][:-1]
+            res = ele.owner._run_cdp('Runtime.getProperties', objectId=res['result']['objectId'],
+                                     ownProperties=True)['result'][:-1]
             if index is None:
                 r = ChromiumElementsList(page=ele.owner)
                 for i in res:
@@ -1341,8 +1361,8 @@ def find_by_css(ele, selector, index, timeout):
     ele.owner.wait.doc_loaded()
 
     def do_find():
-        res = ele.owner.run_cdp('Runtime.callFunctionOn', functionDeclaration=js, objectId=ele._obj_id,
-                                returnByValue=False, awaitPromise=True, userGesture=True)
+        res = ele.owner._run_cdp('Runtime.callFunctionOn', functionDeclaration=js, objectId=ele._obj_id,
+                                 returnByValue=False, awaitPromise=True, userGesture=True)
 
         if 'exceptionDetails' in res:
             raise SyntaxError(f'查询语句错误：\n{res}')
@@ -1354,9 +1374,9 @@ def find_by_css(ele, selector, index, timeout):
             return None if r is False else r
 
         else:
-            obj_ids = [i['value']['objectId'] for i in ele.owner.run_cdp('Runtime.getProperties',
-                                                                         objectId=res['result']['objectId'],
-                                                                         ownProperties=True)['result']]
+            obj_ids = [i['value']['objectId'] for i in ele.owner._run_cdp('Runtime.getProperties',
+                                                                          objectId=res['result']['objectId'],
+                                                                          ownProperties=True)['result']]
             r = make_chromium_eles(ele.owner, _ids=obj_ids, index=index, is_obj_id=True)
             return None if r is False else r
 
@@ -1535,16 +1555,16 @@ def run_js(page_or_ele, script, as_expr, timeout, args=None):
     end_time = perf_counter() + timeout
     try:
         if as_expr:
-            res = page.run_cdp('Runtime.evaluate', expression=script, returnByValue=False,
-                               awaitPromise=True, userGesture=True, _timeout=timeout, _ignore=AlertExistsError)
+            res = page._run_cdp('Runtime.evaluate', expression=script, returnByValue=False,
+                                awaitPromise=True, userGesture=True, _timeout=timeout, _ignore=AlertExistsError)
 
         else:
             args = args or ()
             if not is_js_func(script):
                 script = f'function(){{{script}}}'
-            res = page.run_cdp('Runtime.callFunctionOn', functionDeclaration=script, objectId=obj_id,
-                               arguments=[convert_argument(arg) for arg in args], returnByValue=False,
-                               awaitPromise=True, userGesture=True, _timeout=timeout, _ignore=AlertExistsError)
+            res = page._run_cdp('Runtime.callFunctionOn', functionDeclaration=script, objectId=obj_id,
+                                arguments=[convert_argument(arg) for arg in args], returnByValue=False,
+                                awaitPromise=True, userGesture=True, _timeout=timeout, _ignore=AlertExistsError)
     except TimeoutError:
         raise TimeoutError(f'执行js超时（等待{timeout}秒）。')
     except ContextLostError:
@@ -1591,7 +1611,7 @@ def parse_js_result(page, ele, result, end_time):
                 return r
 
         elif sub_type == 'array':
-            r = page.run_cdp('Runtime.getProperties', objectId=result['objectId'], ownProperties=True)['result']
+            r = page._run_cdp('Runtime.getProperties', objectId=result['objectId'], ownProperties=True)['result']
             return [parse_js_result(page, ele, result=i['value'], end_time=end_time) for i in r if i['name'].isdigit()]
 
         elif 'objectId' in result:
@@ -1599,9 +1619,9 @@ def parse_js_result(page, ele, result, end_time):
             if timeout < 0:
                 return
             js = 'function(){return JSON.stringify(this);}'
-            r = page.run_cdp('Runtime.callFunctionOn', functionDeclaration=js, objectId=result['objectId'],
-                             returnByValue=False, awaitPromise=True, userGesture=True, _ignore=AlertExistsError,
-                             _timeout=timeout)
+            r = page._run_cdp('Runtime.callFunctionOn', functionDeclaration=js, objectId=result['objectId'],
+                              returnByValue=False, awaitPromise=True, userGesture=True, _ignore=AlertExistsError,
+                              _timeout=timeout)
             return loads(parse_js_result(page, ele, r['result'], end_time))
 
         else:

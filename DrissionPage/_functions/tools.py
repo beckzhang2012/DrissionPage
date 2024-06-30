@@ -198,10 +198,11 @@ def configs_to_here(save_name=None):
     om.save(save_name)
 
 
-def raise_error(result, ignore=None):
+def raise_error(result, ignore=None, user=False):
     """抛出error对应报错
     :param result: 包含error的dict
     :param ignore: 要忽略的错误
+    :param user: 是否用户调用的
     :return: None
     """
     error = result['error']
@@ -227,13 +228,18 @@ def raise_error(result, ignore=None):
     elif error == 'Given expression does not evaluate to a function':
         r = JavaScriptError(f'传入的js无法解析成函数：\n{result["args"]["functionDeclaration"]}')
     elif error.endswith("' wasn't found"):
-        r = RuntimeError(f'你的浏览器可能太旧。\n方法：{result["method"]}\n参数：{result["args"]}')
-    elif result['type'] in ('call_method_error', 'timeout'):
+        r = RuntimeError(f'没有找到对应功能，方法错误或你的浏览器太旧。\n方法：{result["method"]}\n参数：{result["args"]}')
+    elif result['type'] == 'timeout':
+        from DrissionPage import __version__
+        txt = f'\n错误：{result["error"]}\n方法：{result["method"]}\n参数：{result["args"]}\n' \
+              f'版本：{__version__}\n超时，可能是浏览器卡了。'
+        r = TimeoutError(txt)
+    elif result['type'] == 'call_method_error' and not user:
         from DrissionPage import __version__
         txt = f'\n错误：{result["error"]}\n方法：{result["method"]}\n参数：{result["args"]}\n' \
               f'版本：{__version__}\n出现这个错误可能意味着程序有bug，请把错误信息和重现方法' \
               '告知作者，谢谢。\n报告网站：https://gitee.com/g1879/DrissionPage/issues'
-        r = TimeoutError(txt) if result['type'] == 'timeout' else CDPError(txt)
+        r = CDPError(txt)
     else:
         r = RuntimeError(result)
 

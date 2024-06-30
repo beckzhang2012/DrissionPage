@@ -45,7 +45,7 @@ class SelectElement(object):
         """返回第一个被选中的option元素
         :return: ChromiumElement对象或None
         """
-        ele = self._ele.run_js('return this.options[this.selectedIndex];')
+        ele = self._ele._run_js('return this.options[this.selectedIndex];')
         return ele
 
     @property
@@ -69,7 +69,7 @@ class SelectElement(object):
         for i in self.options:
             change = True
             mode = 'false' if i.states.is_selected else 'true'
-            i.run_js(f'this.selected={mode};')
+            i._run_js(f'this.selected={mode};')
         if change:
             self._dispatch_change()
 
@@ -258,12 +258,12 @@ class SelectElement(object):
             if not self.is_multi and len(option) > 1:
                 option = option[:1]
             for o in option:
-                o.run_js(f'this.selected={mode};')
+                o._run_js(f'this.selected={mode};')
                 self._dispatch_change()
         else:
-            option.run_js(f'this.selected={mode};')
+            option._run_js(f'this.selected={mode};')
             self._dispatch_change()
 
     def _dispatch_change(self):
         """触发修改动作"""
-        self._ele.run_js('this.dispatchEvent(new CustomEvent("change", {bubbles: true}));')
+        self._ele._run_js('this.dispatchEvent(new CustomEvent("change", {bubbles: true}));')

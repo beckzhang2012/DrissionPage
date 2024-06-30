@@ -12,7 +12,8 @@ from requests import Session
 from requests.structures import CaseInsensitiveDict
 
 from .options_manage import OptionsManager
-from .._functions.web import cookies_to_tuple, set_session_cookies, format_headers
+from .._functions.cookies import cookies_to_tuple, set_session_cookies
+from .._functions.web import format_headers
 
 
 class SessionOptions(object):

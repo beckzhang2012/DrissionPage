@@ -17,6 +17,7 @@ from .._base.browser import Browser
 from .._elements.chromium_element import ChromiumElement
 from .._elements.session_element import SessionElement
 from .._functions.elements import SessionElementsList, ChromiumElementsList
+from .._functions.web import CookiesList
 from .._units.rect import TabRect
 from .._units.setter import TabSetter, WebPageTabSetter
 from .._units.waiter import TabWaiter
@@ -153,8 +154,7 @@ class MixTab(SessionPage, ChromiumTab):
 
     def cookies_to_browser(self) -> None: ...
 
-    def cookies(self, as_dict: bool = False, all_domains: bool = False,
-                all_info: bool = False) -> Union[dict, list]: ...
+    def cookies(self, all_domains: bool = False, all_info: bool = False) -> CookiesList: ...
 
     def close(self) -> None: ...
 

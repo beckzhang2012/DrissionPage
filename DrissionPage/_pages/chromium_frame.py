@@ -33,7 +33,7 @@ class ChromiumFrame(ChromiumBase):
         self._frame_ele = ele
         self._reloading = False
 
-        node = info['node'] if not info else owner.run_cdp('DOM.describeNode', backendNodeId=ele._backend_id)['node']
+        node = info['node'] if not info else owner._run_cdp('DOM.describeNode', backendNodeId=ele._backend_id)['node']
         self._frame_id = node['frameId']
         if self._is_inner_frame():
             self._is_diff_domain = False
@@ -43,7 +43,7 @@ class ChromiumFrame(ChromiumBase):
             self._is_diff_domain = True
             delattr(self, '_frame_id')
             super().__init__(owner.browser, node['frameId'])
-            obj_id = super().run_js('document;', as_expr=True)['objectId']
+            obj_id = super()._run_js('document;', as_expr=True)['objectId']
             self.doc_ele = ChromiumElement(self, obj_id=obj_id)
 
         self._type = 'ChromiumFrame'
@@ -100,7 +100,7 @@ class ChromiumFrame(ChromiumBase):
             self._frame_ele = ChromiumElement(self._target_page, backend_id=self._backend_id)
             end_time = perf_counter() + 2
             while perf_counter() < end_time:
-                node = self._target_page.run_cdp('DOM.describeNode', backendNodeId=self._frame_ele._backend_id)['node']
+                node = self._target_page._run_cdp('DOM.describeNode', backendNodeId=self._frame_ele._backend_id)['node']
                 if 'frameId' in node:
                     break
                 sleep(.05)
@@ -145,17 +145,17 @@ class ChromiumFrame(ChromiumBase):
         self._is_reading = True
         try:
             if self._is_diff_domain is False:
-                node = self._target_page.run_cdp('DOM.describeNode', backendNodeId=self._backend_id)['node']
+                node = self._target_page._run_cdp('DOM.describeNode', backendNodeId=self._backend_id)['node']
                 self.doc_ele = ChromiumElement(self._target_page, backend_id=node['contentDocument']['backendNodeId'])
 
             else:
                 timeout = max(timeout, 2)
-                b_id = self.run_cdp('DOM.getDocument', _timeout=timeout)['root']['backendNodeId']
+                b_id = self._run_cdp('DOM.getDocument', _timeout=timeout)['root']['backendNodeId']
                 self.doc_ele = ChromiumElement(self, backend_id=b_id)
 
             self._root_id = self.doc_ele._obj_id
 
-            r = self.run_cdp('Page.getFrameTree')
+            r = self._run_cdp('Page.getFrameTree')
             for i in findall(r"'id': '(.*?)'", str(r)):
                 self.browser._frames[i] = self.tab_id
                 return True
@@ -253,7 +253,7 @@ class ChromiumFrame(ChromiumBase):
     def url(self):
         """返回frame当前访问的url"""
         try:
-            return self.doc_ele.run_js('return this.location.href;')
+            return self.doc_ele._run_js('return this.location.href;')
         except JavaScriptError:
             return None
 
@@ -261,14 +261,14 @@ class ChromiumFrame(ChromiumBase):
     def html(self):
         """返回元素outerHTML文本"""
         tag = self.tag
-        out_html = self._target_page.run_cdp('DOM.getOuterHTML', backendNodeId=self.frame_ele._backend_id)['outerHTML']
+        out_html = self._target_page._run_cdp('DOM.getOuterHTML', backendNodeId=self.frame_ele._backend_id)['outerHTML']
         sign = search(rf'<{tag}.*?>', out_html, DOTALL).group(0)
         return f'{sign}{self.inner_html}</{tag}>'
 
     @property
     def inner_html(self):
         """返回元素innerHTML文本"""
-        return self.doc_ele.run_js('return this.documentElement.outerHTML;')
+        return self.doc_ele._run_js('return this.documentElement.outerHTML;')
 
     @property
     def title(self):
@@ -284,7 +284,7 @@ class ChromiumFrame(ChromiumBase):
     @property
     def active_ele(self):
         """返回当前焦点所在元素"""
-        return self.doc_ele.run_js('return this.activeElement;')
+        return self.doc_ele._run_js('return this.activeElement;')
 
     @property
     def xpath(self):
@@ -318,18 +318,18 @@ class ChromiumFrame(ChromiumBase):
 
         else:
             try:
-                return self.doc_ele.run_js('return this.readyState;')
+                return self.doc_ele._run_js('return this.readyState;')
             except ContextLostError:
                 try:
-                    node = self.run_cdp('DOM.describeNode', backendNodeId=self.frame_ele._backend_id)['node']
+                    node = self._run_cdp('DOM.describeNode', backendNodeId=self.frame_ele._backend_id)['node']
                     doc = ChromiumElement(self._target_page, backend_id=node['contentDocument']['backendNodeId'])
-                    return doc.run_js('return this.readyState;')
+                    return doc._run_js('return this.readyState;')
                 except:
                     return None
 
     def refresh(self):
         """刷新frame页面"""
-        self.doc_ele.run_js('this.location.reload();')
+        self.doc_ele._run_js('this.location.reload();')
 
     def property(self, name):
         """返回frame元素一个property属性值
@@ -360,10 +360,20 @@ class ChromiumFrame(ChromiumBase):
         :param timeout: js超时时间（秒），为None则使用页面timeouts.script设置
         :return: 运行的结果
         """
+        return self._run_js(script, *args, as_expr=as_expr, timeout=timeout)
+
+    def _run_js(self, script, *args, as_expr=False, timeout=None):
+        """运行javascript代码
+        :param script: js文本
+        :param args: 参数，按顺序在js文本中对应arguments[0]、arguments[1]...
+        :param as_expr: 是否作为表达式运行，为True时args无效
+        :param timeout: js超时时间（秒），为None则使用页面timeouts.script设置
+        :return: 运行的结果
+        """
         if script.startswith('this.scrollIntoView'):
-            return self.frame_ele.run_js(script, *args, as_expr=as_expr, timeout=timeout)
+            return self.frame_ele._run_js(script, *args, as_expr=as_expr, timeout=timeout)
         else:
-            return self.doc_ele.run_js(script, *args, as_expr=as_expr, timeout=timeout)
+            return self.doc_ele._run_js(script, *args, as_expr=as_expr, timeout=timeout)
 
     def parent(self, level_or_loc=1, index=1):
         """返回上面某一级父元素，可指定层数或用查询语法定位
@@ -526,12 +536,12 @@ class ChromiumFrame(ChromiumBase):
         img.style.setProperty("position","fixed");
         arguments[0].insertBefore(img, this);
         return img;'''
-        new_ele = first_child.run_js(js, body)
+        new_ele = first_child._run_js(js, body)
         new_ele.scroll.to_see(center=True)
         top = int(self.frame_ele.style('border-top').split('px')[0])
         left = int(self.frame_ele.style('border-left').split('px')[0])
 
-        r = self.tab.run_cdp('Page.getLayoutMetrics')['visualViewport']
+        r = self.tab._run_cdp('Page.getLayoutMetrics')['visualViewport']
         sx = r['pageX']
         sy = r['pageY']
         r = self.tab.get_screenshot(path=path, name=name, as_bytes=as_bytes, as_base64=as_base64,
@@ -557,4 +567,4 @@ class ChromiumFrame(ChromiumBase):
 
     def _is_inner_frame(self):
         """返回当前frame是否同域"""
-        return self._frame_id in str(self._target_page.run_cdp('Page.getFrameTree')['frameTree'])
+        return self._frame_id in str(self._target_page._run_cdp('Page.getFrameTree')['frameTree'])

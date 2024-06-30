@@ -87,7 +87,7 @@ class Clicker(object):
                 x = rect[1][0] - (rect[1][0] - rect[0][0]) / 2
                 y = rect[0][0] + 3
                 try:
-                    r = self._ele.owner.run_cdp('DOM.getNodeForLocation', x=int(x), y=int(y),
+                    r = self._ele.owner._run_cdp('DOM.getNodeForLocation', x=int(x), y=int(y),
                                                 includeUserAgentShadowDOM=True, ignorePointerEventsNone=True)
                     if r['backendNodeId'] != self._ele._backend_id:
                         vx, vy = self._ele.rect.viewport_midpoint
@@ -101,7 +101,7 @@ class Clicker(object):
                 return True
 
         if by_js is not False:
-            self._ele.run_js('this.click();')
+            self._ele._run_js('this.click();')
             return True
         if Settings.raise_when_click_failed:
             raise CanNotClickError
@@ -204,7 +204,7 @@ class Clicker(object):
         :param count: 点击次数
         :return: None
         """
-        self._ele.owner.run_cdp('Input.dispatchMouseEvent', type='mousePressed', x=client_x,
+        self._ele.owner._run_cdp('Input.dispatchMouseEvent', type='mousePressed', x=client_x,
                                 y=client_y, button=button, clickCount=count, _ignore=AlertExistsError)
-        self._ele.owner.run_cdp('Input.dispatchMouseEvent', type='mouseReleased', x=client_x,
+        self._ele.owner._run_cdp('Input.dispatchMouseEvent', type='mouseReleased', x=client_x,
                                 y=client_y, button=button, _ignore=AlertExistsError)

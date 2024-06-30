@@ -12,10 +12,10 @@ from urllib.parse import quote
 
 from DownloadKit import DownloadKit
 
-from .._functions.settings import Settings
-from .._functions.locator import get_loc
-from .._functions.web import format_html
 from .._elements.none_element import NoneElement
+from .._functions.locator import get_loc
+from .._functions.settings import Settings
+from .._functions.web import format_html
 from ..errors import ElementNotFoundError
 
 
@@ -413,10 +413,6 @@ class BasePage(BaseParser):
     @property
     def user_agent(self):
         return
-
-    @abstractmethod
-    def cookies(self, as_dict=False, all_info=False):
-        return {}
 
     @abstractmethod
     def get(self, url, show_errmsg=False, retry=None, interval=None):

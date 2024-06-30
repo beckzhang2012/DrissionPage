@@ -18,6 +18,7 @@ from .._base.base import BasePage
 from .._elements.chromium_element import run_js, make_chromium_eles
 from .._elements.none_element import NoneElement
 from .._elements.session_element import make_session_ele
+from .._functions.cookies import CookiesList
 from .._functions.locator import get_loc, is_loc
 from .._functions.settings import Settings
 from .._functions.tools import raise_error
@@ -120,7 +121,7 @@ class ChromiumBase(BasePage):
         self._driver.run('Page.enable')
         self._driver.run('Emulation.setFocusEmulationEnabled', enabled=True)
 
-        r = self.run_cdp('Page.getFrameTree')
+        r = self._run_cdp('Page.getFrameTree')
         for i in findall(r"'id': '(.*?)'", str(r)):
             self.browser._frames[i] = self.tab_id
         if not hasattr(self, '_frame_id'):
@@ -146,10 +147,10 @@ class ChromiumBase(BasePage):
         end_time = perf_counter() + timeout
         while perf_counter() < end_time:
             try:
-                b_id = self.run_cdp('DOM.getDocument', _timeout=timeout)['root']['backendNodeId']
+                b_id = self._run_cdp('DOM.getDocument', _timeout=timeout)['root']['backendNodeId']
                 timeout = end_time - perf_counter()
                 timeout = 1 if timeout <= 1 else timeout
-                self._root_id = self.run_cdp('DOM.resolveNode', backendNodeId=b_id,
+                self._root_id = self._run_cdp('DOM.resolveNode', backendNodeId=b_id,
                                              _timeout=timeout)['object']['objectId']
                 result = True
                 break
@@ -166,7 +167,7 @@ class ChromiumBase(BasePage):
             result = False
 
         if result:
-            r = self.run_cdp('Page.getFrameTree')
+            r = self._run_cdp('Page.getFrameTree')
             for i in findall(r"'id': '(.*?)'", str(r)):
                 self.browser._frames[i] = self.tab_id
 
@@ -203,7 +204,7 @@ class ChromiumBase(BasePage):
     def _onDomContentEventFired(self, **kwargs):
         """在页面刷新、变化后重新读取页面内容"""
         if self._load_mode == 'eager':
-            self.run_cdp('Page.stopLoading')
+            self._run_cdp('Page.stopLoading')
         if self._get_document(self._load_end_time - perf_counter() - .1):
             self._doc_got = True
         self._ready_state = 'interactive'
@@ -228,10 +229,10 @@ class ChromiumBase(BasePage):
             if 'backendNodeId' not in kwargs:
                 raise TypeError('该输入框无法接管，请改用对<input>元素输入路径的方法设置。')
             files = self._upload_list if kwargs['mode'] == 'selectMultiple' else self._upload_list[:1]
-            self.run_cdp('DOM.setFileInputFiles', files=files, backendNodeId=kwargs['backendNodeId'])
+            self._run_cdp('DOM.setFileInputFiles', files=files, backendNodeId=kwargs['backendNodeId'])
 
             self.driver.set_callback('Page.fileChooserOpened', None)
-            self.run_cdp('Page.setInterceptFileChooserDialog', enabled=False)
+            self._run_cdp('Page.setInterceptFileChooserDialog', enabled=False)
             self._upload_list = None
 
     def __call__(self, locator, index=1, timeout=None):
@@ -333,12 +334,12 @@ class ChromiumBase(BasePage):
     @property
     def title(self):
         """返回当前页面title"""
-        return self.run_cdp_loaded('Target.getTargetInfo', targetId=self._target_id)['targetInfo']['title']
+        return self._run_cdp_loaded('Target.getTargetInfo', targetId=self._target_id)['targetInfo']['title']
 
     @property
     def url(self):
         """返回当前页面url"""
-        return self.run_cdp_loaded('Target.getTargetInfo', targetId=self._target_id)['targetInfo']['url']
+        return self._run_cdp_loaded('Target.getTargetInfo', targetId=self._target_id)['targetInfo']['url']
 
     @property
     def _browser_url(self):
@@ -349,7 +350,7 @@ class ChromiumBase(BasePage):
     def html(self):
         """返回当前页面html文本"""
         self.wait.doc_loaded()
-        return self.run_cdp('DOM.getOuterHTML', objectId=self._root_id)['outerHTML']
+        return self._run_cdp('DOM.getOuterHTML', objectId=self._root_id)['outerHTML']
 
     @property
     def json(self):
@@ -372,7 +373,7 @@ class ChromiumBase(BasePage):
     @property
     def active_ele(self):
         """返回当前焦点所在元素"""
-        return self.run_js_loaded('return document.activeElement;')
+        return self._run_js_loaded('return document.activeElement;')
 
     @property
     def load_mode(self):
@@ -382,7 +383,7 @@ class ChromiumBase(BasePage):
     @property
     def user_agent(self):
         """返回user agent"""
-        return self.run_cdp('Runtime.evaluate', expression='navigator.userAgent;')['result']['value']
+        return self._run_cdp('Runtime.evaluate', expression='navigator.userAgent;')['result']['value']
 
     @property
     def upload_list(self):
@@ -393,7 +394,7 @@ class ChromiumBase(BasePage):
     def _js_ready_state(self):
         """返回js获取的ready state信息"""
         try:
-            return self.run_cdp('Runtime.evaluate', expression='document.readyState;', _timeout=3)['result']['value']
+            return self._run_cdp('Runtime.evaluate', expression='document.readyState;', _timeout=3)['result']['value']
         except ContextLostError:
             return None
         except TimeoutError:
@@ -405,9 +406,8 @@ class ChromiumBase(BasePage):
         :param cmd_args: 参数
         :return: 执行的结果
         """
-        ignore = cmd_args.pop('_ignore', None)
         r = self.driver.run(cmd, **cmd_args)
-        return r if __ERROR__ not in r else raise_error(r, ignore)
+        return r if __ERROR__ not in r else raise_error(r, user=True)
 
     def run_cdp_loaded(self, cmd, **cmd_args):
         """执行Chrome DevTools Protocol语句，执行前等待页面加载完毕
@@ -416,7 +416,27 @@ class ChromiumBase(BasePage):
         :return: 执行的结果
         """
         self.wait.doc_loaded()
-        return self.run_cdp(cmd, **cmd_args)
+        r = self.driver.run(cmd, **cmd_args)
+        return r if __ERROR__ not in r else raise_error(r, user=True)
+
+    def _run_cdp(self, cmd, **cmd_args):
+        """执行Chrome DevTools Protocol语句
+        :param cmd: 协议项目
+        :param cmd_args: 参数
+        :return: 执行的结果
+        """
+        ignore = cmd_args.pop('_ignore', None)
+        r = self.driver.run(cmd, **cmd_args)
+        return r if __ERROR__ not in r else raise_error(r, ignore)
+
+    def _run_cdp_loaded(self, cmd, **cmd_args):
+        """执行Chrome DevTools Protocol语句，执行前等待页面加载完毕
+        :param cmd: 协议项目
+        :param cmd_args: 参数
+        :return: 执行的结果
+        """
+        self.wait.doc_loaded()
+        return self._run_cdp(cmd, **cmd_args)
 
     def run_js(self, script, *args, as_expr=False, timeout=None):
         """运行javascript代码
@@ -426,9 +446,30 @@ class ChromiumBase(BasePage):
         :param timeout: js超时时间（秒），为None则使用页面timeouts.script设置
         :return: 运行的结果
         """
-        return run_js(self, script, as_expr, self.timeouts.script if timeout is None else timeout, args)
+        return self._run_js(script, *args, as_expr=as_expr, timeout=timeout)
 
     def run_js_loaded(self, script, *args, as_expr=False, timeout=None):
+        """运行javascript代码，执行前等待页面加载完毕
+        :param script: js文本或js文件路径
+        :param args: 参数，按顺序在js文本中对应arguments[0]、arguments[1]...
+        :param as_expr: 是否作为表达式运行，为True时args无效
+        :param timeout: js超时时间（秒），为None则使用页面timeouts.script属性值
+        :return: 运行的结果
+        """
+        self.wait.doc_loaded()
+        return self._run_js(script, *args, as_expr=as_expr, timeout=timeout)
+
+    def _run_js(self, script, *args, as_expr=False, timeout=None):
+        """运行javascript代码
+        :param script: js文本或js文件路径
+        :param args: 参数，按顺序在js文本中对应arguments[0]、arguments[1]...
+        :param as_expr: 是否作为表达式运行，为True时args无效
+        :param timeout: js超时时间（秒），为None则使用页面timeouts.script设置
+        :return: 运行的结果
+        """
+        return run_js(self, script, as_expr, self.timeouts.script if timeout is None else timeout, args)
+
+    def _run_js_loaded(self, script, *args, as_expr=False, timeout=None):
         """运行javascript代码，执行前等待页面加载完毕
         :param script: js文本或js文件路径
         :param args: 参数，按顺序在js文本中对应arguments[0]、arguments[1]...
@@ -462,23 +503,21 @@ class ChromiumBase(BasePage):
                                               show_errmsg=show_errmsg, timeout=timeout)
         return self._url_available
 
-    def cookies(self, as_dict=False, all_domains=False, all_info=False):
+    def cookies(self, all_domains=False, all_info=False):
         """返回cookies信息
-        :param as_dict: 为True时以dict格式返回且all_info无效，为False时返回list
         :param all_domains: 是否返回所有域的cookies
         :param all_info: 是否返回所有信息，为False时只返回name、value、domain
         :return: cookies信息
         """
         txt = 'Storage' if all_domains else 'Network'
-        cookies = self.run_cdp_loaded(f'{txt}.getCookies')['cookies']
+        cookies = self._run_cdp_loaded(f'{txt}.getCookies')['cookies']
 
-        if as_dict:
-            return {cookie['name']: cookie['value'] for cookie in cookies}
-        elif all_info:
-            return cookies
+        if all_info:
+            r = cookies
         else:
-            return [{'name': cookie['name'], 'value': cookie['value'], 'domain': cookie['domain']}
-                    for cookie in cookies]
+            r = [{'name': cookie['name'], 'value': cookie['value'], 'domain': cookie['domain']} for cookie in cookies]
+
+        return CookiesList(r)
 
     def ele(self, locator, index=1, timeout=None):
         """获取一个符合条件的元素对象
@@ -591,7 +630,7 @@ class ChromiumBase(BasePage):
         :return: None
         """
         self._is_loading = True
-        self.run_cdp('Page.reload', ignoreCache=ignore_cache)
+        self._run_cdp('Page.reload', ignoreCache=ignore_cache)
         self.wait.load_start()
 
     def forward(self, steps=1):
@@ -616,7 +655,7 @@ class ChromiumBase(BasePage):
         if steps == 0:
             return
 
-        history = self.run_cdp('Page.getNavigationHistory')
+        history = self._run_cdp('Page.getNavigationHistory')
         index = history['currentIndex']
         history = history['entries']
         direction = 1 if steps > 0 else -1
@@ -632,12 +671,12 @@ class ChromiumBase(BasePage):
 
         if nid:
             self._is_loading = True
-            self.run_cdp('Page.navigateToHistoryEntry', entryId=nid)
+            self._run_cdp('Page.navigateToHistoryEntry', entryId=nid)
 
     def stop_loading(self):
         """页面停止加载"""
         try:
-            self.run_cdp('Page.stopLoading')
+            self._run_cdp('Page.stopLoading')
             end_time = perf_counter() + 5
             while self._ready_state != 'complete' and perf_counter() < end_time:
                 sleep(.1)
@@ -655,7 +694,7 @@ class ChromiumBase(BasePage):
             return
         ele = self._ele(loc_or_ele, raise_err=False)
         if ele:
-            self.run_cdp('DOM.removeNode', nodeId=ele._node_id, _ignore=ElementLostError)
+            self._run_cdp('DOM.removeNode', nodeId=ele._node_id, _ignore=ElementLostError)
 
     def add_ele(self, html_or_info, insert_to=None, before=None):
         """新建一个元素
@@ -711,7 +750,7 @@ class ChromiumBase(BasePage):
         else:
             raise TypeError('html_or_info参数必须是html文本或tuple，tuple格式为(tag, {name: value})。')
 
-        ele = self.run_js(js, *args)
+        ele = self._run_js(js, *args)
         return ele
 
     def get_frame(self, loc_ind_ele, timeout=None):
@@ -772,7 +811,7 @@ class ChromiumBase(BasePage):
         :return: sessionStorage一个或所有项内容
         """
         js = f'sessionStorage.getItem("{item}")' if item else 'sessionStorage'
-        return self.run_js_loaded(js, as_expr=True)
+        return self._run_js_loaded(js, as_expr=True)
 
     def local_storage(self, item=None):
         """返回localStorage信息，不设置item则获取全部
@@ -780,7 +819,7 @@ class ChromiumBase(BasePage):
         :return: localStorage一个或所有项内容
         """
         js = f'localStorage.getItem("{item}")' if item else 'localStorage'
-        return self.run_js_loaded(js, as_expr=True)
+        return self._run_js_loaded(js, as_expr=True)
 
     def get_screenshot(self, path=None, name=None, as_bytes=None, as_base64=None,
                        full_page=False, left_top=None, right_bottom=None):
@@ -802,7 +841,7 @@ class ChromiumBase(BasePage):
         :param script: js文本
         :return: 添加的脚本的id
         """
-        js_id = self.run_cdp('Page.addScriptToEvaluateOnNewDocument', source=script,
+        js_id = self._run_cdp('Page.addScriptToEvaluateOnNewDocument', source=script,
                              includeCommandLineAPI=True)['identifier']
         self._init_jss.append(js_id)
         return js_id
@@ -814,11 +853,11 @@ class ChromiumBase(BasePage):
         """
         if script_id is None:
             for js_id in self._init_jss:
-                self.run_cdp('Page.removeScriptToEvaluateOnNewDocument', identifier=js_id)
+                self._run_cdp('Page.removeScriptToEvaluateOnNewDocument', identifier=js_id)
             self._init_jss.clear()
 
         elif script_id in self._init_jss:
-            self.run_cdp('Page.removeScriptToEvaluateOnNewDocument', identifier=script_id)
+            self._run_cdp('Page.removeScriptToEvaluateOnNewDocument', identifier=script_id)
             self._init_jss.remove(script_id)
 
     def clear_cache(self, session_storage=True, local_storage=True, cache=True, cookies=True):
@@ -830,19 +869,19 @@ class ChromiumBase(BasePage):
         :return: None
         """
         if session_storage or local_storage:
-            self.run_cdp_loaded('DOMStorage.enable')
-            i = self.run_cdp('Storage.getStorageKeyForFrame', frameId=self._frame_id)['storageKey']
+            self._run_cdp_loaded('DOMStorage.enable')
+            i = self._run_cdp('Storage.getStorageKeyForFrame', frameId=self._frame_id)['storageKey']
             if session_storage:
-                self.run_cdp('DOMStorage.clear', storageId={'storageKey': i, 'isLocalStorage': False})
+                self._run_cdp('DOMStorage.clear', storageId={'storageKey': i, 'isLocalStorage': False})
             if local_storage:
-                self.run_cdp('DOMStorage.clear', storageId={'storageKey': i, 'isLocalStorage': True})
-            self.run_cdp_loaded('DOMStorage.disable')
+                self._run_cdp('DOMStorage.clear', storageId={'storageKey': i, 'isLocalStorage': True})
+            self._run_cdp_loaded('DOMStorage.disable')
 
         if cache:
-            self.run_cdp_loaded('Network.clearBrowserCache')
+            self._run_cdp_loaded('Network.clearBrowserCache')
 
         if cookies:
-            self.run_cdp_loaded('Network.clearBrowserCookies')
+            self._run_cdp_loaded('Network.clearBrowserCookies')
 
     def disconnect(self):
         """断开与页面的连接，不关闭页面"""
@@ -974,7 +1013,7 @@ class ChromiumBase(BasePage):
             err = None
             end_time = perf_counter() + timeout
             try:
-                result = self.run_cdp('Page.navigate', frameId=self._frame_id, url=to_url, _timeout=timeout)
+                result = self._run_cdp('Page.navigate', frameId=self._frame_id, url=to_url, _timeout=timeout)
                 if 'errorText' in result:
                     err = ConnectionError(result['errorText'])
             except TimeoutError:
@@ -1074,8 +1113,8 @@ class ChromiumBase(BasePage):
 
                 v = not (location_in_viewport(self, x, y) and
                          location_in_viewport(self, right_bottom[0], right_bottom[1]))
-                if v and (self.run_js('return document.body.scrollHeight > window.innerHeight;') and
-                          not self.run_js('return document.body.scrollWidth > window.innerWidth;')):
+                if v and (self._run_js('return document.body.scrollHeight > window.innerHeight;') and
+                          not self._run_js('return document.body.scrollWidth > window.innerWidth;')):
                     x += 10
 
                 vp = {'x': x, 'y': y, 'width': w, 'height': h, 'scale': 1}
@@ -1086,7 +1125,7 @@ class ChromiumBase(BasePage):
 
         if pic_type == 'jpeg':
             args['quality'] = 100
-        png = self.run_cdp_loaded('Page.captureScreenshot', **args)['data']
+        png = self._run_cdp_loaded('Page.captureScreenshot', **args)['data']
 
         if as_base64:
             return png

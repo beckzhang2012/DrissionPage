@@ -5,12 +5,8 @@
 @Copyright: (c) 2024 by g1879, Inc. All Rights Reserved.
 @License  : BSD 3-Clause.
 """
-from http.cookiejar import Cookie
 from pathlib import Path
 from typing import Union, Optional
-
-from requests import Session
-from requests.cookies import RequestsCookieJar
 
 from .._base.base import DrissionElement, BaseParser
 from .._elements.chromium_element import ChromiumElement
@@ -35,21 +31,6 @@ def make_absolute_link(link: str, baseURI: str = None) -> str: ...
 
 
 def is_js_func(func: str) -> bool: ...
-
-
-def cookie_to_dict(cookie: Union[Cookie, str, dict]) -> dict: ...
-
-
-def cookies_to_tuple(cookies: Union[RequestsCookieJar, list, tuple, str, dict, Cookie]) -> tuple: ...
-
-
-def set_session_cookies(session: Session, cookies: Union[RequestsCookieJar, list, tuple, str, dict]) -> None: ...
-
-
-def set_browser_cookies(page: ChromiumBase, cookies: Union[RequestsCookieJar, list, tuple, str, dict]) -> None: ...
-
-
-def is_cookie_in_driver(page: ChromiumBase, cookie: dict) -> bool: ...
 
 
 def get_blob(page: ChromiumBase, url: str, as_bytes: bool = True) -> bytes: ...

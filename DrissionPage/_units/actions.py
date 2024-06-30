@@ -7,9 +7,9 @@
 """
 from time import sleep, perf_counter
 
-from ..errors import AlertExistsError
 from .._functions.keys import modifierBit, keyDescriptionForString, input_text_or_keys, Keys, keyDefinitions
 from .._functions.web import location_in_viewport
+from ..errors import AlertExistsError
 
 
 class Actions:
@@ -51,8 +51,8 @@ class Actions:
 
         if not location_in_viewport(self.owner, lx, ly):
             # 把坐标滚动到页面中间
-            clientWidth = self.owner.run_js('return document.body.clientWidth;')
-            clientHeight = self.owner.run_js('return document.body.clientHeight;')
+            clientWidth = self.owner._run_js('return document.body.clientWidth;')
+            clientHeight = self.owner._run_js('return document.body.clientHeight;')
             self.owner.scroll.to_location(lx - clientWidth // 2, ly - clientHeight // 2)
 
         # 这样设计为了应付那些不随滚动条滚动的元素
@@ -258,7 +258,7 @@ class Actions:
 
         data = self._get_key_data(key, 'keyDown')
         data['_ignore'] = AlertExistsError
-        self.owner.run_cdp('Input.dispatchKeyEvent', **data)
+        self.owner._run_cdp('Input.dispatchKeyEvent', **data)
         return self
 
     def key_up(self, key):
@@ -273,7 +273,7 @@ class Actions:
 
         data = self._get_key_data(key, 'keyUp')
         data['_ignore'] = AlertExistsError
-        self.owner.run_cdp('Input.dispatchKeyEvent', **data)
+        self.owner._run_cdp('Input.dispatchKeyEvent', **data)
         return self
 
     def type(self, keys):
@@ -292,7 +292,7 @@ class Actions:
                         self.key_up(character)
 
                 else:
-                    self.owner.run_cdp('Input.dispatchKeyEvent', type='char', text=character)
+                    self.owner._run_cdp('Input.dispatchKeyEvent', type='char', text=character)
 
         for m in modifiers:
             self.key_up(m)
@@ -339,6 +339,6 @@ class Actions:
 
 def location_to_client(page, lx, ly):
     """绝对坐标转换为视口坐标"""
-    scroll_x = page.run_js('return document.documentElement.scrollLeft;')
-    scroll_y = page.run_js('return document.documentElement.scrollTop;')
+    scroll_x = page._run_js('return document.documentElement.scrollLeft;')
+    scroll_y = page._run_js('return document.documentElement.scrollTop;')
     return lx - scroll_x, ly - scroll_y

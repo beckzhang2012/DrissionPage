@@ -10,7 +10,7 @@ from time import sleep
 
 from requests.structures import CaseInsensitiveDict
 
-from .cookies_setter import SessionCookiesSetter, CookiesSetter, WebPageCookiesSetter
+from .cookies_setter import SessionCookiesSetter, CookiesSetter, WebPageCookiesSetter, BrowserCookiesSetter
 from .._functions.settings import Settings
 from .._functions.tools import show_or_hide_browser
 from .._functions.web import format_headers
@@ -54,6 +54,13 @@ class BasePageSetter(object):
 class BrowserBaseSetter(BasePageSetter):
     """Browser和ChromiumBase设置"""
 
+    def __init__(self, owner):
+        """
+        :param owner: ChromiumBase对象
+        """
+        super().__init__(owner)
+        self._cookies_setter = None
+
     @property
     def load_mode(self):
         """返回用于设置页面加载策略的对象"""
@@ -78,8 +85,12 @@ class BrowserBaseSetter(BasePageSetter):
 
 class BrowserSetter(BrowserBaseSetter):
 
-    def cookies(self, cookies):
-        pass  # todo: 研究Storage.setCookies和Network.setCookies差别
+    @property
+    def cookies(self):
+        """返回用于设置cookies的对象"""
+        if self._cookies_setter is None:
+            self._cookies_setter = BrowserCookiesSetter(self._owner)
+        return self._cookies_setter
 
     def tab_to_front(self, tab_or_id):
         """激活标签页使其处于最前面
@@ -128,12 +139,6 @@ class BrowserSetter(BrowserBaseSetter):
 
 
 class ChromiumBaseSetter(BrowserBaseSetter):
-    def __init__(self, owner):
-        """
-        :param owner: ChromiumBase对象
-        """
-        super().__init__(owner)
-        self._cookies_setter = None
 
     @property
     def scroll(self):
@@ -156,7 +161,7 @@ class ChromiumBaseSetter(BrowserBaseSetter):
         keys = {'userAgent': ua}
         if platform:
             keys['platform'] = platform
-        self._owner.run_cdp('Emulation.setUserAgentOverride', **keys)
+        self._owner._run_cdp('Emulation.setUserAgentOverride', **keys)
 
     def session_storage(self, item, value):
         """设置或删除某项sessionStorage信息
@@ -164,15 +169,15 @@ class ChromiumBaseSetter(BrowserBaseSetter):
         :param value: 项的值，设置为False时，删除该项
         :return: None
         """
-        self._owner.run_cdp_loaded('DOMStorage.enable')
-        i = self._owner.run_cdp('Storage.getStorageKeyForFrame', frameId=self._owner._frame_id)['storageKey']
+        self._owner._run_cdp_loaded('DOMStorage.enable')
+        i = self._owner._run_cdp('Storage.getStorageKeyForFrame', frameId=self._owner._frame_id)['storageKey']
         if value is False:
-            self._owner.run_cdp('DOMStorage.removeDOMStorageItem',
+            self._owner._run_cdp('DOMStorage.removeDOMStorageItem',
                                 storageId={'storageKey': i, 'isLocalStorage': False}, key=item)
         else:
-            self._owner.run_cdp('DOMStorage.setDOMStorageItem', storageId={'storageKey': i, 'isLocalStorage': False},
+            self._owner._run_cdp('DOMStorage.setDOMStorageItem', storageId={'storageKey': i, 'isLocalStorage': False},
                                 key=item, value=value)
-        self._owner.run_cdp_loaded('DOMStorage.disable')
+        self._owner._run_cdp_loaded('DOMStorage.disable')
 
     def local_storage(self, item, value):
         """设置或删除某项localStorage信息
@@ -180,15 +185,15 @@ class ChromiumBaseSetter(BrowserBaseSetter):
         :param value: 项的值，设置为False时，删除该项
         :return: None
         """
-        self._owner.run_cdp_loaded('DOMStorage.enable')
-        i = self._owner.run_cdp('Storage.getStorageKeyForFrame', frameId=self._owner._frame_id)['storageKey']
+        self._owner._run_cdp_loaded('DOMStorage.enable')
+        i = self._owner._run_cdp('Storage.getStorageKeyForFrame', frameId=self._owner._frame_id)['storageKey']
         if value is False:
-            self._owner.run_cdp('DOMStorage.removeDOMStorageItem',
+            self._owner._run_cdp('DOMStorage.removeDOMStorageItem',
                                 storageId={'storageKey': i, 'isLocalStorage': True}, key=item)
         else:
-            self._owner.run_cdp('DOMStorage.setDOMStorageItem', storageId={'storageKey': i, 'isLocalStorage': True},
+            self._owner._run_cdp('DOMStorage.setDOMStorageItem', storageId={'storageKey': i, 'isLocalStorage': True},
                                 key=item, value=value)
-        self._owner.run_cdp_loaded('DOMStorage.disable')
+        self._owner._run_cdp_loaded('DOMStorage.disable')
 
     def upload_files(self, files):
         """等待上传的文件路径
@@ -197,7 +202,7 @@ class ChromiumBaseSetter(BrowserBaseSetter):
         """
         if not self._owner._upload_list:
             self._owner.driver.set_callback('Page.fileChooserOpened', self._owner._onFileChooserOpened)
-            self._owner.run_cdp('Page.setInterceptFileChooserDialog', enabled=True)
+            self._owner._run_cdp('Page.setInterceptFileChooserDialog', enabled=True)
 
         if isinstance(files, str):
             files = files.split('\n')
@@ -210,8 +215,8 @@ class ChromiumBaseSetter(BrowserBaseSetter):
         :param headers: dict格式的headers数据
         :return: None
         """
-        self._owner.run_cdp('Network.enable')
-        self._owner.run_cdp('Network.setExtraHTTPHeaders', headers=format_headers(headers))
+        self._owner._run_cdp('Network.enable')
+        self._owner._run_cdp('Network.setExtraHTTPHeaders', headers=format_headers(headers))
 
     def auto_handle_alert(self, on_off=True, accept=True):
         """设置是否启用自动处理弹窗
@@ -232,8 +237,8 @@ class ChromiumBaseSetter(BrowserBaseSetter):
             urls = (urls,)
         if not isinstance(urls, (list, tuple)):
             raise TypeError('urls需传入str、list或tuple类型。')
-        self._owner.run_cdp('Network.enable')
-        self._owner.run_cdp('Network.setBlockedURLs', urls=urls)
+        self._owner._run_cdp('Network.enable')
+        self._owner._run_cdp('Network.setBlockedURLs', urls=urls)
 
 
 class TabSetter(ChromiumBaseSetter):
@@ -522,11 +527,11 @@ class ChromiumElementSetter(object):
         :return: None
         """
         try:
-            self._ele.owner.run_cdp('DOM.setAttributeValue',
+            self._ele.owner._run_cdp('DOM.setAttributeValue',
                                     nodeId=self._ele._node_id, name=name, value=str(value))
         except ElementLostError:
             self._ele._refresh_id()
-            self._ele.owner.run_cdp('DOM.setAttributeValue',
+            self._ele.owner._run_cdp('DOM.setAttributeValue',
                                     nodeId=self._ele._node_id, name=name, value=str(value))
 
     def property(self, name, value):
@@ -536,7 +541,7 @@ class ChromiumElementSetter(object):
         :return: None
         """
         value = value.replace('"', r'\"')
-        self._ele.run_js(f'this.{name}="{value}";')
+        self._ele._run_js(f'this.{name}="{value}";')
 
     def style(self, name, value):
         """设置元素style样式
@@ -545,7 +550,7 @@ class ChromiumElementSetter(object):
         :return: None
         """
         try:
-            self._ele.run_js(f'this.style.{name}="{value}";')
+            self._ele._run_js(f'this.style.{name}="{value}";')
         except JavaScriptError:
             raise ValueError(f'设置失败，请检查属性名{name}')
 
@@ -629,7 +634,7 @@ class PageScrollSetter(object):
         if not isinstance(on_off, bool):
             raise TypeError('on_off必须为bool。')
         b = 'smooth' if on_off else 'auto'
-        self._scroll._driver.run_js(f'document.documentElement.style.setProperty("scroll-behavior","{b}");')
+        self._scroll._driver._run_js(f'document.documentElement.style.setProperty("scroll-behavior","{b}");')
         self._scroll._wait_complete = on_off
 
 
@@ -703,7 +708,7 @@ class WindowSetter(object):
         """获取窗口位置及大小信息"""
         for _ in range(50):
             try:
-                return self._owner.run_cdp('Browser.getWindowForTarget')
+                return self._owner._run_cdp('Browser.getWindowForTarget')
             except:
                 sleep(.1)
 
@@ -713,7 +718,7 @@ class WindowSetter(object):
         :return: None
         """
         try:
-            self._owner.run_cdp('Browser.setWindowBounds', windowId=self._window_id, bounds=bounds)
+            self._owner._run_cdp('Browser.setWindowBounds', windowId=self._window_id, bounds=bounds)
         except:
             raise RuntimeError('浏览器全屏或最小化状态时请先调用set.window.normal()恢复正常状态。')
 

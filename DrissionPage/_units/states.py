@@ -19,30 +19,30 @@ class ElementStates(object):
     @property
     def is_selected(self):
         """返回列表元素是否被选择"""
-        return self._ele.run_js('return this.selected;')
+        return self._ele._run_js('return this.selected;')
 
     @property
     def is_checked(self):
         """返回元素是否被选择"""
-        return self._ele.run_js('return this.checked;')
+        return self._ele._run_js('return this.checked;')
 
     @property
     def is_displayed(self):
         """返回元素是否显示"""
         return not (self._ele.style('visibility') == 'hidden' or
-                    self._ele.run_js('return this.offsetParent === null;')
+                    self._ele._run_js('return this.offsetParent === null;')
                     or self._ele.style('display') == 'none' or self._ele.property('hidden'))
 
     @property
     def is_enabled(self):
         """返回元素是否可用"""
-        return not self._ele.run_js('return this.disabled;')
+        return not self._ele._run_js('return this.disabled;')
 
     @property
     def is_alive(self):
         """返回元素是否仍在DOM中"""
         try:
-            return self._ele.owner.run_cdp('DOM.describeNode',
+            return self._ele.owner._run_cdp('DOM.describeNode',
                                            backendNodeId=self._ele._backend_id)['node']['nodeId'] != 0
         except ElementLostError:
             return False
@@ -66,7 +66,7 @@ class ElementStates(object):
         """返回元素是否被覆盖，与是否在视口中无关，如被覆盖返回覆盖元素的backend id，否则返回False"""
         lx, ly = self._ele.rect.click_point
         try:
-            bid = self._ele.owner.run_cdp('DOM.getNodeForLocation', x=int(lx), y=int(ly)).get('backendNodeId')
+            bid = self._ele.owner._run_cdp('DOM.getNodeForLocation', x=int(lx), y=int(ly)).get('backendNodeId')
             return bid if bid != self._ele._backend_id else False
         except CDPError:
             return False
@@ -95,13 +95,13 @@ class ShadowRootStates(object):
     @property
     def is_enabled(self):
         """返回元素是否可用"""
-        return not self._ele.run_js('return this.disabled;')
+        return not self._ele._run_js('return this.disabled;')
 
     @property
     def is_alive(self):
         """返回元素是否仍在DOM中"""
         try:
-            return self._ele.owner.run_cdp('DOM.describeNode',
+            return self._ele.owner._run_cdp('DOM.describeNode',
                                            backendNodeId=self._ele._backend_id)['node']['nodeId'] != 0
         except ElementLostError:
             return False
@@ -125,7 +125,7 @@ class PageStates(object):
     def is_alive(self):
         """返回页面对象是否仍然可用"""
         try:
-            self._owner.run_cdp('Page.getLayoutMetrics')
+            self._owner._run_cdp('Page.getLayoutMetrics')
             return True
         except PageDisconnectedError:
             return False
@@ -157,7 +157,7 @@ class FrameStates(object):
     def is_alive(self):
         """返回frame元素是否可用，且里面仍挂载有frame"""
         try:
-            node = self._frame._target_page.run_cdp('DOM.describeNode',
+            node = self._frame._target_page._run_cdp('DOM.describeNode',
                                                     backendNodeId=self._frame._frame_ele._backend_id)['node']
         except (ElementLostError, PageDisconnectedError):
             return False
@@ -172,7 +172,7 @@ class FrameStates(object):
     def is_displayed(self):
         """返回iframe是否显示"""
         return not (self._frame.frame_ele.style('visibility') == 'hidden'
-                    or self._frame.frame_ele.run_js('return this.offsetParent === null;')
+                    or self._frame.frame_ele._run_js('return this.offsetParent === null;')
                     or self._frame.frame_ele.style('display') == 'none')
 
     @property

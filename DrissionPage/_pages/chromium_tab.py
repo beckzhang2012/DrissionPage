@@ -10,8 +10,9 @@ from time import sleep
 
 from .._base.base import BasePage
 from .._configs.session_options import SessionOptions
+from .._functions.cookies import set_session_cookies, set_tab_cookies
 from .._functions.settings import Settings
-from .._functions.web import set_session_cookies, set_browser_cookies, save_page
+from .._functions.web import save_page
 from .._pages.chromium_base import ChromiumBase
 from .._pages.session_page import SessionPage
 from .._units.setter import TabSetter, WebPageTabSetter
@@ -338,7 +339,7 @@ class MixTab(SessionPage, ChromiumTab, BasePage):
             return
 
         if copy_user_agent:
-            user_agent = self.run_cdp('Runtime.evaluate', expression='navigator.userAgent;')['result']['value']
+            user_agent = self._run_cdp('Runtime.evaluate', expression='navigator.userAgent;')['result']['value']
             self._headers.update({"User-Agent": user_agent})
 
         set_session_cookies(self.session, super(SessionPage, self).cookies())
@@ -347,19 +348,18 @@ class MixTab(SessionPage, ChromiumTab, BasePage):
         """把session对象的cookies复制到浏览器"""
         if not self._has_driver:
             return
-        set_browser_cookies(self, super().cookies())
+        set_tab_cookies(self, super().cookies())
 
-    def cookies(self, as_dict=False, all_domains=False, all_info=False):
+    def cookies(self, all_domains=False, all_info=False):
         """返回cookies
-        :param as_dict: 为True时以dict格式返回，为False时返回list且all_info无效
         :param all_domains: 是否返回所有域的cookies
         :param all_info: 是否返回所有信息，False则只返回name、value、domain
         :return: cookies信息
         """
         if self._mode == 's':
-            return super().cookies(as_dict, all_domains, all_info)
+            return super().cookies(all_domains, all_info)
         elif self._mode == 'd':
-            return super(SessionPage, self).cookies(as_dict, all_domains, all_info)
+            return super(SessionPage, self).cookies(all_domains, all_info)
 
     def close(self):
         """关闭当前标签页"""

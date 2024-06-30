@@ -55,7 +55,7 @@ class DownloadManager(object):
         if not self._running or tid == 'browser':
             self._browser._driver.set_callback('Browser.downloadProgress', self._onDownloadProgress)
             self._browser._driver.set_callback('Browser.downloadWillBegin', self._onDownloadWillBegin)
-            r = self._browser.run_cdp('Browser.setDownloadBehavior', downloadPath=self._browser._download_path,
+            r = self._browser._run_cdp('Browser.setDownloadBehavior', downloadPath=self._browser._download_path,
                                       behavior='allowAndName', eventsEnabled=True)
             if 'error' in r:
                 print('浏览器版本太低无法使用下载管理功能。')
@@ -124,7 +124,7 @@ class DownloadManager(object):
         """
         mission.state = 'canceled'
         try:
-            self._browser.run_cdp('Browser.cancelDownload', guid=mission.id)
+            self._browser._run_cdp('Browser.cancelDownload', guid=mission.id)
         except:
             pass
         if mission.final_path:
@@ -137,7 +137,7 @@ class DownloadManager(object):
         """
         mission.state = 'skipped'
         try:
-            self._browser.run_cdp('Browser.cancelDownload', guid=mission.id)
+            self._browser._run_cdp('Browser.cancelDownload', guid=mission.id)
         except:
             pass
 

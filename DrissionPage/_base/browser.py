@@ -17,6 +17,7 @@ from .driver import BrowserDriver, Driver
 from .._configs.chromium_options import ChromiumOptions
 from .._configs.session_options import SessionOptions
 from .._functions.browser import connect_browser
+from .._functions.cookies import CookiesList
 from .._functions.settings import Settings
 from .._functions.tools import PortFinder
 from .._functions.tools import raise_error
@@ -160,6 +161,15 @@ class Browser(object):
         """返回最新的标签页，最新标签页指最后创建或最后被激活的
         当Settings.singleton_tab_obj==True时返回Tab对象，否则返回tab id"""
         return self.get_tab(self.tab_ids[0], as_id=not Settings.singleton_tab_obj)
+
+    def cookies(self, all_info=False):
+        """以list格式返回所有域名的cookies
+        :param all_info: 是否返回所有内容，False则只返回name, value, domain
+        :return: cookies组成的列表
+        """
+        cks = self._run_cdp(f'Storage.getCookies')['cookies']
+        r = cks if all_info else [{'name': c['name'], 'value': c['value'], 'domain': c['domain']} for c in cks]
+        return CookiesList(r)
 
     def new_tab(self, url=None, new_window=False, background=False, new_context=False):
         """新建一个标签页

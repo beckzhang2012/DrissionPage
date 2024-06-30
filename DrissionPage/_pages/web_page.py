@@ -10,7 +10,7 @@ from .chromium_tab import MixTab
 from .session_page import SessionPage
 from .._base.base import BasePage
 from .._configs.chromium_options import ChromiumOptions
-from .._functions.web import set_session_cookies, set_browser_cookies
+from .._functions.cookies import set_session_cookies, set_tab_cookies
 from .._units.setter import WebPageSetter
 
 
@@ -276,7 +276,7 @@ class WebPage(SessionPage, ChromiumPage, BasePage):
             return
 
         if copy_user_agent:
-            user_agent = self.run_cdp('Runtime.evaluate', expression='navigator.userAgent;')['result']['value']
+            user_agent = self._run_cdp('Runtime.evaluate', expression='navigator.userAgent;')['result']['value']
             self._headers.update({"User-Agent": user_agent})
 
         set_session_cookies(self.session, super(SessionPage, self).cookies())
@@ -285,7 +285,7 @@ class WebPage(SessionPage, ChromiumPage, BasePage):
         """把session对象的cookies复制到浏览器"""
         if not self._has_driver:
             return
-        set_browser_cookies(self, super().cookies())
+        set_tab_cookies(self, super().cookies())
 
     def cookies(self, as_dict=False, all_domains=False, all_info=False):
         """返回cookies

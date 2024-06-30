@@ -21,7 +21,7 @@ class Scroller(object):
 
     def _run_js(self, js):
         js = js.format(self.t1, self.t2, self.t2)
-        self._driver.run_js(js)
+        self._driver._run_js(js)
         self._wait_scrolled()
 
     def to_top(self):
@@ -88,14 +88,14 @@ class Scroller(object):
             return
 
         owner = self._driver.owner if self._driver._type == 'ChromiumElement' else self._driver
-        r = owner.run_cdp('Page.getLayoutMetrics')
+        r = owner._run_cdp('Page.getLayoutMetrics')
         x = r['layoutViewport']['pageX']
         y = r['layoutViewport']['pageY']
 
         end_time = perf_counter() + owner.timeout
         while perf_counter() < end_time:
             sleep(.1)
-            r = owner.run_cdp('Page.getLayoutMetrics')
+            r = owner._run_cdp('Page.getLayoutMetrics')
             x1 = r['layoutViewport']['pageX']
             y1 = r['layoutViewport']['pageY']
 
@@ -144,9 +144,9 @@ class PageScroller(Scroller):
         :return: None
         """
         txt = 'true' if center else 'false'
-        ele.run_js(f'this.scrollIntoViewIfNeeded({txt});')
+        ele._run_js(f'this.scrollIntoViewIfNeeded({txt});')
         if center or (center is not False and ele.states.is_covered):
-            ele.run_js('''function getWindowScrollTop() {let scroll_top = 0;
+            ele._run_js('''function getWindowScrollTop() {let scroll_top = 0;
                     if (document.documentElement && document.documentElement.scrollTop) {
                       scroll_top = document.documentElement.scrollTop;
                     } else if (document.body) {scroll_top = document.body.scrollTop;}

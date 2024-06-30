@@ -18,7 +18,8 @@ from tldextract import extract
 from .._base.base import BasePage
 from .._configs.session_options import SessionOptions
 from .._elements.session_element import SessionElement, make_session_ele
-from .._functions.web import cookie_to_dict, format_headers
+from .._functions.cookies import cookie_to_dict, CookiesList
+from .._functions.web import format_headers
 from .._units.setter import SessionPageSetter
 
 
@@ -216,9 +217,8 @@ class SessionPage(BasePage):
         """
         return locator if isinstance(locator, SessionElement) else make_session_ele(self, locator, index=index)
 
-    def cookies(self, as_dict=False, all_domains=False, all_info=False):
+    def cookies(self, all_domains=False, all_info=False):
         """返回cookies
-        :param as_dict: 为True时以dict格式返回，为False时返回list且all_info无效
         :param all_domains: 是否返回所有域的cookies
         :param all_info: 是否返回所有信息，False则只返回name、value、domain
         :return: cookies信息
@@ -229,21 +229,20 @@ class SessionPage(BasePage):
             if self.url:
                 ex_url = extract(self._session_url)
                 domain = f'{ex_url.domain}.{ex_url.suffix}' if ex_url.suffix else ex_url.domain
-
-                cookies = tuple(x for x in self.session.cookies if domain in x.domain or x.domain == '')
+                cookies = tuple(c for c in self.session.cookies if domain in c.domain or c.domain == '')
             else:
-                cookies = tuple(x for x in self.session.cookies)
+                cookies = tuple(c for c in self.session.cookies)
 
-        if as_dict:
-            return {x.name: x.value for x in cookies}
-        elif all_info:
-            return [cookie_to_dict(cookie) for cookie in cookies]
+        if all_info:
+            r = CookiesList()
+            for c in cookies:
+                r.append(cookie_to_dict(c))
         else:
-            r = []
+            r = CookiesList()
             for c in cookies:
                 c = cookie_to_dict(c)
                 r.append({'name': c['name'], 'value': c['value'], 'domain': c['domain']})
-            return r
+        return r
 
     def close(self):
         """关闭Session对象"""

@@ -30,6 +30,7 @@ class Driver(object):
         self.address = address
         self.type = tab_type
         self.owner = owner
+        # self._debug = True
         # self._debug = False
         self.alert_flag = False  # 标记alert出现，跳过一条请求后复原
 
@@ -158,7 +159,7 @@ class Driver(object):
             self.event_queue.task_done()
 
     def _handle_immediate_event_loop(self):
-        while not self._stopped.is_set() and not self.immediate_event_queue.empty():
+        while not self.immediate_event_queue.empty():
             function, kwargs = self.immediate_event_queue.get(timeout=1)
             try:
                 function(**kwargs)
@@ -227,6 +228,15 @@ class Driver(object):
             self._ws = None
 
         # try:
+        #     while not self.immediate_event_queue.empty():
+        #         function, kwargs = self.immediate_event_queue.get_nowait()
+        #         try:
+        #             function(**kwargs)
+        #         except PageDisconnectedError:
+        #             raise
+        #             pass
+        #         sleep(.1)
+        #
         #     while not self.event_queue.empty():
         #         event = self.event_queue.get_nowait()
         #         function = self.event_handlers.get(event['method'])

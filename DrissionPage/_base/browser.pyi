@@ -11,6 +11,7 @@ from typing import List, Optional, Set, Dict, Union, Tuple
 from .driver import BrowserDriver, Driver
 from .._configs.chromium_options import ChromiumOptions
 from .._configs.session_options import SessionOptions
+from .._functions.web import CookiesList
 from .._pages.chromium_base import Timeout
 from .._pages.chromium_tab import ChromiumTab, MixTab
 from .._units.downloader import DownloadManager
@@ -81,6 +82,8 @@ class Browser(object):
 
     @property
     def latest_tab(self) -> Union[ChromiumTab, str]: ...
+
+    def cookies(self, all_info: bool = False) -> CookiesList: ...
 
     def close_tabs(self,
                    tabs_or_ids: Union[str, ChromiumTab, List[Union[str, ChromiumTab]],

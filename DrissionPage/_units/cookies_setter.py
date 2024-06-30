@@ -5,7 +5,7 @@
 @Copyright: (c) 2024 by g1879, Inc. All Rights Reserved.
 @License  : BSD 3-Clause.
 """
-from .._functions.web import set_browser_cookies, set_session_cookies
+from .._functions.cookies import set_tab_cookies, set_session_cookies, set_browser_cookies
 
 
 class CookiesSetter(object):
@@ -20,7 +20,7 @@ class CookiesSetter(object):
         :param cookies: cookies信息
         :return: None
         """
-        set_browser_cookies(self._owner, cookies)
+        set_tab_cookies(self._owner, cookies)
 
     def remove(self, name, url=None, domain=None, path=None):
         """删除一个cookie
@@ -39,11 +39,21 @@ class CookiesSetter(object):
             d['url'] = self._owner.url
         if path is not None:
             d['path'] = path
-        self._owner.run_cdp('Network.deleteCookies', **d)
+        self._owner._run_cdp('Storage.deleteCookies', **d)
 
     def clear(self):
         """清除cookies"""
-        self._owner.run_cdp('Network.clearBrowserCookies')
+        self._owner._run_cdp('Storage.clearBrowserCookies')
+
+
+class BrowserCookiesSetter(CookiesSetter):
+
+    def __call__(self, cookies):
+        """设置一个或多个cookie
+        :param cookies: cookies信息
+        :return: None
+        """
+        set_browser_cookies(self._owner, cookies)
 
 
 class SessionCookiesSetter(object):

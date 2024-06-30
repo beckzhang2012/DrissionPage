@@ -18,7 +18,7 @@ class ElementRect(object):
     def corners(self):
         """返回元素四个角坐标，顺序：左上、右上、右下、左下，没有大小的元素抛出NoRectError"""
         vr = self._get_viewport_rect('border')
-        r = self._ele.owner.run_cdp_loaded('Page.getLayoutMetrics')['visualViewport']
+        r = self._ele.owner._run_cdp_loaded('Page.getLayoutMetrics')['visualViewport']
         sx = r['pageX']
         sy = r['pageY']
         return [(vr[0] + sx, vr[1] + sy), (vr[2] + sx, vr[3] + sy), (vr[4] + sx, vr[5] + sy), (vr[6] + sx, vr[7] + sy)]
@@ -32,7 +32,7 @@ class ElementRect(object):
     @property
     def size(self):
         """返回元素大小，格式(宽, 高)"""
-        border = self._ele.owner.run_cdp('DOM.getBoxModel', backendNodeId=self._ele._backend_id,
+        border = self._ele.owner._run_cdp('DOM.getBoxModel', backendNodeId=self._ele._backend_id,
                                          nodeId=self._ele._node_id, objectId=self._ele._obj_id)['model']['border']
         return border[2] - border[0], border[5] - border[1]
 
@@ -77,7 +77,7 @@ class ElementRect(object):
         """返回元素左上角在屏幕上坐标，左上角为(0, 0)"""
         vx, vy = self._ele.owner.rect.viewport_location
         ex, ey = self.viewport_location
-        pr = self._ele.owner.run_js('return window.devicePixelRatio;')
+        pr = self._ele.owner._run_js('return window.devicePixelRatio;')
         return (vx + ex) * pr, (ey + vy) * pr
 
     @property
@@ -85,7 +85,7 @@ class ElementRect(object):
         """返回元素中点在屏幕上坐标，左上角为(0, 0)"""
         vx, vy = self._ele.owner.rect.viewport_location
         ex, ey = self.viewport_midpoint
-        pr = self._ele.owner.run_js('return window.devicePixelRatio;')
+        pr = self._ele.owner._run_js('return window.devicePixelRatio;')
         return (vx + ex) * pr, (ey + vy) * pr
 
     @property
@@ -93,7 +93,7 @@ class ElementRect(object):
         """返回元素中点在屏幕上坐标，左上角为(0, 0)"""
         vx, vy = self._ele.owner.rect.viewport_location
         ex, ey = self.viewport_click_point
-        pr = self._ele.owner.run_js('return window.devicePixelRatio;')
+        pr = self._ele.owner._run_js('return window.devicePixelRatio;')
         return (vx + ex) * pr, (ey + vy) * pr
 
     def _get_viewport_rect(self, quad):
@@ -101,13 +101,13 @@ class ElementRect(object):
         :param quad: 方框类型，margin border padding
         :return: 四个角坐标
         """
-        return self._ele.owner.run_cdp('DOM.getBoxModel', backendNodeId=self._ele._backend_id,
+        return self._ele.owner._run_cdp('DOM.getBoxModel', backendNodeId=self._ele._backend_id,
                                        # nodeId=self._ele._node_id, objectId=self._ele._obj_id
                                        )['model'][quad]
 
     def _get_page_coord(self, x, y):
         """根据视口坐标获取绝对坐标"""
-        r = self._ele.owner.run_cdp_loaded('Page.getLayoutMetrics')['visualViewport']
+        r = self._ele.owner._run_cdp_loaded('Page.getLayoutMetrics')['visualViewport']
         sx = r['pageX']
         sy = r['pageY']
         return x + sx, y + sy
@@ -174,13 +174,13 @@ class TabRect(object):
     @property
     def viewport_size_with_scrollbar(self):
         """返回视口宽高，包括滚动条，格式：(宽, 高)"""
-        r = self._owner.run_js('return window.innerWidth.toString() + " " + window.innerHeight.toString();')
+        r = self._owner._run_js('return window.innerWidth.toString() + " " + window.innerHeight.toString();')
         w, h = r.split(' ')
         return int(w), int(h)
 
     def _get_page_rect(self):
         """获取页面范围信息"""
-        return self._owner.run_cdp_loaded('Page.getLayoutMetrics')
+        return self._owner._run_cdp_loaded('Page.getLayoutMetrics')
 
     def _get_window_rect(self):
         """获取窗口范围信息"""
@@ -214,8 +214,8 @@ class FrameRect(object):
     @property
     def size(self):
         """返回frame内页面尺寸，格式：(宽, 高)"""
-        w = self._frame.doc_ele.run_js('return this.body.scrollWidth')
-        h = self._frame.doc_ele.run_js('return this.body.scrollHeight')
+        w = self._frame.doc_ele._run_js('return this.body.scrollWidth')
+        h = self._frame.doc_ele._run_js('return this.body.scrollHeight')
         return w, h
 
     @property

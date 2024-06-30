@@ -26,7 +26,7 @@ class Listener(object):
         :param owner: ChromiumBase对象
         """
         self._owner = owner
-        self._address = owner.address
+        self._address = owner.browser.address
         self._target_id = owner._target_id
         self._driver = None
         self._running_requests = 0

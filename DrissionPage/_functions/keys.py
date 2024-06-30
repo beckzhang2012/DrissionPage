@@ -427,12 +427,12 @@ def send_key(page, modifier, key):
                 'isKeypad': description['location'] == 3,
                 '_ignore': AlertExistsError}
 
-        page.run_cdp('Input.dispatchKeyEvent', **data)
+        page._run_cdp('Input.dispatchKeyEvent', **data)
         data['type'] = 'keyUp'
-        page.run_cdp('Input.dispatchKeyEvent', **data)
+        page._run_cdp('Input.dispatchKeyEvent', **data)
 
     else:
-        page.run_cdp('Input.insertText', text=key, _ignore=AlertExistsError)
+        page._run_cdp('Input.insertText', text=key, _ignore=AlertExistsError)
 
 
 def input_text_or_keys(page, text_or_keys):
@@ -451,7 +451,7 @@ def input_text_or_keys(page, text_or_keys):
         return
 
     if text_or_keys.endswith(('\n', '\ue007')):
-        page.run_cdp('Input.insertText', text=text_or_keys[:-1], _ignore=AlertExistsError)
+        page._run_cdp('Input.insertText', text=text_or_keys[:-1], _ignore=AlertExistsError)
         send_key(page, modifier, '\n')
     else:
-        page.run_cdp('Input.insertText', text=text_or_keys, _ignore=AlertExistsError)
+        page._run_cdp('Input.insertText', text=text_or_keys, _ignore=AlertExistsError)
