@@ -56,7 +56,7 @@ class DownloadManager(object):
             self._browser._driver.set_callback('Browser.downloadProgress', self._onDownloadProgress)
             self._browser._driver.set_callback('Browser.downloadWillBegin', self._onDownloadWillBegin)
             r = self._browser._run_cdp('Browser.setDownloadBehavior', downloadPath=self._browser._download_path,
-                                      behavior='allowAndName', eventsEnabled=True)
+                                       behavior='allowAndName', eventsEnabled=True)
             if 'error' in r:
                 print('浏览器版本太低无法使用下载管理功能。')
         self._running = True
@@ -203,7 +203,6 @@ class DownloadManager(object):
 
     def _onDownloadProgress(self, **kwargs):
         """下载状态变化时执行"""
-        # print(kwargs)
         if kwargs['guid'] in self._missions:
             mission = self._missions[kwargs['guid']]
             if kwargs['state'] == 'inProgress':
@@ -219,7 +218,17 @@ class DownloadManager(object):
                 mission.total_bytes = kwargs['totalBytes']
                 form_path = f'{mission.save_path}{sep}{mission.id}'
                 to_path = str(get_usable_path(f'{mission.path}{sep}{mission.name}'))
-                move(form_path, to_path)
+                not_moved = True
+                for _ in range(10):
+                    try:
+                        move(form_path, to_path)
+                        not_moved = False
+                        break
+                    except PermissionError:
+                        sleep(.5)
+                if not_moved:
+                    from shutil import copy
+                    copy(form_path, to_path)
                 self.set_done(mission, 'completed', final_path=to_path)
 
             else:  # 'canceled'
