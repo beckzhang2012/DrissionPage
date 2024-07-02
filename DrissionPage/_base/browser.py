@@ -127,6 +127,11 @@ class Browser(object):
         return self._timeouts
 
     @property
+    def load_mode(self):
+        """返回加载模式"""
+        return self._load_mode
+
+    @property
     def download_path(self):
         """返回默认下载路径"""
         return self._download_path

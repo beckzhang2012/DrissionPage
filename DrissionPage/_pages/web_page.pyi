@@ -121,7 +121,6 @@ class WebPage(SessionPage, ChromiumPage, BasePage):
     def cookies_to_browser(self) -> None: ...
 
     def cookies(self,
-                as_dict: bool = False,
                 all_domains: bool = False,
                 all_info: bool = False) -> Union[dict, list]: ...
 

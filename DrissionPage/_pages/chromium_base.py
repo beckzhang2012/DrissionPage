@@ -1158,6 +1158,10 @@ class Timeout(object):
     def __repr__(self):
         return str({'base': self.base, 'page_load': self.page_load, 'script': self.script})
 
+    @property
+    def as_dict(self):
+        return {'base': self.base, 'page_load': self.page_load, 'script': self.script}
+
 
 class Alert(object):
     """用于保存alert信息的类"""

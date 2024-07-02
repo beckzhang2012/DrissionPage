@@ -6,7 +6,6 @@
 @License  : BSD 3-Clause.
 """
 from .chromium_page import ChromiumPage
-from .chromium_tab import MixTab
 from .session_page import SessionPage
 from .._base.base import BasePage
 from .._configs.chromium_options import ChromiumOptions
@@ -287,17 +286,16 @@ class WebPage(SessionPage, ChromiumPage, BasePage):
             return
         set_tab_cookies(self, super().cookies())
 
-    def cookies(self, as_dict=False, all_domains=False, all_info=False):
+    def cookies(self, all_domains=False, all_info=False):
         """返回cookies
-        :param as_dict: 为True时以dict格式返回，为False时返回list且all_info无效
         :param all_domains: 是否返回所有域的cookies
         :param all_info: 是否返回所有信息，False则只返回name、value、domain
         :return: cookies信息
         """
         if self._mode == 's':
-            return super().cookies(as_dict, all_domains, all_info)
+            return super().cookies(all_domains, all_info)
         elif self._mode == 'd':
-            return super(SessionPage, self).cookies(as_dict, all_domains, all_info)
+            return super(SessionPage, self).cookies(all_domains, all_info)
 
     def get_tab(self, id_or_num=None, title=None, url=None, tab_type='page', as_id=False):
         """获取一个标签页对象，id_or_num不为None时，后面几个参数无效
@@ -308,29 +306,8 @@ class WebPage(SessionPage, ChromiumPage, BasePage):
         :param as_id: 是否返回标签页id而不是标签页对象
         :return: WebPageTab对象
         """
-        if id_or_num is not None:
-            if isinstance(id_or_num, str):
-                id_or_num = id_or_num
-            elif isinstance(id_or_num, int):
-                id_or_num = self.tab_ids[id_or_num - 1 if id_or_num > 0 else id_or_num]
-            elif isinstance(id_or_num, MixTab):
-                return id_or_num.tab_id if as_id else id_or_num
-
-        elif title == url == tab_type is None:
-            id_or_num = self.tab_id
-
-        else:
-            id_or_num = self._browser.find_tabs(title, url, tab_type)
-            if id_or_num:
-                id_or_num = id_or_num[0]['id']
-            else:
-                return None
-
-        if as_id:
-            return id_or_num
-
-        with self._lock:
-            return MixTab(self, id_or_num)
+        return self.browser._get_tab(id_or_num=id_or_num, title=title, url=url,
+                                     tab_type=tab_type, mix=True, as_id=as_id)
 
     def get_tabs(self, title=None, url=None, tab_type='page', as_id=False):
         """查找符合条件的tab，返回它们组成的列表
@@ -340,10 +317,7 @@ class WebPage(SessionPage, ChromiumPage, BasePage):
         :param as_id: 是否返回标签页id而不是标签页对象
         :return: ChromiumTab对象组成的列表
         """
-        if as_id:
-            return [tab['id'] for tab in self._browser.find_tabs(title, url, tab_type)]
-        with self._lock:
-            return [MixTab(self, tab['id']) for tab in self._browser.find_tabs(title, url, tab_type)]
+        return self.browser._get_tabs(title=title, url=url, tab_type=tab_type, mix=True, as_id=as_id)
 
     def new_tab(self, url=None, new_window=False, background=False, new_context=False):
         """新建一个标签页
@@ -353,10 +327,7 @@ class WebPage(SessionPage, ChromiumPage, BasePage):
         :param new_context: 是否创建新的上下文
         :return: 新标签页对象
         """
-        tab = MixTab(self, tab_id=self.browser.new_tab(new_window, background, new_context))
-        if url:
-            tab.get(url)
-        return tab
+        return self.browser.new_mix_tab(url=url, new_window=new_window, background=background, new_context=new_context)
 
     def close_driver(self):
         """关闭driver及浏览器"""

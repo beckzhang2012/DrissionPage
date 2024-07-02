@@ -10,8 +10,8 @@ from ._configs.chromium_options import ChromiumOptions
 from ._configs.session_options import SessionOptions
 from ._pages.session_page import SessionPage
 
-# from ._pages.chromium_page import ChromiumPage
-# from ._pages.web_page import WebPage
+# 即将废弃
+from ._pages.chromium_page import ChromiumPage
+from ._pages.web_page import WebPage
 
-__all__ = ['Browser', 'ChromiumOptions', 'SessionOptions', 'SessionPage', '__version__']
-__version__ = '4.0.5.3'
+__version__ = '4.1.0.0b0'

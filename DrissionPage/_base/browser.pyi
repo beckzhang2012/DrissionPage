@@ -66,6 +66,9 @@ class Browser(object):
     def timeouts(self) -> Timeout: ...
 
     @property
+    def load_mode(self) -> str: ...
+
+    @property
     def download_path(self) -> str: ...
 
     @property
