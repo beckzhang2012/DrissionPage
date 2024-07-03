@@ -127,6 +127,8 @@ def set_tab_cookies(page, cookies):
         if cookie.get('domain', None):
             try:
                 page._run_cdp_loaded('Network.setCookie', **cookie)
+                if not is_cookie_in_driver(page, cookie):
+                    page.browser.set.cookies(cookie)
                 continue
             except Exception:
                 pass

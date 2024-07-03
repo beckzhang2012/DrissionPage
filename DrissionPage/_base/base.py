@@ -80,6 +80,8 @@ class BaseElement(BaseParser):
         :param method: 调用的方法名
         :return: 元素对象或它们组成的列表
         """
+        if hasattr(locator, '_type'):
+            return locator
         r = self._find_elements(locator, timeout=timeout, index=index, relative=relative, raise_err=raise_err)
         if r or isinstance(r, list):
             return r

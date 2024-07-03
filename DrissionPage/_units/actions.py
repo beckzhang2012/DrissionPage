@@ -7,9 +7,8 @@
 """
 from time import sleep, perf_counter
 
-from .._functions.keys import modifierBit, keyDescriptionForString, input_text_or_keys, Keys, keyDefinitions
+from .._functions.keys import modifierBit, make_input_data, input_text_or_keys, Keys
 from .._functions.web import location_in_viewport
-from ..errors import AlertExistsError
 
 
 class Actions:
@@ -256,8 +255,9 @@ class Actions:
             self.modifier |= modifierBit.get(key, 0)
             return self
 
-        data = self._get_key_data(key, 'keyDown')
-        data['_ignore'] = AlertExistsError
+        data = make_input_data(self.modifier, key, False)
+        if not data:
+            raise ValueError(f'没有这个按键：{key}')
         self.owner._run_cdp('Input.dispatchKeyEvent', **data)
         return self
 
@@ -271,8 +271,9 @@ class Actions:
             self.modifier ^= modifierBit.get(key, 0)
             return self
 
-        data = self._get_key_data(key, 'keyUp')
-        data['_ignore'] = AlertExistsError
+        data = make_input_data(self.modifier, key, True)
+        if not data:
+            raise ValueError(f'没有这个按键：{key}')
         self.owner._run_cdp('Input.dispatchKeyEvent', **data)
         return self
 
@@ -284,12 +285,15 @@ class Actions:
         modifiers = []
         for i in keys:
             for character in i:
-                if character in keyDefinitions:
-                    self.key_down(character)
-                    if character in ('\ue009', '\ue008', '\ue00a', '\ue03d'):
-                        modifiers.append(character)
-                    else:
-                        self.key_up(character)
+                if character in ('\ue009', '\ue008', '\ue00a', '\ue03d'):
+                    self.modifier |= modifierBit.get(character, 0)
+                    modifiers.append(character)
+                data = make_input_data(self.modifier, character, False)
+                if data:
+                    self.owner._run_cdp('Input.dispatchKeyEvent', **data)
+                    if character not in ('\ue009', '\ue008', '\ue00a', '\ue03d'):
+                        data['type'] = 'keyUp'
+                        self.owner._run_cdp('Input.dispatchKeyEvent', **data)
 
                 else:
                     self.owner._run_cdp('Input.dispatchKeyEvent', type='char', text=character)
@@ -314,27 +318,6 @@ class Actions:
         """
         self.owner.wait(second=second, scope=scope)
         return self
-
-    def _get_key_data(self, key, action):
-        """获取用于发送的按键信息
-        :param key: 按键
-        :param action: 'keyDown' 或 'keyUp'
-        :return: 按键信息
-        """
-        description = keyDescriptionForString(self.modifier, key)
-        text = description['text']
-        if action != 'keyUp':
-            action = 'keyDown' if text else 'rawKeyDown'
-        return {'type': action,
-                'modifiers': self.modifier,
-                'windowsVirtualKeyCode': description['keyCode'],
-                'code': description['code'],
-                'key': description['key'],
-                'text': text,
-                'autoRepeat': False,
-                'unmodifiedText': text,
-                'location': description['location'],
-                'isKeypad': description['location'] == 3}
 
 
 def location_to_client(page, lx, ly):

@@ -173,5 +173,5 @@ class FrameScroller(PageScroller):
         :param center: 是否尽量滚动到页面正中，为None时如果被遮挡，则滚动到页面正中
         :return: None
         """
-        ele = loc_or_ele if loc_or_ele._type == 'ChromiumElement' else self._driver._ele(loc_or_ele)
+        ele = self._driver._ele(loc_or_ele)
         self._to_see(ele, center)

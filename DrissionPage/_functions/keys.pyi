@@ -5,7 +5,7 @@
 @Copyright: (c) 2024 by g1879, Inc. All Rights Reserved.
 @License  : BSD 3-Clause.
 """
-from typing import Tuple, Dict, Union, Any
+from typing import Tuple, Union, Any
 
 from .._pages.chromium_base import ChromiumBase
 
@@ -23,18 +23,14 @@ class Keys:
     CANCEL: str
     HELP: str
     BACKSPACE: str
-    BACK_SPACE: str
     TAB: str
     CLEAR: str
     RETURN: str
     ENTER: str
     SHIFT: str
-    LEFT_SHIFT: str
     CONTROL: str
     CTRL: str
-    LEFT_CONTROL: str
     ALT: str
-    LEFT_ALT: str
     PAUSE: str
     ESCAPE: str
     SPACE: str
@@ -43,13 +39,9 @@ class Keys:
     END: str
     HOME: str
     LEFT: str
-    ARROW_LEFT: str
     UP: str
-    ARROW_UP: str
     RIGHT: str
-    ARROW_RIGHT: str
     DOWN: str
-    ARROW_DOWN: str
     INSERT: str
     DELETE: str
     DEL: str
@@ -96,7 +88,7 @@ modifierBit: dict = ...
 def keys_to_typing(value: Union[str, int, list, tuple]) -> Tuple[int, str]: ...
 
 
-def keyDescriptionForString(_modifiers: int, keyString: str) -> Dict: ...
+def make_input_data(modifiers: int, key: str, key_up: bool = False) -> dict: ...
 
 
 def send_key(page: ChromiumBase, modifier: int, key: str) -> None: ...

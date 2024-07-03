@@ -11,19 +11,19 @@ from .._base.driver import Driver
 from .._elements.chromium_element import ChromiumElement
 from .._pages.chromium_base import ChromiumBase
 
-KEYS = Literal['NULL', 'CANCEL', 'HELP', 'BACKSPACE', 'BACK_SPACE', 'meta',
-'TAB', 'CLEAR', 'RETURN', 'ENTER', 'SHIFT', 'LEFT_SHIFT', 'CONTROL', 'command ',
-'CTRL', 'LEFT_CONTROL', 'ALT', 'LEFT_ALT', 'PAUSE', 'ESCAPE', 'SPACE',
-'PAGE_UP', 'PAGE_DOWN', 'END', 'HOME', 'LEFT', 'ARROW_LEFT', 'UP',
-'ARROW_UP', 'RIGHT', 'ARROW_RIGHT', 'DOWN', 'ARROW_DOWN', 'INSERT',
+KEYS = Literal['NULL', 'CANCEL', 'HELP', 'BACKSPACE', 'meta',
+'TAB', 'CLEAR', 'RETURN', 'ENTER', 'SHIFT', 'CONTROL', 'command ',
+'CTRL', 'ALT', 'PAUSE', 'ESCAPE', 'SPACE',
+'PAGE_UP', 'PAGE_DOWN', 'END', 'HOME', 'LEFT', 'UP',
+'RIGHT', 'DOWN', 'INSERT',
 'DELETE', 'DEL', 'SEMICOLON', 'EQUALS', 'NUMPAD0', 'NUMPAD1', 'NUMPAD2',
 'NUMPAD3', 'NUMPAD4', 'NUMPAD5', 'NUMPAD6', 'NUMPAD7', 'NUMPAD8', 'NUMPAD9',
 'MULTIPLY', 'ADD', 'SUBTRACT', 'DECIMAL', 'DIVIDE', 'F1', 'F2',
 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10', 'F11', 'F12', 'META', 'COMMAND ',
-'null', 'cancel', 'help', 'backspace', 'back_space', 'tab', 'clear', 'return', 'enter',
-'shift', 'left_shift', 'control', 'ctrl', 'left_control', 'alt', 'left_alt', 'pause',
-'escape', 'space', 'page_up', 'page_down', 'end', 'home', 'left', 'arrow_left', 'up',
-'arrow_up', 'right', 'arrow_right', 'down', 'arrow_down', 'insert', 'delete', 'del',
+'null', 'cancel', 'help', 'backspace', 'tab', 'clear', 'return', 'enter',
+'shift', 'control', 'ctrl', 'alt', 'pause',
+'escape', 'space', 'page_up', 'page_down', 'end', 'home', 'left', 'up',
+'right', 'down', 'insert', 'delete', 'del',
 'semicolon', 'equals', 'numpad0', 'numpad1', 'numpad2', 'numpad3', 'numpad4', 'numpad5',
 'numpad6', 'numpad7', 'numpad8', 'numpad9', 'multiply', 'add', 'subtract', 'decimal',
 'divide', 'f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8', 'f9', 'f10', 'f11', 'f12',
@@ -102,8 +102,6 @@ class Actions:
     def input(self, text: Any) -> Actions: ...
 
     def wait(self, second: float, scope: float = None) -> Actions: ...
-
-    def _get_key_data(self, key: str, action: str) -> dict: ...
 
 
 def location_to_client(page, lx: int, ly: int) -> tuple: ...

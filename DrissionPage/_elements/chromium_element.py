@@ -748,7 +748,11 @@ class ChromiumElement(DrissionElement):
         else:
             self._input_focus()
 
-        input_text_or_keys(self.owner, vals)
+        if isinstance(vals, str) and vals not in ('\ue003', '\ue017', '\ue010', '\ue011',
+                                                  '\ue012', '\ue013', '\ue014', '\ue015',):
+            input_text_or_keys(self.owner, vals)
+        else:
+            self.owner.actions.type(vals)
 
     def clear(self, by_js=False):
         """清空元素文本
