@@ -170,7 +170,6 @@ class ChromiumPage(ChromiumBase):
 
     def _on_disconnect(self):
         """浏览器退出时执行"""
-        print('kkk')
         ChromiumPage._PAGES.pop(self._browser.id, None)
 
     def __repr__(self):

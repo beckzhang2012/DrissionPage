@@ -16,8 +16,8 @@ from .session_page import SessionPage
 from .._base.browser import Browser
 from .._elements.chromium_element import ChromiumElement
 from .._elements.session_element import SessionElement
+from .._functions.cookies import CookiesList
 from .._functions.elements import SessionElementsList, ChromiumElementsList
-from .._functions.web import CookiesList
 from .._units.rect import TabRect
 from .._units.setter import TabSetter, WebPageTabSetter
 from .._units.waiter import TabWaiter

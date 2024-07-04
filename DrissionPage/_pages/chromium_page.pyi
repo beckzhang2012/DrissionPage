@@ -6,7 +6,6 @@
 @License  : BSD 3-Clause.
 """
 from pathlib import Path
-from threading import Lock
 from typing import Union, Tuple, List, Optional
 
 from .._base.browser import Browser

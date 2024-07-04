@@ -151,7 +151,7 @@ class ChromiumBase(BasePage):
                 timeout = end_time - perf_counter()
                 timeout = 1 if timeout <= 1 else timeout
                 self._root_id = self._run_cdp('DOM.resolveNode', backendNodeId=b_id,
-                                             _timeout=timeout)['object']['objectId']
+                                              _timeout=timeout)['object']['objectId']
                 result = True
                 break
 
@@ -842,7 +842,7 @@ class ChromiumBase(BasePage):
         :return: 添加的脚本的id
         """
         js_id = self._run_cdp('Page.addScriptToEvaluateOnNewDocument', source=script,
-                             includeCommandLineAPI=True)['identifier']
+                              includeCommandLineAPI=True)['identifier']
         self._init_jss.append(js_id)
         return js_id
 
@@ -1185,6 +1185,7 @@ def close_privacy_dialog(page, tid):
     :return: None
     """
     try:
+        print('ooo')
         driver = page.browser._get_driver(tid)
         driver.run('Runtime.enable')
         driver.run('DOM.enable')

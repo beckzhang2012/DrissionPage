@@ -14,8 +14,8 @@ from .._base.browser import Browser
 from .._base.driver import Driver
 from .._elements.chromium_element import ChromiumElement
 from .._elements.session_element import SessionElement
+from .._functions.cookies import CookiesList
 from .._functions.elements import SessionElementsList, ChromiumElementsList
-from .._functions.web import CookiesList
 from .._pages.chromium_frame import ChromiumFrame
 from .._pages.chromium_page import ChromiumPage
 from .._units.actions import Actions

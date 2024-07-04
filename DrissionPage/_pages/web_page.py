@@ -25,7 +25,7 @@ class WebPage(SessionPage, ChromiumPage, BasePage):
         """
         return super().__new__(cls, chromium_options)
 
-    def __init__(self, mode='d', timeout=None, chromium_options=None, session_or_options=None, driver_or_options=None):
+    def __init__(self, mode='d', timeout=None, chromium_options=None, session_or_options=None):
         """初始化函数
         :param mode: 'd' 或 's'，即driver模式和session模式
         :param timeout: 超时时间（秒），d模式时为寻找元素时间，s模式时为连接时间，默认10秒

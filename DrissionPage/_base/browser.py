@@ -26,7 +26,7 @@ from .._pages.chromium_tab import ChromiumTab, MixTab
 from .._units.downloader import DownloadManager
 from .._units.setter import BrowserSetter
 from .._units.waiter import BrowserWaiter
-from ..errors import BrowserConnectError
+from ..errors import BrowserConnectError, CDPError
 from ..errors import PageDisconnectedError
 
 __ERROR__ = 'error'
@@ -219,7 +219,14 @@ class Browser(object):
         if tab:
             kwargs['browserContextId'] = tab
 
-        tab = self._run_cdp('Target.createTarget', **kwargs)['targetId']
+        try:
+            tab = self._run_cdp('Target.createTarget', **kwargs)['targetId']
+        except CDPError:
+            url = url or 'https://#'
+            tab = self.get_tab().add_ele(('a', {'href': url,
+                                                'target': '_blank'})).click.for_new_tab(by_js=True)
+            return tab
+
         while tab not in self._drivers:
             sleep(.1)
         tab = obj(self, tab)

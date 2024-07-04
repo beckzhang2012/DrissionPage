@@ -14,8 +14,8 @@ from requests.structures import CaseInsensitiveDict
 from .._base.base import BasePage
 from .._configs.session_options import SessionOptions
 from .._elements.session_element import SessionElement
+from .._functions.cookies import CookiesList
 from .._functions.elements import SessionElementsList
-from .._functions.web import CookiesList
 from .._units.setter import SessionPageSetter
 
 

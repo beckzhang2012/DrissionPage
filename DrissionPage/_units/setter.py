@@ -173,10 +173,10 @@ class ChromiumBaseSetter(BrowserBaseSetter):
         i = self._owner._run_cdp('Storage.getStorageKeyForFrame', frameId=self._owner._frame_id)['storageKey']
         if value is False:
             self._owner._run_cdp('DOMStorage.removeDOMStorageItem',
-                                storageId={'storageKey': i, 'isLocalStorage': False}, key=item)
+                                 storageId={'storageKey': i, 'isLocalStorage': False}, key=item)
         else:
             self._owner._run_cdp('DOMStorage.setDOMStorageItem', storageId={'storageKey': i, 'isLocalStorage': False},
-                                key=item, value=value)
+                                 key=item, value=value)
         self._owner._run_cdp_loaded('DOMStorage.disable')
 
     def local_storage(self, item, value):
@@ -189,10 +189,10 @@ class ChromiumBaseSetter(BrowserBaseSetter):
         i = self._owner._run_cdp('Storage.getStorageKeyForFrame', frameId=self._owner._frame_id)['storageKey']
         if value is False:
             self._owner._run_cdp('DOMStorage.removeDOMStorageItem',
-                                storageId={'storageKey': i, 'isLocalStorage': True}, key=item)
+                                 storageId={'storageKey': i, 'isLocalStorage': True}, key=item)
         else:
             self._owner._run_cdp('DOMStorage.setDOMStorageItem', storageId={'storageKey': i, 'isLocalStorage': True},
-                                key=item, value=value)
+                                 key=item, value=value)
         self._owner._run_cdp_loaded('DOMStorage.disable')
 
     def upload_files(self, files):
@@ -528,11 +528,11 @@ class ChromiumElementSetter(object):
         """
         try:
             self._ele.owner._run_cdp('DOM.setAttributeValue',
-                                    nodeId=self._ele._node_id, name=name, value=str(value))
+                                     nodeId=self._ele._node_id, name=name, value=str(value))
         except ElementLostError:
             self._ele._refresh_id()
             self._ele.owner._run_cdp('DOM.setAttributeValue',
-                                    nodeId=self._ele._node_id, name=name, value=str(value))
+                                     nodeId=self._ele._node_id, name=name, value=str(value))
 
     def property(self, name, value):
         """设置元素property属性

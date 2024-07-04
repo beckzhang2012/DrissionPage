@@ -88,7 +88,7 @@ class Clicker(object):
                 y = rect[0][0] + 3
                 try:
                     r = self._ele.owner._run_cdp('DOM.getNodeForLocation', x=int(x), y=int(y),
-                                                includeUserAgentShadowDOM=True, ignorePointerEventsNone=True)
+                                                 includeUserAgentShadowDOM=True, ignorePointerEventsNone=True)
                     if r['backendNodeId'] != self._ele._backend_id:
                         vx, vy = self._ele.rect.viewport_midpoint
                     else:
@@ -166,7 +166,7 @@ class Clicker(object):
         elif not self._ele.tab._browser._dl_mgr._running:
             self._ele.tab._browser.set.download_path('.')
 
-        obj = self._ele.tab._browser if new_tab else self._ele.owner.tab
+        obj = self._ele.tab._browser if new_tab else self._ele.owner._tab
         if rename or suffix:
             obj.set.download_file_name(rename, suffix)
 
@@ -205,6 +205,6 @@ class Clicker(object):
         :return: None
         """
         self._ele.owner._run_cdp('Input.dispatchMouseEvent', type='mousePressed', x=client_x,
-                                y=client_y, button=button, clickCount=count, _ignore=AlertExistsError)
+                                 y=client_y, button=button, clickCount=count, _ignore=AlertExistsError)
         self._ele.owner._run_cdp('Input.dispatchMouseEvent', type='mouseReleased', x=client_x,
-                                y=client_y, button=button, _ignore=AlertExistsError)
+                                 y=client_y, button=button, _ignore=AlertExistsError)

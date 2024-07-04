@@ -43,7 +43,7 @@ class ElementStates(object):
         """返回元素是否仍在DOM中"""
         try:
             return self._ele.owner._run_cdp('DOM.describeNode',
-                                           backendNodeId=self._ele._backend_id)['node']['nodeId'] != 0
+                                            backendNodeId=self._ele._backend_id)['node']['nodeId'] != 0
         except ElementLostError:
             return False
 
@@ -102,7 +102,7 @@ class ShadowRootStates(object):
         """返回元素是否仍在DOM中"""
         try:
             return self._ele.owner._run_cdp('DOM.describeNode',
-                                           backendNodeId=self._ele._backend_id)['node']['nodeId'] != 0
+                                            backendNodeId=self._ele._backend_id)['node']['nodeId'] != 0
         except ElementLostError:
             return False
 
@@ -158,7 +158,7 @@ class FrameStates(object):
         """返回frame元素是否可用，且里面仍挂载有frame"""
         try:
             node = self._frame._target_page._run_cdp('DOM.describeNode',
-                                                    backendNodeId=self._frame._frame_ele._backend_id)['node']
+                                                     backendNodeId=self._frame._frame_ele._backend_id)['node']
         except (ElementLostError, PageDisconnectedError):
             return False
         return 'frameId' in node
