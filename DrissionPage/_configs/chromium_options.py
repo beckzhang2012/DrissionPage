@@ -33,8 +33,8 @@ class ChromiumOptions(object):
             self.ini_path = str(ini_path)
         else:
             self.ini_path = str(Path(__file__).parent / 'configs.ini')
-        om = OptionsManager(ini_path)
 
+        om = OptionsManager(ini_path)
         options = om.chromium_options
         self._download_path = om.paths.get('download_path', '.') or '.'
         self._tmp_path = om.paths.get('tmp_path', None) or None
@@ -47,6 +47,7 @@ class ChromiumOptions(object):
         self._load_mode = options.get('load_mode', 'normal')
         self._system_user_path = options.get('system_user_path', False)
         self._existing_only = options.get('existing_only', False)
+        self._new_env = options.get('new_env', False)
         for i in self._arguments:
             if i.startswith('--headless'):
                 self._is_headless = True
@@ -364,6 +365,14 @@ class ChromiumOptions(object):
         on_off = None if on_off else False
         return self.set_argument('--incognito', on_off)
 
+    def new_env(self, on_off=True):
+        """设置是否使用全新浏览器环境
+        :param on_off: 开或关
+        :return: 当前对象
+        """
+        self._new_env = on_off
+        return self
+
     def ignore_certificate_errors(self, on_off=True):
         """设置是否忽略证书错误
         :param on_off: 开或关
@@ -504,17 +513,14 @@ class ChromiumOptions(object):
         self._system_user_path = on_off
         return self
 
-    def auto_port(self, on_off=True, tmp_path=None, scope=None):
+    def auto_port(self, on_off=True, scope=None):
         """自动获取可用端口
         :param on_off: 是否开启自动获取端口号
-        :param tmp_path: 临时文件保存路径，为None时保存到系统临时文件夹，on_off为False时此参数无效
-        :param scope: 指定端口范围，不含最后的数字，为None则使用[9600-19600)
+        :param scope: 指定端口范围，不含最后的数字，为None则使用[9600-59600)
         :return: 当前对象
         """
         if on_off:
-            self._auto_port = scope if scope else (9600, 19600)
-            if tmp_path:
-                self._tmp_path = str(tmp_path)
+            self._auto_port = scope if scope else (9600, 59600)
         else:
             self._auto_port = False
         return self
@@ -553,7 +559,7 @@ class ChromiumOptions(object):
 
         # 设置chromium_options
         attrs = ('address', 'browser_path', 'arguments', 'extensions', 'user', 'load_mode',
-                 'auto_port', 'system_user_path', 'existing_only', 'flags')
+                 'auto_port', 'system_user_path', 'existing_only', 'flags', 'new_env')
         for i in attrs:
             om.set_item('chromium_options', i, self.__getattribute__(f'_{i}'))
         # 设置代理

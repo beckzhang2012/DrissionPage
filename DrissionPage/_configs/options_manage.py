@@ -64,6 +64,7 @@ class OptionsManager(object):
             self.set_item('chromium_options', 'auto_port', 'False')
             self.set_item('chromium_options', 'system_user_path', 'False')
             self.set_item('chromium_options', 'existing_only', 'False')
+            self.set_item('chromium_options', 'new_env', 'False')
             self.set_item('session_options', 'headers', "{'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X "
                                                         "10_12_6) AppleWebKit/603.3.8 (KHTML, like Gecko) Version/10."
                                                         "1.2 Safari/603.3.8', 'accept': 'text/html,application/xhtml"

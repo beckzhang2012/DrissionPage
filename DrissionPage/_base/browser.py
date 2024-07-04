@@ -41,12 +41,13 @@ class Browser(object):
         :param session_options: 使用双模Tab时使用的默认Session配置，为True使用ini文件配置
         """
         opt = handle_options(addr_or_opts)
-        is_headless, browser_id = run_browser(opt)
+        is_headless, browser_id, is_exists = run_browser(opt)
         if browser_id in cls._BROWSERS:
             return cls._BROWSERS[browser_id]
         r = object.__new__(cls)
         r._chromium_options = opt
         r.is_headless = is_headless
+        r._is_exists = is_exists
         r.id = browser_id
         cls._BROWSERS[browser_id] = r
         return r
@@ -74,11 +75,11 @@ class Browser(object):
         self._download_path = str(Path(self._chromium_options.download_path).absolute())
         self.retry_times = self._chromium_options.retry_times
         self.retry_interval = self._chromium_options.retry_interval
-        self.user_data_path = self._chromium_options.user_data_path
         self.address = self._chromium_options.address
         self._driver = BrowserDriver(self.id, 'browser', self.address, self)
 
-        if self.is_headless != self._chromium_options.is_headless:
+        if self.is_headless != self._chromium_options.is_headless or (
+                self._is_exists and self._chromium_options._new_env):
             self.quit(3, True)
             connect_browser(self._chromium_options)
             s = Session()
@@ -110,6 +111,11 @@ class Browser(object):
         self._dl_mgr = DownloadManager(self)
 
         self._session_options = SessionOptions() if session_options is True else session_options
+
+    @property
+    def user_data_path(self):
+        """返回用户文件夹路径"""
+        return self._chromium_options.user_data_path
 
     @property
     def process_id(self):
@@ -537,7 +543,7 @@ def handle_options(addr_or_opts):
 
 def run_browser(chromium_options):
     """连接浏览器"""
-    connect_browser(chromium_options)
+    is_exists = connect_browser(chromium_options)
     try:
         s = Session()
         s.trust_env = False
@@ -553,4 +559,4 @@ def run_browser(chromium_options):
         raise BrowserConnectError('浏览器版本太旧或此浏览器不支持接管。')
     except:
         raise BrowserConnectError('\n浏览器连接失败，请确认浏览器是否启动。')
-    return is_headless, browser_id
+    return is_headless, browser_id, is_exists

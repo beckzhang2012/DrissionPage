@@ -28,17 +28,17 @@ class PortFinder(object):
         :param path: 临时文件保存路径，为None时使用系统临时文件夹
         """
         tmp = Path(path) if path else Path(gettempdir()) / 'DrissionPage'
-        self.tmp_dir = tmp / 'UserTempFolder'
+        self.tmp_dir = tmp / 'autoPortData'
         self.tmp_dir.mkdir(parents=True, exist_ok=True)
         if str(self.tmp_dir.absolute()) not in PortFinder.checked_paths:
             for i in self.tmp_dir.iterdir():
-                if i.is_dir() and i.stem.startswith('AutoPort') and not port_is_using('127.0.0.1', i.name[8:]):
+                if i.is_dir() and not port_is_using('127.0.0.1', i.name):
                     rmtree(i, ignore_errors=True)
             PortFinder.checked_paths.add(str(self.tmp_dir.absolute()))
 
     def get_port(self, scope=None):
         """查找一个可用端口
-        :param scope: 指定端口范围，不含最后的数字，为None则使用[9600-19600)
+        :param scope: 指定端口范围，不含最后的数字，为None则使用[9600-59600)
         :return: 可以使用的端口和用户文件夹路径组成的元组
         """
         from random import randint
@@ -47,7 +47,7 @@ class PortFinder(object):
                 PortFinder.used_port.clear()
             PortFinder.prev_time = perf_counter()
             if scope in (True, None):
-                scope = (9600, 19600)
+                scope = (9600, 59600)
             msx_times = scope[1] - scope[0]
             times = 0
             while times < msx_times:
@@ -55,7 +55,7 @@ class PortFinder(object):
                 port = randint(*scope)
                 if port in PortFinder.used_port or port_is_using('127.0.0.1', port):
                     continue
-                path = self.tmp_dir / f'AutoPort{port}'
+                path = self.tmp_dir / str(port)
                 if path.exists():
                     try:
                         rmtree(path)

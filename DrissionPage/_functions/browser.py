@@ -8,6 +8,7 @@
 from json import load, dump, JSONDecodeError
 from os import environ
 from pathlib import Path
+from shutil import rmtree
 from subprocess import Popen, DEVNULL
 from tempfile import gettempdir
 from time import perf_counter, sleep
@@ -33,7 +34,9 @@ def connect_browser(option):
         return True
 
     # ----------创建浏览器进程----------
-    args = get_launch_args(option)
+    args, user_path = get_launch_args(option)
+    if option._new_env:
+        rmtree(user_path, ignore_errors=True)
     set_prefs(option)
     set_flags(option)
     try:
@@ -42,10 +45,8 @@ def connect_browser(option):
     # 传入的路径找不到，主动在ini文件、注册表、系统变量中找
     except FileNotFoundError:
         browser_path = get_chrome_path(option.ini_path)
-
         if not browser_path:
             raise FileNotFoundError('无法找到浏览器可执行文件路径，请手动配置。')
-
         _run_browser(port, browser_path, args)
 
     test_connect(ip, port)
@@ -59,23 +60,24 @@ def get_launch_args(opt):
     """
     # ----------处理arguments-----------
     result = set()
-    has_user_path = False
+    user_path = False
     for i in opt.arguments:
         if i.startswith(('--load-extension=', '--remote-debugging-port=')):
             continue
         elif i.startswith('--user-data-dir') and not opt.system_user_path:
-            result.add(f'--user-data-dir={Path(i[16:]).absolute()}')
-            has_user_path = True
+            user_path = f'--user-data-dir={Path(i[16:]).absolute()}'
+            result.add(user_path)
             continue
         result.add(i)
 
-    if not has_user_path and not opt.system_user_path:
+    if not user_path and not opt.system_user_path:
         port = opt.address.split(':')[-1] if opt.address else '0'
         p = Path(opt.tmp_path) if opt.tmp_path else Path(gettempdir()) / 'DrissionPage'
-        path = p / f'userData_{port}'
+        path = p / 'userData' / port
         path.mkdir(parents=True, exist_ok=True)
-        opt.set_user_data_path(path)
-        result.add(f'--user-data-dir={path}')
+        user_path = path.absolute()
+        opt.set_user_data_path(user_path)
+        result.add(f'--user-data-dir={user_path}')
 
     result = list(result)
 
@@ -86,7 +88,7 @@ def get_launch_args(opt):
         ext = f'--load-extension={ext}'
         result.append(ext)
 
-    return result
+    return result, user_path
 
 
 def set_prefs(opt):

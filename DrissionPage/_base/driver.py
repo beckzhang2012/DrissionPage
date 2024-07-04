@@ -192,7 +192,7 @@ class Driver(object):
         if 'result' not in result and 'error' in result:
             kwargs['_timeout'] = timeout
             return {'error': result['error']['message'], 'type': result.get('type', 'call_method_error'),
-                    'method': _method, 'args': kwargs}
+                    'method': _method, 'args': kwargs, 'data': result['error']['data']}
         else:
             return result['result']
 

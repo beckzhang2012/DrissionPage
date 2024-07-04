@@ -283,6 +283,8 @@ class Actions:
         :return: self
         """
         modifiers = []
+        if not isinstance(keys, (str, tuple, list)):
+            keys = str(keys)
         for i in keys:
             for character in i:
                 if character in ('\ue009', '\ue008', '\ue00a', '\ue03d'):
