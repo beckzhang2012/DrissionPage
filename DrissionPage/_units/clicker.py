@@ -126,7 +126,8 @@ class Clicker(object):
             tid = self._ele.tab.browser.wait.new_tab(curr_tab=curr_tid)
             if not tid:
                 raise RuntimeError('没有出现新标签页。')
-            return self._ele.tab.browser.get_tab(tid)
+            return (self._ele.tab.browser.get_mix_tab(tid) if self._ele.tab._type == 'MixTab'
+                    else self._ele.tab.browser.get_tab(tid))
 
     def at(self, offset_x=None, offset_y=None, button='left', count=1):
         """带偏移量点击本元素，相对于左上角坐标。不传入x或y值时点击元素中间点
@@ -194,7 +195,8 @@ class Clicker(object):
         tid = self._ele.tab.browser.wait.new_tab(timeout=timeout, curr_tab=curr_tid)
         if not tid:
             raise RuntimeError('没有出现新标签页。')
-        return self._ele.tab.browser.get_tab(tid)
+        return (self._ele.tab.browser.get_mix_tab(tid) if self._ele.tab._type == 'MixTab'
+                else self._ele.tab.browser.get_tab(tid))
 
     def _click(self, client_x, client_y, button='left', count=1):
         """实施点击

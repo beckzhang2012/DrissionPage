@@ -222,10 +222,9 @@ class Browser(object):
         try:
             tab = self._run_cdp('Target.createTarget', **kwargs)['targetId']
         except CDPError:
-            url = url or 'https://#'
-            tab = self.get_tab().add_ele(('a', {'href': url,
-                                                'target': '_blank'})).click.for_new_tab(by_js=True)
-            return tab
+            data = ('a', {'href': url or 'https://#', 'target': '_new' if new_window else '_blank'})
+            tab = self.get_mix_tab() if isinstance(obj, MixTab) else self.get_tab()
+            return tab.add_ele(data).click.for_new_tab(by_js=True)
 
         while tab not in self._drivers:
             sleep(.1)

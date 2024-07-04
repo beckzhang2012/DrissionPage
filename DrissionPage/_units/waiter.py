@@ -57,7 +57,7 @@ class BrowserWaiter(OriginWaiter):
     def new_tab(self, timeout=None, curr_tab=None, raise_err=None):
         """等待新标签页出现
         :param timeout: 超时时间（秒），为None则使用页面对象timeout属性
-        :param curr_tab: 指定当前最新的tab id，为None自动获取
+        :param curr_tab: 指定当前最新的tab id，用于判断新tab出现，为None自动获取
         :param raise_err: 等待失败时是否报错，为None时根据Settings设置
         :return: 等到新标签页返回其id，否则返回False
         """
