@@ -94,36 +94,31 @@ class Actions:
 
         return self
 
-    def click(self, on_ele=None):
+    def click(self, on_ele=None, times=1):
         """点击鼠标左键，可先移动到元素上
         :param on_ele: ChromiumElement元素或文本定位符
+        :param times: 点击次数
         :return: self
         """
-        self._hold(on_ele, 'left').wait(.05)._release('left')
+        self._hold(on_ele, 'left', times).wait(.05)._release('left')
         return self
 
-    def r_click(self, on_ele=None):
+    def r_click(self, on_ele=None, times=1):
         """点击鼠标右键，可先移动到元素上
         :param on_ele: ChromiumElement元素或文本定位符
+        :param times: 点击次数
         :return: self
         """
-        self._hold(on_ele, 'right').wait(.05)._release('right')
+        self._hold(on_ele, 'right', times).wait(.05)._release('right')
         return self
 
-    def m_click(self, on_ele=None):
+    def m_click(self, on_ele=None, times=1):
         """点击鼠标中键，可先移动到元素上
         :param on_ele: ChromiumElement元素或文本定位符
+        :param times: 点击次数
         :return: self
         """
-        self._hold(on_ele, 'middle').wait(.05)._release('middle')
-        return self
-
-    def db_click(self, on_ele=None):
-        """双击鼠标左键，可先移动到元素上
-        :param on_ele: ChromiumElement元素或文本定位符
-        :return: self
-        """
-        self._hold(on_ele, 'left', 2).wait(.05)._release('left')
+        self._hold(on_ele, 'middle', times).wait(.05)._release('middle')
         return self
 
     def hold(self, on_ele=None):

@@ -107,12 +107,12 @@ def location_in_viewport(page, loc_x, loc_y):
 
 
 def offset_scroll(ele, offset_x, offset_y):
-    """接收元素及偏移坐标，把坐标滚动到页面中间，返回该点在视口中的坐标
+    """接收元素及偏移坐标，把坐标滚动到页面中间，返回该点绝对坐标
     有偏移量时以元素左上角坐标为基准，没有时以click_point为基准
     :param ele: 元素对象
     :param offset_x: 偏移量x
     :param offset_y: 偏移量y
-    :return: 视口中的坐标
+    :return: 绝对坐标
     """
     loc_x, loc_y = ele.rect.location
     cp_x, cp_y = ele.rect.click_point
@@ -122,11 +122,7 @@ def offset_scroll(ele, offset_x, offset_y):
         clientWidth = ele.owner._run_js('return document.body.clientWidth;')
         clientHeight = ele.owner._run_js('return document.body.clientHeight;')
         ele.owner.scroll.to_location(lx - clientWidth // 2, ly - clientHeight // 2)
-    cl_x, cl_y = ele.rect.viewport_location
-    ccp_x, ccp_y = ele.rect.viewport_click_point
-    cx = cl_x + offset_x if offset_x else ccp_x
-    cy = cl_y + offset_y if offset_y else ccp_y
-    return cx, cy
+    return lx, ly
 
 
 def make_absolute_link(link, baseURI=None):

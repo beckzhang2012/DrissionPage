@@ -19,7 +19,7 @@ from .._base.base import DrissionElement, BaseElement
 from .._functions.elements import ChromiumElementsList
 from .._functions.keys import input_text_or_keys
 from .._functions.locator import get_loc, locator_to_tuple
-from .._functions.web import make_absolute_link, get_ele_txt, format_html, is_js_func, offset_scroll, get_blob
+from .._functions.web import make_absolute_link, get_ele_txt, format_html, is_js_func, get_blob
 from .._units.clicker import Clicker
 from .._units.rect import ElementRect
 from .._units.scroller import ElementScroller
@@ -787,9 +787,7 @@ class ChromiumElement(DrissionElement):
         :param offset_y: 相对元素左上角坐标的y轴偏移量
         :return: None
         """
-        self.owner.scroll.to_see(self)
-        x, y = offset_scroll(self, offset_x, offset_y)
-        self.owner._run_cdp('Input.dispatchMouseEvent', type='mouseMoved', x=x, y=y, _ignore=AlertExistsError)
+        self.owner.actions.move_to(self, offset_x=offset_x, offset_y=offset_y, duration=.1)
 
     def drag(self, offset_x=0, offset_y=0, duration=.5):
         """拖拽当前元素到相对位置

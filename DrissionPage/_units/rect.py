@@ -176,6 +176,12 @@ class TabRect(object):
         w, h = r.split(' ')
         return int(w), int(h)
 
+    @property
+    def scrollbar_position(self):
+        """返回滚动条位置，格式：(x, y)"""
+        r = self._get_page_rect()['visualViewport']
+        return r['pageX'], r['pageY']
+
     def _get_page_rect(self):
         """获取页面范围信息"""
         return self._owner._run_cdp_loaded('Page.getLayoutMetrics')
