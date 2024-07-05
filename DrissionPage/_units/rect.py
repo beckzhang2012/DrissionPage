@@ -236,3 +236,9 @@ class FrameRect(object):
     def viewport_corners(self):
         """返回元素四个角视口坐标，顺序：左上、右上、右下、左下"""
         return self._frame.frame_ele.rect.viewport_corners
+
+    @property
+    def scrollbar_position(self):
+        """返回滚动条位置，格式：(x, y)"""
+        r = self._frame._run_cdp_loaded('Page.getLayoutMetrics')['visualViewport']
+        return r['pageX'], r['pageY']

@@ -212,7 +212,7 @@ class ChromiumBaseSetter(BrowserBaseSetter):
 
     def headers(self, headers) -> None:
         """设置固定发送的headers
-        :param headers: dict格式的headers数据
+        :param headers: dict格式的headers数据，或从浏览器复制的headers文本（\n分行）
         :return: None
         """
         self._owner._run_cdp('Network.enable')
