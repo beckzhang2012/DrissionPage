@@ -16,11 +16,11 @@ class Scroller(object):
         :param ele: 元素对象
         """
         self._driver = ele
-        self.t1 = self.t2 = 'this'
+        self._t1 = self._t2 = 'this'
         self._wait_complete = False
 
     def _run_js(self, js):
-        js = js.format(self.t1, self.t2, self.t2)
+        js = js.format(self._t1, self._t2, self._t2)
         self._driver._run_js(js)
         self._wait_scrolled()
 
@@ -125,8 +125,8 @@ class PageScroller(Scroller):
         :param owner: 页面对象
         """
         super().__init__(owner)
-        self.t1 = 'window'
-        self.t2 = 'document.documentElement'
+        self._t1 = 'window'
+        self._t2 = 'document.documentElement'
 
     def to_see(self, loc_or_ele, center=None):
         """滚动页面直到元素可见
@@ -165,7 +165,7 @@ class FrameScroller(PageScroller):
         :param frame: ChromiumFrame对象
         """
         super().__init__(frame.doc_ele)
-        self.t1 = self.t2 = 'this.documentElement'
+        self._t1 = self._t2 = 'this.documentElement'
 
     def to_see(self, loc_or_ele, center=None):
         """滚动页面直到元素可见

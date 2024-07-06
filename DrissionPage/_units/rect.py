@@ -39,20 +39,17 @@ class ElementRect(object):
     @property
     def location(self):
         """返回元素左上角的绝对坐标"""
-        cl = self.viewport_location
-        return self._get_page_coord(cl[0], cl[1])
+        return self._get_page_coord(*self.viewport_location)
 
     @property
     def midpoint(self):
         """返回元素中间点的绝对坐标"""
-        cl = self.viewport_midpoint
-        return self._get_page_coord(cl[0], cl[1])
+        return self._get_page_coord(*self.viewport_midpoint)
 
     @property
     def click_point(self):
         """返回元素接受点击的点的绝对坐标"""
-        cl = self.viewport_click_point
-        return self._get_page_coord(cl[0], cl[1])
+        return self._get_page_coord(*self.viewport_click_point)
 
     @property
     def viewport_location(self):
@@ -95,6 +92,13 @@ class ElementRect(object):
         ex, ey = self.viewport_click_point
         pr = self._ele.owner._run_js('return window.devicePixelRatio;')
         return (vx + ex) * pr, (ey + vy) * pr
+
+    @property
+    def scroll_position(self):
+        """返回滚动条位置，格式：(x, y)"""
+        r = self._ele._run_js('return this.scrollLeft.toString() + " " + this.scrollTop.toString();')
+        w, h = r.split(' ')
+        return int(w), int(h)
 
     def _get_viewport_rect(self, quad):
         """按照类型返回在可视窗口中的范围
@@ -177,7 +181,7 @@ class TabRect(object):
         return int(w), int(h)
 
     @property
-    def scrollbar_position(self):
+    def scroll_position(self):
         """返回滚动条位置，格式：(x, y)"""
         r = self._get_page_rect()['visualViewport']
         return r['pageX'], r['pageY']
@@ -238,7 +242,9 @@ class FrameRect(object):
         return self._frame.frame_ele.rect.viewport_corners
 
     @property
-    def scrollbar_position(self):
+    def scroll_position(self):
         """返回滚动条位置，格式：(x, y)"""
-        r = self._frame._run_cdp_loaded('Page.getLayoutMetrics')['visualViewport']
-        return r['pageX'], r['pageY']
+        r = self._frame.doc_ele._run_js('return this.documentElement.scrollLeft.toString() + " " '
+                                        '+ this.documentElement.scrollTop.toString();')
+        w, h = r.split(' ')
+        return int(w), int(h)

@@ -6,7 +6,7 @@
 @License  : BSD 3-Clause.
 """
 from pathlib import Path
-from typing import Union, Optional
+from typing import Union, Optional, Tuple
 
 from .._base.base import DrissionElement, BaseParser
 from .._elements.chromium_element import ChromiumElement
@@ -24,7 +24,7 @@ def format_html(text: str) -> str: ...
 def location_in_viewport(page: ChromiumBase, loc_x: float, loc_y: float) -> bool: ...
 
 
-def offset_scroll(ele: ChromiumElement, offset_x: float, offset_y: float) -> tuple: ...
+def offset_scroll(ele: ChromiumElement, offset_x: float, offset_y: float) -> Tuple[int, int, int, int]: ...
 
 
 def make_absolute_link(link: str, baseURI: str = None) -> str: ...

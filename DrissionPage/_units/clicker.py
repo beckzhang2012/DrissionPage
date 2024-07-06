@@ -53,7 +53,7 @@ class Clicker(object):
                 try:
                     self._ele.scroll.to_see()
                     if self._ele.states.is_enabled and self._ele.states.is_displayed:
-                        rect = self._ele.rect.corners
+                        rect = self._ele.rect.viewport_corners
                         can_click = True
                 except NoRectError:
                     if by_js is False:
@@ -90,14 +90,17 @@ class Clicker(object):
                     r = self._ele.owner._run_cdp('DOM.getNodeForLocation', x=int(x), y=int(y),
                                                  includeUserAgentShadowDOM=True, ignorePointerEventsNone=True)
                     if r['backendNodeId'] != self._ele._backend_id:
-                        vx, vy = self._ele.rect.midpoint
+                        vx, vy = self._ele.rect.viewport_midpoint
+                        lx, ly = self._ele.rect._get_page_coord(vx, vy)
                     else:
-                        vx, vy = self._ele.rect.click_point
+                        vx, vy = self._ele.rect.viewport_click_point
+                        lx, ly = self._ele.rect._get_page_coord(vx, vy)
 
                 except CDPError:
-                    vx, vy = self._ele.rect.midpoint
+                    vx, vy = self._ele.rect.viewport_midpoint
+                    lx, ly = self._ele.rect._get_page_coord(vx, vy)
 
-                self._click(vx, vy)
+                self._click(lx, ly, vx, vy)
                 return True
 
         if by_js is not False:
@@ -110,8 +113,7 @@ class Clicker(object):
     def right(self):
         """右键单击"""
         self._ele.owner.scroll.to_see(self._ele)
-        x, y = self._ele.rect.click_point
-        self._click(x, y, 'right')
+        self._click(*self._ele.rect.click_point, *self._ele.rect.viewport_click_point, button='right')
 
     def middle(self, get_tab=True):
         """中键单击，默认返回新出现的tab对象
@@ -119,9 +121,8 @@ class Clicker(object):
         :return: Tab对象或None
         """
         self._ele.owner.scroll.to_see(self._ele)
-        x, y = self._ele.rect.click_point
         curr_tid = self._ele.tab.browser.tab_ids[0]
-        self._click(x, y, 'middle')
+        self._click(*self._ele.rect.click_point, *self._ele.rect.viewport_click_point, button='middle')
         if get_tab:
             tid = self._ele.tab.browser.wait.new_tab(curr_tab=curr_tid)
             if not tid:
@@ -142,8 +143,7 @@ class Clicker(object):
             w, h = self._ele.rect.size
             offset_x = w // 2
             offset_y = h // 2
-        x, y = offset_scroll(self._ele, offset_x, offset_y)
-        self._click(x, y, button, count)
+        self._click(*offset_scroll(self._ele, offset_x, offset_y), button=button, count=count)
 
     def multi(self, times=2):
         """多次点击
@@ -198,19 +198,18 @@ class Clicker(object):
         return (self._ele.tab.browser.get_mix_tab(tid) if self._ele.tab._type == 'MixTab'
                 else self._ele.tab.browser.get_tab(tid))
 
-    def _click(self, loc_x, loc_y, button='left', count=1):
+    def _click(self, loc_x, loc_y, view_x, view_y, button='left', count=1):
         """实施点击
         :param loc_x: 绝对x坐标
         :param loc_y: 绝对y坐标
+        :param view_x: 视口x坐标
+        :param view_y: 视口y坐标
         :param button: 'left' 'right' 'middle'  'back' 'forward'
         :param count: 点击次数
         :return: None
         """
         self._ele.owner.actions.move_to((loc_x, loc_y), duration=.1)
-        sx, sy = self._ele.owner.rect.scrollbar_position
-        x = loc_x - sx
-        y = loc_y - sy
-        self._ele.owner._run_cdp('Input.dispatchMouseEvent', type='mousePressed', x=x,
-                                 y=y, button=button, clickCount=count, _ignore=AlertExistsError)
-        self._ele.owner._run_cdp('Input.dispatchMouseEvent', type='mouseReleased', x=x,
-                                 y=y, button=button, _ignore=AlertExistsError)
+        self._ele.owner._run_cdp('Input.dispatchMouseEvent', type='mousePressed', x=view_x,
+                                 y=view_y, button=button, clickCount=count, _ignore=AlertExistsError)
+        self._ele.owner._run_cdp('Input.dispatchMouseEvent', type='mouseReleased', x=view_x,
+                                 y=view_y, button=button, _ignore=AlertExistsError)

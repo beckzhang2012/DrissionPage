@@ -13,8 +13,8 @@ from .._pages.chromium_base import ChromiumBase
 
 class Scroller(object):
     def __init__(self, page_or_ele: Union[ChromiumBase, ChromiumElement]):
-        self.t1: str = ...
-        self.t2: str = ...
+        self._t1: str = ...
+        self._t2: str = ...
         self._driver: Union[ChromiumBase, ChromiumElement] = ...
         self._wait_complete: bool = ...
 
@@ -64,7 +64,7 @@ class FrameScroller(PageScroller):
         :param frame: ChromiumFrame对象
         """
         self._driver = frame.doc_ele
-        self.t1 = self.t2 = 'this.documentElement'
+        self._t1 = self._t2 = 'this.documentElement'
         self._wait_complete = False
 
     def to_see(self, loc_or_ele, center=None):

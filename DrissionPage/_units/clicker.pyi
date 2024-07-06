@@ -45,4 +45,9 @@ class Clicker(object):
 
     def for_new_tab(self, by_js: bool = False, timeout: float = 3) -> Union[ChromiumTab, MixTab]: ...
 
-    def _click(self, client_x: float, client_y: float, button: str = 'left', count: int = 1) -> None: ...
+    def _click(self, loc_x: float,
+               loc_y: float,
+               view_x: float,
+               view_y: float,
+               button: str = 'left',
+               count: int = 1) -> None: ...
