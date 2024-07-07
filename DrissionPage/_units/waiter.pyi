@@ -8,7 +8,7 @@
 from typing import Union, Tuple, Literal, List
 
 from .downloader import DownloadMission
-from .._base.browser import Browser
+from .._base.browser import Chromium
 from .._elements.chromium_element import ChromiumElement
 from .._pages.chromium_base import ChromiumBase
 from .._pages.chromium_frame import ChromiumFrame
@@ -20,7 +20,7 @@ class OriginWaiter(object):
 
 
 class BrowserWaiter(OriginWaiter):
-    def __init__(self, owner: Browser):
+    def __init__(self, owner: Chromium):
         self._owner = owner
 
     def download_begin(self, timeout: float = None, cancel_it: bool = False) -> DownloadMission: ...

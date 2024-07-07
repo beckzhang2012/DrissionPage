@@ -11,7 +11,7 @@ from typing import Union
 from requests import Session
 from requests.cookies import RequestsCookieJar
 
-from .._base.browser import Browser
+from .._base.browser import Chromium
 from .._pages.chromium_base import ChromiumBase
 
 
@@ -24,7 +24,7 @@ def cookies_to_tuple(cookies: Union[RequestsCookieJar, list, tuple, str, dict, C
 def set_session_cookies(session: Session, cookies: Union[RequestsCookieJar, list, tuple, str, dict]) -> None: ...
 
 
-def set_browser_cookies(browser: Browser, cookies: Union[RequestsCookieJar, list, tuple, str, dict]) -> None: ...
+def set_browser_cookies(browser: Chromium, cookies: Union[RequestsCookieJar, list, tuple, str, dict]) -> None: ...
 
 
 def set_tab_cookies(page: ChromiumBase, cookies: Union[RequestsCookieJar, list, tuple, str, dict]) -> None: ...

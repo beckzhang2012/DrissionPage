@@ -52,6 +52,7 @@ class ChromiumTab(ChromiumBase):
 
     def _d_set_runtime_settings(self):
         """重写设置浏览器运行参数方法"""
+        print('a')
         self._timeouts = copy(self.browser.timeouts)
         self.retry_times = self.browser.retry_times
         self.retry_interval = self.browser.retry_interval
@@ -96,7 +97,7 @@ class ChromiumTab(ChromiumBase):
 class MixTab(SessionPage, ChromiumTab, BasePage):
     def __init__(self, browser, tab_id):
         """
-        :param browser: Browser对象
+        :param browser: Chromium对象
         :param tab_id: 标签页id
         """
         if Settings.singleton_tab_obj and hasattr(self, '_created'):

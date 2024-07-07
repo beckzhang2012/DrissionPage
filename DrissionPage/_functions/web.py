@@ -346,7 +346,9 @@ def format_headers(txt):
     :param txt: 从浏览器复制的原始文本格式headers
     :return: dict格式headers
     """
-    if not isinstance(txt, str):
+    if isinstance(txt, dict):
+        for k, v in txt.items():
+            txt[k] = str(v)
         return txt
     headers = {}
     for header in txt.split('\n'):

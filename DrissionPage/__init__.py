@@ -5,7 +5,7 @@
 @Copyright: (c) 2024 by g1879, Inc. All Rights Reserved.
 @License  : BSD 3-Clause.
 """
-from ._base.browser import Browser
+from ._base.browser import Chromium
 from ._configs.chromium_options import ChromiumOptions
 from ._configs.session_options import SessionOptions
 # 即将废弃

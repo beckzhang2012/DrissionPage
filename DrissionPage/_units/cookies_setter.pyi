@@ -8,7 +8,7 @@
 from http.cookiejar import Cookie, CookieJar
 from typing import Union
 
-from .._base.browser import Browser
+from .._base.browser import Chromium
 from .._pages.chromium_base import ChromiumBase
 from .._pages.chromium_tab import MixTab
 from .._pages.session_page import SessionPage
@@ -28,9 +28,9 @@ class CookiesSetter(object):
 
 
 class BrowserCookiesSetter(CookiesSetter):
-    _owner: Browser = ...
+    _owner: Chromium = ...
 
-    def __init__(self, page: Browser): ...
+    def __init__(self, page: Chromium): ...
 
 
 class SessionCookiesSetter(object):

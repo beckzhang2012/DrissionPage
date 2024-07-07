@@ -13,7 +13,7 @@ from requests import Session, Response
 from .chromium_base import ChromiumBase
 from .chromium_frame import ChromiumFrame
 from .session_page import SessionPage
-from .._base.browser import Browser
+from .._base.browser import Chromium
 from .._elements.chromium_element import ChromiumElement
 from .._elements.session_element import SessionElement
 from .._functions.cookies import CookiesList
@@ -26,9 +26,9 @@ from .._units.waiter import TabWaiter
 class ChromiumTab(ChromiumBase):
     _TABS: dict = ...
 
-    def __new__(cls, browser: Browser, tab_id: str): ...
+    def __new__(cls, browser: Chromium, tab_id: str): ...
 
-    def __init__(self, browser: Browser, tab_id: str):
+    def __init__(self, browser: Chromium, tab_id: str):
         self._tab: ChromiumTab = ...
         self._rect: Optional[TabRect] = ...
 
@@ -70,7 +70,7 @@ class MixTab(SessionPage, ChromiumTab):
     _has_driver: bool = ...
     _has_session: bool = ...
 
-    def __init__(self, browser: Browser, tab_id: str): ...
+    def __init__(self, browser: Chromium, tab_id: str): ...
 
     def __call__(self,
                  locator: Union[Tuple[str, str], str, ChromiumElement, SessionElement],

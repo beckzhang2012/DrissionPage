@@ -41,7 +41,7 @@ class ChromiumBase(BasePage):
 
     def __init__(self, browser, tab_id=None):
         """
-        :param browser: Browser
+        :param browser: Chromium
         :param tab_id: 要控制的标签页id，不指定默认为激活的
         """
         super().__init__()

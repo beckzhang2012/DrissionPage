@@ -32,7 +32,7 @@ from ..errors import PageDisconnectedError
 __ERROR__ = 'error'
 
 
-class Browser(object):
+class Chromium(object):
     _BROWSERS = {}
 
     def __new__(cls, addr_or_opts=None, session_options=None):
@@ -61,7 +61,7 @@ class Browser(object):
             return
         self._created = True
 
-        self._type = 'Browser'
+        self._type = 'Chromium'
 
         self._frames = {}
         self._drivers = {}
@@ -491,7 +491,7 @@ class Browser(object):
         return r if __ERROR__ not in r else raise_error(r, ignore)
 
     def _on_disconnect(self):
-        Browser._BROWSERS.pop(self.id, None)
+        Chromium._BROWSERS.pop(self.id, None)
         if self._chromium_options.is_auto_port and self._chromium_options.user_data_path:
             path = Path(self._chromium_options.user_data_path)
             end_time = perf_counter() + 7

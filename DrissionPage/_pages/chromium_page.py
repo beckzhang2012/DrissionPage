@@ -7,7 +7,7 @@
 """
 from time import sleep
 
-from .._base.browser import Browser
+from .._base.browser import Chromium
 from .._functions.web import save_page
 from .._pages.chromium_base import ChromiumBase
 from .._units.setter import ChromiumPageSetter
@@ -24,7 +24,7 @@ class ChromiumPage(ChromiumBase):
         :param tab_id: 要控制的标签页id，不指定默认为激活的
         :param timeout: 超时时间（秒）
         """
-        browser = Browser(addr_or_opts=addr_or_opts)
+        browser = Chromium(addr_or_opts=addr_or_opts)
         if browser.id in cls._PAGES:
             r = cls._PAGES[browser.id]
             while not hasattr(r, '_frame_id'):
