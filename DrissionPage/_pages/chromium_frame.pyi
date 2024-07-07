@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Union, Tuple, List, Any, Optional
 
 from .chromium_base import ChromiumBase
-from .chromium_tab import ChromiumTab, MixTab
+from .tabs import ChromiumTab, MixTab
 from .._elements.chromium_element import ChromiumElement
 from .._functions.elements import ChromiumElementsList
 from .._units.listener import FrameListener

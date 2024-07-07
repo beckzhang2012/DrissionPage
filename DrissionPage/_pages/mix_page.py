@@ -10,10 +10,10 @@ from .session_page import SessionPage
 from .._base.base import BasePage
 from .._configs.chromium_options import ChromiumOptions
 from .._functions.cookies import set_session_cookies, set_tab_cookies
-from .._units.setter import WebPageSetter
+from .._units.setter import MixPageSetter
 
 
-class WebPage(SessionPage, ChromiumPage, BasePage):
+class MixPage(SessionPage, ChromiumPage, BasePage):
     """整合浏览器和request的页面类"""
 
     def __new__(cls, mode='d', timeout=None, chromium_options=None, session_or_options=None):
@@ -46,7 +46,7 @@ class WebPage(SessionPage, ChromiumPage, BasePage):
             chromium_options = ChromiumOptions(read_file=chromium_options)
             chromium_options.set_timeouts(base=self._timeout).set_paths(download_path=self.download_path)
         super(SessionPage, self).__init__(addr_or_opts=chromium_options, timeout=timeout)
-        self._type = 'WebPage'
+        self._type = 'MixPage'
         self.change_mode(self._mode, go=False, copy_cookies=False)
 
     def __call__(self, locator, index=1, timeout=None):
@@ -66,7 +66,7 @@ class WebPage(SessionPage, ChromiumPage, BasePage):
     def set(self):
         """返回用于设置的对象"""
         if self._set is None:
-            self._set = WebPageSetter(self)
+            self._set = MixPageSetter(self)
         return self._set
 
     @property
@@ -147,7 +147,7 @@ class WebPage(SessionPage, ChromiumPage, BasePage):
     @property
     def timeout(self):
         """返回通用timeout设置"""
-        return self.timeouts.base
+        return super()._timeout if self._mode == 's' else self.timeouts.base
 
     def get(self, url, show_errmsg=False, retry=None, interval=None, timeout=None, **kwargs):
         """跳转到一个url
@@ -304,7 +304,7 @@ class WebPage(SessionPage, ChromiumPage, BasePage):
         :param url: 要匹配url的文本，模糊匹配，为None则匹配所有
         :param tab_type: tab类型，可用列表输入多个，如 'page', 'iframe' 等，为None则匹配所有
         :param as_id: 是否返回标签页id而不是标签页对象
-        :return: WebPageTab对象
+        :return: MixTab对象
         """
         return self.browser._get_tab(id_or_num=id_or_num, title=title, url=url,
                                      tab_type=tab_type, mix=True, as_id=as_id)
@@ -366,7 +366,7 @@ class WebPage(SessionPage, ChromiumPage, BasePage):
         :param locator: 元素的定位信息，可以是元素对象，loc元组，或查询字符串
         :param timeout: 查找元素超时时间（秒），d模式专用
         :param index: 第几个结果，从1开始，可传入负数获取倒数第几个，为None返回所有
-        :param relative: WebPage用的表示是否相对定位的参数
+        :param relative: MixTab用的表示是否相对定位的参数
         :param raise_err: 找不到元素是是否抛出异常，为None时根据全局设置
         :return: 元素对象或属性、文本节点文本
         """
@@ -392,4 +392,4 @@ class WebPage(SessionPage, ChromiumPage, BasePage):
             self._has_driver = None
 
     def __repr__(self):
-        return f'<WebPage browser_id={self.browser.id} tab_id={self.tab_id}>'
+        return f'<MixPage browser_id={self.browser.id} tab_id={self.tab_id}>'

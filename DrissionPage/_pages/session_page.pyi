@@ -130,6 +130,9 @@ class SessionPage(BasePage):
     @property
     def set(self) -> SessionPageSetter: ...
 
+    @property
+    def timeout(self) -> float: ...
+
     def post(self,
              url: str,
              show_errmsg: bool = False,

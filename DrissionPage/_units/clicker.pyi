@@ -10,7 +10,7 @@ from typing import Union
 
 from .downloader import DownloadMission
 from .._elements.chromium_element import ChromiumElement
-from .._pages.chromium_tab import MixTab, ChromiumTab
+from .._pages.tabs import MixTab, ChromiumTab
 
 
 class Clicker(object):

@@ -8,9 +8,10 @@
 from ._base.browser import Chromium
 from ._configs.chromium_options import ChromiumOptions
 from ._configs.session_options import SessionOptions
-# 即将废弃
-from ._pages.chromium_page import ChromiumPage
 from ._pages.session_page import SessionPage
-from ._pages.web_page import WebPage
+
+from ._pages.chromium_page import ChromiumPage
+from ._pages.mix_page import MixPage
+from ._pages.mix_page import MixPage as WebPage
 
 __version__ = '4.1.0.0b1'

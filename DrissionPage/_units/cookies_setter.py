@@ -79,7 +79,7 @@ class SessionCookiesSetter(object):
         self._owner.session.cookies.clear()
 
 
-class WebPageCookiesSetter(CookiesSetter, SessionCookiesSetter):
+class MixPageCookiesSetter(CookiesSetter, SessionCookiesSetter):
 
     def __call__(self, cookies):
         """设置多个cookie，注意不要传入单个

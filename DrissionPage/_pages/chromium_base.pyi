@@ -8,7 +8,7 @@
 from pathlib import Path
 from typing import Union, Tuple, List, Any, Optional, Literal
 
-from .chromium_tab import ChromiumTab, MixTab
+from .tabs import ChromiumTab, MixTab
 from .._base.base import BasePage
 from .._base.browser import Chromium
 from .._base.driver import Driver
@@ -142,6 +142,9 @@ class ChromiumBase(BasePage):
 
     @property
     def rect(self) -> TabRect: ...
+
+    @property
+    def timeout(self) -> float: ...
 
     @property
     def timeouts(self) -> Timeout: ...

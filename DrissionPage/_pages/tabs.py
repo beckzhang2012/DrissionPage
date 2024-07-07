@@ -15,7 +15,7 @@ from .._functions.settings import Settings
 from .._functions.web import save_page
 from .._pages.chromium_base import ChromiumBase
 from .._pages.session_page import SessionPage
-from .._units.setter import TabSetter, WebPageTabSetter
+from .._units.setter import TabSetter, MixTabSetter
 from .._units.waiter import TabWaiter
 
 
@@ -52,7 +52,6 @@ class ChromiumTab(ChromiumBase):
 
     def _d_set_runtime_settings(self):
         """重写设置浏览器运行参数方法"""
-        print('a')
         self._timeouts = copy(self.browser.timeouts)
         self.retry_times = self.browser.retry_times
         self.retry_interval = self.browser.retry_interval
@@ -127,7 +126,7 @@ class MixTab(SessionPage, ChromiumTab, BasePage):
     def set(self):
         """返回用于设置的对象"""
         if self._set is None:
-            self._set = WebPageTabSetter(self)
+            self._set = MixTabSetter(self)
         return self._set
 
     @property
@@ -208,7 +207,7 @@ class MixTab(SessionPage, ChromiumTab, BasePage):
     @property
     def timeout(self):
         """返回通用timeout设置"""
-        return self.timeouts.base
+        return super()._timeout if self._mode == 's' else self.timeouts.base
 
     def get(self, url, show_errmsg=False, retry=None, interval=None, timeout=None, **kwargs):
         """跳转到一个url
@@ -374,7 +373,7 @@ class MixTab(SessionPage, ChromiumTab, BasePage):
         :param locator: 元素的定位信息，可以是元素对象，loc元组，或查询字符串
         :param timeout: 查找元素超时时间（秒），d模式专用
         :param index: 第几个结果，从1开始，可传入负数获取倒数第几个，为None返回所有
-        :param relative: WebPage用的表示是否相对定位的参数
+        :param relative: MixTab用的表示是否相对定位的参数
         :param raise_err: 找不到元素是是否抛出异常，为None时根据全局设置
         :return: 元素对象或属性、文本节点文本
         """

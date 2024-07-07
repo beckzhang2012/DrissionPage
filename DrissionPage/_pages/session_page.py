@@ -38,6 +38,7 @@ class SessionPage(BasePage):
         self._encoding = None
         self._type = 'SessionPage'
         self._page = self
+        self._timeout = 10
         self._s_set_start_options(session_or_options)
         self._s_set_runtime_settings()
         self._create_session()
@@ -142,6 +143,11 @@ class SessionPage(BasePage):
         if self._set is None:
             self._set = SessionPageSetter(self)
         return self._set
+
+    @property
+    def timeout(self):
+        """返回超时设置"""
+        return self._timeout
 
     def get(self, url, show_errmsg=False, retry=None, interval=None, timeout=None, **kwargs):
         """用get方式跳转到url，可输入文件路径

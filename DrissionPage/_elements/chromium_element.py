@@ -584,7 +584,7 @@ class ChromiumElement(DrissionElement):
         :param locator: 元素的定位信息，可以是loc元组，或查询字符串
         :param timeout: 查找元素超时时间（秒）
         :param index: 第几个结果，从1开始，可传入负数获取倒数第几个，为None返回所有
-        :param relative: WebPage用的表示是否相对定位的参数
+        :param relative: MixTab用的表示是否相对定位的参数
         :param raise_err: 找不到元素是是否抛出异常，为None时根据全局设置
         :return: ChromiumElement对象或文本、属性或其组成的列表
         """
@@ -1174,7 +1174,7 @@ class ShadowRoot(BaseElement):
         :param locator: 元素的定位信息，可以是loc元组，或查询字符串
         :param timeout: 查找元素超时时间（秒）
         :param index: 第几个结果，从1开始，可传入负数获取倒数第几个，为None返回所有
-        :param relative: WebPage用的表示是否相对定位的参数
+        :param relative: MixTab用的表示是否相对定位的参数
         :param raise_err: 找不到元素是是否抛出异常，为None时根据全局设置
         :return: ChromiumElement对象或其组成的列表
         """
@@ -1250,7 +1250,7 @@ def find_in_chromium_ele(ele, locator, index=1, timeout=None, relative=True):
     :param locator: 元素定位元组
     :param index: 第几个结果，从1开始，可传入负数获取倒数第几个，为None返回所有
     :param timeout: 查找元素超时时间（秒）
-    :param relative: WebPage用于标记是否相对定位使用
+    :param relative: MixTab用于标记是否相对定位使用
     :return: 返回ChromiumElement元素或它们组成的列表
     """
     # ---------------处理定位符---------------

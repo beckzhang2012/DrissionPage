@@ -314,6 +314,11 @@ class ChromiumBase(BasePage):
         return self._rect
 
     @property
+    def timeout(self):
+        """返回timeout设置"""
+        return self._timeouts.base
+
+    @property
     def timeouts(self):
         """返回timeouts设置"""
         return self._timeouts
@@ -343,7 +348,7 @@ class ChromiumBase(BasePage):
 
     @property
     def _browser_url(self):
-        """用于被WebPage覆盖"""
+        """用于被MixTab覆盖"""
         return self.url
 
     @property
@@ -556,7 +561,7 @@ class ChromiumBase(BasePage):
         :param locator: 定位符或元素对象
         :param timeout: 查找超时时间（秒）
         :param index: 第几个结果，从1开始，可传入负数获取倒数第几个，为None返回所有
-        :param relative: WebPage用的表示是否相对定位的参数
+        :param relative: MixTab用的表示是否相对定位的参数
         :param raise_err: 找不到元素是是否抛出异常，为None时根据全局设置
         :return: ChromiumElement对象或元素对象组成的列表
         """

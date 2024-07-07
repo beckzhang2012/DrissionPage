@@ -11,7 +11,7 @@ from typing import Union, Tuple, List, Optional
 from .._base.browser import Chromium
 from .._configs.chromium_options import ChromiumOptions
 from .._pages.chromium_base import ChromiumBase
-from .._pages.chromium_tab import ChromiumTab
+from .._pages.tabs import ChromiumTab
 from .._units.rect import TabRect
 from .._units.setter import ChromiumPageSetter
 from .._units.waiter import PageWaiter

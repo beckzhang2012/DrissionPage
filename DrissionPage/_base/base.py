@@ -346,7 +346,6 @@ class BasePage(BaseParser):
     def __init__(self):
         """初始化函数"""
         self._url = None
-        self._timeout = 10
         self._url_available = None
         self.retry_times = 3
         self.retry_interval = 2
@@ -361,11 +360,6 @@ class BasePage(BaseParser):
         """返回网页title"""
         ele = self._ele('xpath://title', raise_err=False, method='title')
         return ele.text if ele else None
-
-    @property
-    def timeout(self):
-        """返回查找元素时等待的秒数"""
-        return self._timeout
 
     @property
     def url_available(self):

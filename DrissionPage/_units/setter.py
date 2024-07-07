@@ -10,14 +10,14 @@ from time import sleep
 
 from requests.structures import CaseInsensitiveDict
 
-from .cookies_setter import SessionCookiesSetter, CookiesSetter, WebPageCookiesSetter, BrowserCookiesSetter
+from .cookies_setter import SessionCookiesSetter, CookiesSetter, MixPageCookiesSetter, BrowserCookiesSetter
 from .._functions.settings import Settings
 from .._functions.tools import show_or_hide_browser
 from .._functions.web import format_headers
 from ..errors import ElementLostError, JavaScriptError
 
 
-class BasePageSetter(object):
+class BaseSetter(object):
     def __init__(self, owner):
         """
         :param owner: BasePage对象
@@ -51,7 +51,144 @@ class BasePageSetter(object):
         self._owner._download_path = str(Path(path).absolute())
 
 
-class BrowserBaseSetter(BasePageSetter):
+class SessionPageSetter(BaseSetter):
+    def __init__(self, owner):
+        """
+        :param owner: SessionPage对象
+        """
+        super().__init__(owner)
+        self._cookies_setter = None
+
+    @property
+    def cookies(self):
+        """返回用于设置cookies的对象"""
+        if self._cookies_setter is None:
+            self._cookies_setter = SessionCookiesSetter(self._owner)
+        return self._cookies_setter
+
+    def download_path(self, path):
+        """设置下载路径
+        :param path: 下载路径
+        :return: None
+        """
+        super().download_path(path)
+        if self._owner._DownloadKit:
+            self._owner._DownloadKit.set.goal_path(self._owner._download_path)
+
+    def timeout(self, second):
+        """设置连接超时时间
+        :param second: 秒数
+        :return: None
+        """
+        self._owner._timeout = second
+
+    def encoding(self, encoding, set_all=True):
+        """设置编码
+        :param encoding: 编码名称，如果要取消之前的设置，传入None
+        :param set_all: 是否设置对象参数，为False则只设置当前Response
+        :return: None
+        """
+        if set_all:
+            self._owner._encoding = encoding if encoding else None
+        if self._owner.response:
+            self._owner.response.encoding = encoding
+
+    def headers(self, headers):
+        """设置通用的headers
+        :param headers: dict形式的headers
+        :return: None
+        """
+        self._owner._headers = CaseInsensitiveDict(format_headers(headers))
+
+    def header(self, name, value):
+        """设置headers中一个项
+        :param name: 设置名称
+        :param value: 设置值
+        :return: None
+        """
+        self._owner._headers[name] = value
+
+    def user_agent(self, ua):
+        """设置user agent
+        :param ua: user agent
+        :return: None
+        """
+        self._owner._headers['user-agent'] = ua
+
+    def proxies(self, http=None, https=None):
+        """设置proxies参数
+        :param http: http代理地址
+        :param https: https代理地址
+        :return: None
+        """
+        self._owner.session.proxies = {'http': http, 'https': https}
+
+    def auth(self, auth):
+        """设置认证元组或对象
+        :param auth: 认证元组或对象
+        :return: None
+        """
+        self._owner.session.auth = auth
+
+    def hooks(self, hooks):
+        """设置回调方法
+        :param hooks: 回调方法
+        :return: None
+        """
+        self._owner.session.hooks = hooks
+
+    def params(self, params):
+        """设置查询参数字典
+        :param params: 查询参数字典
+        :return: None
+        """
+        self._owner.session.params = params
+
+    def verify(self, on_off):
+        """设置是否验证SSL证书
+        :param on_off: 是否验证 SSL 证书
+        :return: None
+        """
+        self._owner.session.verify = on_off
+
+    def cert(self, cert):
+        """SSL客户端证书文件的路径(.pem格式)，或(‘cert’, ‘key’)元组
+        :param cert: 证书路径或元组
+        :return: None
+        """
+        self._owner.session.cert = cert
+
+    def stream(self, on_off):
+        """设置是否使用流式响应内容
+        :param on_off: 是否使用流式响应内容
+        :return: None
+        """
+        self._owner.session.stream = on_off
+
+    def trust_env(self, on_off):
+        """设置是否信任环境
+        :param on_off: 是否信任环境
+        :return: None
+        """
+        self._owner.session.trust_env = on_off
+
+    def max_redirects(self, times):
+        """设置最大重定向次数
+        :param times: 最大重定向次数
+        :return: None
+        """
+        self._owner.session.max_redirects = times
+
+    def add_adapter(self, url, adapter):
+        """添加适配器
+        :param url: 适配器对应url
+        :param adapter: 适配器对象
+        :return: None
+        """
+        self._owner.session.mount(url, adapter)
+
+
+class BrowserBaseSetter(BaseSetter):
     """Browser和ChromiumBase设置"""
 
     def __init__(self, owner):
@@ -314,144 +451,7 @@ class ChromiumPageSetter(TabSetter):
             self._owner._alert.auto = accept if on_off else None
 
 
-class SessionPageSetter(BasePageSetter):
-    def __init__(self, owner):
-        """
-        :param owner: SessionPage对象
-        """
-        super().__init__(owner)
-        self._cookies_setter = None
-
-    @property
-    def cookies(self):
-        """返回用于设置cookies的对象"""
-        if self._cookies_setter is None:
-            self._cookies_setter = SessionCookiesSetter(self._owner)
-        return self._cookies_setter
-
-    def download_path(self, path):
-        """设置下载路径
-        :param path: 下载路径
-        :return: None
-        """
-        super().download_path(path)
-        if self._owner._DownloadKit:
-            self._owner._DownloadKit.set.goal_path(self._owner._download_path)
-
-    def timeout(self, second):
-        """设置连接超时时间
-        :param second: 秒数
-        :return: None
-        """
-        self._owner._timeout = second
-
-    def encoding(self, encoding, set_all=True):
-        """设置编码
-        :param encoding: 编码名称，如果要取消之前的设置，传入None
-        :param set_all: 是否设置对象参数，为False则只设置当前Response
-        :return: None
-        """
-        if set_all:
-            self._owner._encoding = encoding if encoding else None
-        if self._owner.response:
-            self._owner.response.encoding = encoding
-
-    def headers(self, headers):
-        """设置通用的headers
-        :param headers: dict形式的headers
-        :return: None
-        """
-        self._owner._headers = CaseInsensitiveDict(format_headers(headers))
-
-    def header(self, name, value):
-        """设置headers中一个项
-        :param name: 设置名称
-        :param value: 设置值
-        :return: None
-        """
-        self._owner._headers[name] = value
-
-    def user_agent(self, ua):
-        """设置user agent
-        :param ua: user agent
-        :return: None
-        """
-        self._owner._headers['user-agent'] = ua
-
-    def proxies(self, http=None, https=None):
-        """设置proxies参数
-        :param http: http代理地址
-        :param https: https代理地址
-        :return: None
-        """
-        self._owner.session.proxies = {'http': http, 'https': https}
-
-    def auth(self, auth):
-        """设置认证元组或对象
-        :param auth: 认证元组或对象
-        :return: None
-        """
-        self._owner.session.auth = auth
-
-    def hooks(self, hooks):
-        """设置回调方法
-        :param hooks: 回调方法
-        :return: None
-        """
-        self._owner.session.hooks = hooks
-
-    def params(self, params):
-        """设置查询参数字典
-        :param params: 查询参数字典
-        :return: None
-        """
-        self._owner.session.params = params
-
-    def verify(self, on_off):
-        """设置是否验证SSL证书
-        :param on_off: 是否验证 SSL 证书
-        :return: None
-        """
-        self._owner.session.verify = on_off
-
-    def cert(self, cert):
-        """SSL客户端证书文件的路径(.pem格式)，或(‘cert’, ‘key’)元组
-        :param cert: 证书路径或元组
-        :return: None
-        """
-        self._owner.session.cert = cert
-
-    def stream(self, on_off):
-        """设置是否使用流式响应内容
-        :param on_off: 是否使用流式响应内容
-        :return: None
-        """
-        self._owner.session.stream = on_off
-
-    def trust_env(self, on_off):
-        """设置是否信任环境
-        :param on_off: 是否信任环境
-        :return: None
-        """
-        self._owner.session.trust_env = on_off
-
-    def max_redirects(self, times):
-        """设置最大重定向次数
-        :param times: 最大重定向次数
-        :return: None
-        """
-        self._owner.session.max_redirects = times
-
-    def add_adapter(self, url, adapter):
-        """添加适配器
-        :param url: 适配器对应url
-        :param adapter: 适配器对象
-        :return: None
-        """
-        self._owner.session.mount(url, adapter)
-
-
-class WebPageSetter(ChromiumPageSetter):
+class MixPageSetter(ChromiumPageSetter):
     def __init__(self, owner):
         super().__init__(owner)
         self._session_setter = SessionPageSetter(self._owner)
@@ -461,7 +461,7 @@ class WebPageSetter(ChromiumPageSetter):
     def cookies(self):
         """返回用于设置cookies的对象"""
         if self._cookies_setter is None:
-            self._cookies_setter = WebPageCookiesSetter(self._owner)
+            self._cookies_setter = MixPageCookiesSetter(self._owner)
         return self._cookies_setter
 
     def headers(self, headers) -> None:
@@ -482,7 +482,7 @@ class WebPageSetter(ChromiumPageSetter):
             self._chromium_setter.user_agent(ua, platform)
 
 
-class WebPageTabSetter(TabSetter):
+class MixTabSetter(TabSetter):
     def __init__(self, owner):
         super().__init__(owner)
         self._session_setter = SessionPageSetter(self._owner)
@@ -492,7 +492,7 @@ class WebPageTabSetter(TabSetter):
     def cookies(self):
         """返回用于设置cookies的对象"""
         if self._cookies_setter is None:
-            self._cookies_setter = WebPageCookiesSetter(self._owner)
+            self._cookies_setter = MixPageCookiesSetter(self._owner)
         return self._cookies_setter
 
     def headers(self, headers) -> None:
@@ -511,6 +511,17 @@ class WebPageTabSetter(TabSetter):
             self._session_setter.user_agent(ua)
         if self._owner._has_driver:
             self._chromium_setter.user_agent(ua, platform)
+
+    def timeouts(self, base=None, page_load=None, script=None):
+        """设置超时时间，单位为秒
+        :param base: 基本等待时间，除页面加载和脚本超时，其它等待默认使用
+        :param page_load: 页面加载超时时间
+        :param script: 脚本运行超时时间
+        :return: None
+        """
+        super().timeouts(base=base, page_load=page_load, script=script)
+        if base is not None:
+            self._owner._timeout = base
 
 
 class ChromiumElementSetter(object):

@@ -10,9 +10,9 @@ from typing import Union
 
 from .._base.browser import Chromium
 from .._pages.chromium_base import ChromiumBase
-from .._pages.chromium_tab import MixTab
+from .._pages.tabs import MixTab
 from .._pages.session_page import SessionPage
-from .._pages.web_page import WebPage
+from .._pages.mix_page import MixPage
 
 
 class CookiesSetter(object):
@@ -45,8 +45,8 @@ class SessionCookiesSetter(object):
     def clear(self) -> None: ...
 
 
-class WebPageCookiesSetter(CookiesSetter, SessionCookiesSetter):
-    _owner: Union[WebPage, MixTab] = ...
+class MixPageCookiesSetter(CookiesSetter, SessionCookiesSetter):
+    _owner: Union[MixPage, MixTab] = ...
 
     def __init__(self, page: SessionPage): ...
 
