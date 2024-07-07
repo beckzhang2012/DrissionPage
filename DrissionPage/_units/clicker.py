@@ -208,7 +208,7 @@ class Clicker(object):
         :param count: 点击次数
         :return: None
         """
-        self._ele.owner.actions.move_to((loc_x, loc_y), duration=.1)
+        self._ele.owner.actions.move_to((loc_x, loc_y), duration=.05)
         self._ele.owner._run_cdp('Input.dispatchMouseEvent', type='mousePressed', x=view_x,
                                  y=view_y, button=button, clickCount=count, _ignore=AlertExistsError)
         self._ele.owner._run_cdp('Input.dispatchMouseEvent', type='mouseReleased', x=view_x,
