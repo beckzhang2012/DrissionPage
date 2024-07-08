@@ -19,6 +19,7 @@ from .._elements.chromium_element import run_js, make_chromium_eles
 from .._elements.none_element import NoneElement
 from .._elements.session_element import make_session_ele
 from .._functions.cookies import CookiesList
+from .._functions.elements import SessionElementsList
 from .._functions.locator import get_loc, is_loc
 from .._functions.settings import Settings
 from .._functions.tools import raise_error
@@ -547,8 +548,8 @@ class ChromiumBase(BasePage):
         :param index: 获取第几个，从1开始，可传入负数获取倒数第几个
         :return: SessionElement对象或属性、文本
         """
-        if locator:
-            self.wait.eles_loaded(locator)
+        if locator and not self.wait.eles_loaded(locator):
+            return NoneElement(self, method='s_ele()', args={'locator': locator, 'index': index})
         return make_session_ele(self, locator, index=index, method='s_ele()')
 
     def s_eles(self, locator):
@@ -556,7 +557,8 @@ class ChromiumBase(BasePage):
         :param locator: 元素的定位信息，可以是loc元组，或查询字符串
         :return: SessionElement对象组成的列表
         """
-        self.wait.eles_loaded(locator)
+        if not self.wait.eles_loaded(locator):
+            return SessionElementsList()
         return make_session_ele(self, locator, index=None)
 
     def _find_elements(self, locator, timeout=None, index=1, relative=False, raise_err=None):

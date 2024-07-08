@@ -78,23 +78,28 @@ def get_ele_txt(e):
     if re_str and re_str[-1] == '\n':
         re_str.pop()
 
-    re_str = [i if i is not True else '\n' for i in re_str]
     l = len(re_str)
     if l > 1:
         r = []
-        for i in range(0, l - 1, 2):
+        for i in range(l - 1):
             i1 = re_str[i]
             i2 = re_str[i + 1]
+            if i1 is True:
+                r.append('\n')
+                continue
+            if i2 is True:
+                r.append(i1)
+                continue
             if i1.endswith(' ') and i2.startswith(' '):
                 i1 = i1[:-1]
             r.append(i1)
-            r.append(i2)
+        r.append('\n' if re_str[-1] is True else re_str[-1])
         re_str = ''.join(r)
 
     elif not l:
         re_str = ''
     else:
-        re_str = re_str[0]
+        re_str = re_str[0] if re_str[0] is not True else '\n'
 
     return format_html(re_str.strip())
 
