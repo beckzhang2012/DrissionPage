@@ -16,7 +16,7 @@ from DataRecorder.tools import get_usable_path, make_valid_name
 from .none_element import NoneElement
 from .session_element import make_session_ele
 from .._base.base import DrissionElement, BaseElement
-from .._functions.elements import ChromiumElementsList
+from .._functions.elements import ChromiumElementsList, SessionElementsList
 from .._functions.keys import input_text_or_keys
 from .._functions.locator import get_loc, locator_to_tuple
 from .._functions.web import make_absolute_link, get_ele_txt, format_html, is_js_func, get_blob
@@ -570,14 +570,16 @@ class ChromiumElement(DrissionElement):
         :param index: 获取第几个，从1开始，可传入负数获取倒数第几个
         :return: SessionElement对象或属性、文本
         """
-        return make_session_ele(self, locator, index=index, method='s_ele()')
+        return (make_session_ele(self, locator, index=index, method='s_ele()')
+                if self.ele(locator, index=index)
+                else NoneElement(self, method='s_ele()', args={'locator': locator, 'index': index}))
 
     def s_eles(self, locator=None):
         """查找所有符合条件的元素，以SessionElement列表形式返回
         :param locator: 定位符
         :return: SessionElement或属性、文本组成的列表
         """
-        return make_session_ele(self, locator, index=None)
+        return make_session_ele(self, locator, index=None) if self.ele(locator) else SessionElementsList()
 
     def _find_elements(self, locator, timeout=None, index=1, relative=False, raise_err=None):
         """返回当前元素下级符合条件的子元素、属性或节点文本，默认返回第一个
@@ -1156,18 +1158,16 @@ class ShadowRoot(BaseElement):
         :param index: 获取第几个，从1开始，可传入负数获取倒数第几个
         :return: SessionElement对象或属性、文本
         """
-        r = make_session_ele(self, locator, index=index)
-        if isinstance(r, NoneElement):
-            r.method = 's_ele()'
-            r.args = {'locator': locator}
-        return r
+        return (make_session_ele(self, locator, index=index, method='s_ele()')
+                if self.ele(locator, index=index)
+                else NoneElement(self, method='s_ele()', args={'locator': locator, 'index': index}))
 
     def s_eles(self, locator):
         """查找所有符合条件的元素以SessionElement列表形式返回，处理复杂页面时效率很高
         :param locator: 元素的定位信息，可以是loc元组，或查询字符串
         :return: SessionElement对象
         """
-        return make_session_ele(self, locator, index=None)
+        return make_session_ele(self, locator, index=None) if self.ele(locator) else SessionElementsList()
 
     def _find_elements(self, locator, timeout=None, index=1, relative=False, raise_err=None):
         """返回当前元素下级符合条件的子元素、属性或节点文本，默认返回第一个

@@ -548,18 +548,16 @@ class ChromiumBase(BasePage):
         :param index: 获取第几个，从1开始，可传入负数获取倒数第几个
         :return: SessionElement对象或属性、文本
         """
-        if locator and not self.wait.eles_loaded(locator):
-            return NoneElement(self, method='s_ele()', args={'locator': locator, 'index': index})
-        return make_session_ele(self, locator, index=index, method='s_ele()')
+        return (NoneElement(self, method='s_ele()', args={'locator': locator, 'index': index})
+                if locator and not self.wait.eles_loaded(locator)
+                else make_session_ele(self, locator, index=index, method='s_ele()'))
 
     def s_eles(self, locator):
         """查找所有符合条件的元素以SessionElement列表形式返回
         :param locator: 元素的定位信息，可以是loc元组，或查询字符串
         :return: SessionElement对象组成的列表
         """
-        if not self.wait.eles_loaded(locator):
-            return SessionElementsList()
-        return make_session_ele(self, locator, index=None)
+        return make_session_ele(self, locator, index=None) if self.wait.eles_loaded(locator) else SessionElementsList()
 
     def _find_elements(self, locator, timeout=None, index=1, relative=False, raise_err=None):
         """执行元素查找
