@@ -121,11 +121,8 @@ class DrissionElement(BaseElement):
         :param text_node_only: 是否只返回文本节点
         :return: 文本列表
         """
-        if text_node_only:
-            texts = self.eles('xpath:/text()')
-        else:
-            texts = [x if isinstance(x, str) else x.text for x in self.eles('xpath:./text() | *')]
-
+        texts = self.eles('xpath:/text()') if text_node_only else [x if isinstance(x, str) else x.text
+                                                                   for x in self.eles('xpath:./text() | *')]
         return [format_html(x.strip(' ').rstrip('\n')) for x in texts if x and sub('[\r\n\t ]', '', x) != '']
 
     def parent(self, level_or_loc=1, index=1):
@@ -139,10 +136,8 @@ class DrissionElement(BaseElement):
 
         elif isinstance(level_or_loc, (tuple, str)):
             loc = get_loc(level_or_loc, True)
-
             if loc[0] == 'css selector':
                 raise ValueError('此css selector语法不受支持，请换成xpath。')
-
             loc = f'xpath:./ancestor::{loc[1].lstrip(". / ")}[{index}]'
 
         else:

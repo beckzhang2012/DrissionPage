@@ -56,7 +56,7 @@ def get_ele_txt(e):
                     if sub('[ \n\t\r]', '', el) != '':  # 字符除了回车和空格还有其它内容
                         txt = el
                         if not pre:
-                            txt = txt.replace('\r\n', ' ').replace('\n', ' ').strip(' ')
+                            txt = txt.replace('\r\n', ' ').replace('\n', ' ')
                             txt = sub(r' {2,}', ' ', txt)
                         str_list.append(txt)
 
@@ -77,8 +77,26 @@ def get_ele_txt(e):
     re_str = get_node_txt(e)
     if re_str and re_str[-1] == '\n':
         re_str.pop()
-    re_str = ''.join([i if i is not True else '\n' for i in re_str])
-    return format_html(re_str)
+
+    re_str = [i if i is not True else '\n' for i in re_str]
+    l = len(re_str)
+    if l > 1:
+        r = []
+        for i in range(0, l - 1, 2):
+            i1 = re_str[i]
+            i2 = re_str[i + 1]
+            if i1.endswith(' ') and i2.startswith(' '):
+                i1 = i1[:-1]
+            r.append(i1)
+            r.append(i2)
+        re_str = ''.join(r)
+
+    elif not l:
+        re_str = ''
+    else:
+        re_str = re_str[0]
+
+    return format_html(re_str.strip())
 
 
 def format_html(text):
