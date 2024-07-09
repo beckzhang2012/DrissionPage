@@ -29,9 +29,17 @@ def connect_browser(option):
     browser_path = option.browser_path
 
     ip, port = address.split(':')
-    if ip != '127.0.0.1' or port_is_using(ip, port) or option.is_existing_only:
-        test_connect(ip, port)
-        return True
+    using = port_is_using(ip, port)
+    if ip != '127.0.0.1' or using or option.is_existing_only:
+        if test_connect(ip, port):
+            return True
+        elif ip != '127.0.0.1':
+            raise BrowserConnectError(f'\n{address}浏览器连接失败。')
+        elif using:
+            raise BrowserConnectError(f'\n{address}浏览器连接失败，请检查{port}端口是否浏览器，'
+                                      f'且已添加\'--remote-debugging-port={port}\'启动项。')
+        else:  # option.is_existing_only
+            raise BrowserConnectError(f'\n{address}浏览器连接失败，请确认浏览器已启动。')
 
     # ----------创建浏览器进程----------
     args, user_path = get_launch_args(option)
@@ -49,7 +57,12 @@ def connect_browser(option):
             raise FileNotFoundError('无法找到浏览器可执行文件路径，请手动配置。')
         _run_browser(port, browser_path, args)
 
-    test_connect(ip, port)
+    if not test_connect(ip, port):
+        raise BrowserConnectError(f'\n{address}浏览器连接失败。\n请确认：\n'
+                                  f'1、用户文件夹没有和已打开的浏览器冲突\n'
+                                  f'2、如为无界面系统，请添加\'--headless=new\'启动参数\n'
+                                  f'3、如果是Linux系统，尝试添加\'--no-sandbox\'启动参数\n'
+                                  f'可使用ChromiumOptions设置端口和用户文件夹路径。')
     return False
 
 
@@ -186,18 +199,13 @@ def test_connect(ip, port, timeout=30):
                 if tab['type'] in ('page', 'webview'):
                     r.close()
                     s.close()
-                    return
+                    return True
             r.close()
         except Exception:
             sleep(.2)
 
     s.close()
-    raise BrowserConnectError(f'\n{ip}:{port}浏览器无法链接。\n请确认：\n1、该端口为浏览器\n'
-                              f'2、已添加\'--remote-debugging-port={port}\'启动项\n'
-                              f'3、用户文件夹没有和已打开的浏览器冲突\n'
-                              f'4、如为无界面系统，请添加\'--headless=new\'参数\n'
-                              f'5、如果是Linux系统，可能还要添加\'--no-sandbox\'启动参数\n'
-                              f'可使用ChromiumOptions设置端口和用户文件夹路径。')
+    return False
 
 
 def _run_browser(port, path: str, args) -> Popen:

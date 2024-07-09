@@ -38,7 +38,7 @@ class ChromiumFrame(ChromiumBase):
         if self._is_inner_frame():
             self._is_diff_domain = False
             self.doc_ele = ChromiumElement(self._target_page, backend_id=node['contentDocument']['backendNodeId'])
-            super().__init__(owner.browser, owner.tab_id)
+            super().__init__(owner.browser, owner.driver.id)
         else:
             self._is_diff_domain = True
             delattr(self, '_frame_id')
@@ -74,16 +74,16 @@ class ChromiumFrame(ChromiumBase):
             self._download_path = self._target_page.download_path
         self._load_mode = self._target_page._load_mode if not self._is_diff_domain else 'normal'
 
-    def _driver_init(self, tab_id, is_init=True):
+    def _driver_init(self, target_id, is_init=True):
         """避免出现服务器500错误
-        :param tab_id: 要跳转到的标签页id
+        :param target_id: 要跳转到的target id
         :return: None
         """
         try:
-            super()._driver_init(tab_id)
+            super()._driver_init(target_id)
         except:
             self.browser._driver.get(f'http://{self._browser.address}/json')
-            super()._driver_init(tab_id)
+            super()._driver_init(target_id)
         self._driver.set_callback('Inspector.detached', self._onInspectorDetached, immediate=True)
         self._driver.set_callback('Page.frameDetached', None)
         self._driver.set_callback('Page.frameDetached', self._onFrameDetached, immediate=True)
@@ -309,6 +309,16 @@ class ChromiumFrame(ChromiumBase):
     @property
     def download_path(self):
         return self._download_path
+
+    @property
+    def sr(self):
+        """返回iframe的shadow-root元素对象"""
+        return self.frame_ele.sr
+
+    @property
+    def shadow_root(self):
+        """返回iframe的shadow-root元素对象"""
+        return self.frame_ele.sr
 
     @property
     def _js_ready_state(self):

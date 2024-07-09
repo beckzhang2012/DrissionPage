@@ -209,9 +209,12 @@ class ChromiumElement(DrissionElement):
 
     def s_ele(self,
               locator: Union[Tuple[str, str], str] = None,
-              index: int = 1) -> SessionElement: ...
+              index: int = 1,
+              timeout: float = None) -> SessionElement: ...
 
-    def s_eles(self, locator: Union[Tuple[str, str], str] = None) -> SessionElementsList: ...
+    def s_eles(self,
+               locator: Union[Tuple[str, str], str] = None,
+               timeout: float = None) -> SessionElementsList: ...
 
     def _find_elements(self,
                        locator: Union[Tuple[str, str], str],
@@ -339,9 +342,10 @@ class ShadowRoot(BaseElement):
 
     def s_ele(self,
               locator: Union[Tuple[str, str], str] = None,
-              index: int = 1) -> SessionElement: ...
+              index: int = 1,
+              timeout: float = None) -> SessionElement: ...
 
-    def s_eles(self, locator: Union[Tuple[str, str], str]) -> SessionElementsList: ...
+    def s_eles(self, locator: Union[Tuple[str, str], str], timeout: float = None) -> SessionElementsList: ...
 
     def _find_elements(self,
                        locator: Union[Tuple[str, str], str],

@@ -10,7 +10,7 @@ from typing import Union, Tuple, List, Any, Optional
 
 from .chromium_base import ChromiumBase
 from .tabs import ChromiumTab, MixTab
-from .._elements.chromium_element import ChromiumElement
+from .._elements.chromium_element import ChromiumElement, ShadowRoot
 from .._functions.elements import ChromiumElementsList
 from .._units.listener import FrameListener
 from .._units.rect import FrameRect
@@ -52,7 +52,7 @@ class ChromiumFrame(ChromiumBase):
 
     def _d_set_runtime_settings(self) -> None: ...
 
-    def _driver_init(self, tab_id: str) -> None: ...
+    def _driver_init(self, target_id: str, is_init: bool = True) -> None: ...
 
     def _reload(self) -> None: ...
 
@@ -128,6 +128,12 @@ class ChromiumFrame(ChromiumBase):
     @property
     def download_path(self) -> str: ...
 
+    @property
+    def sr(self) -> Union[None, ShadowRoot]: ...
+
+    @property
+    def shadow_root(self) -> Union[None, ShadowRoot]: ...
+
     def refresh(self) -> None: ...
 
     def property(self, name: str) -> Union[str, None]: ...
@@ -143,10 +149,10 @@ class ChromiumFrame(ChromiumBase):
                timeout: float = None) -> Any: ...
 
     def _run_js(self,
-               script: str,
-               *args,
-               as_expr: bool = False,
-               timeout: float = None) -> Any: ...
+                script: str,
+                *args,
+                as_expr: bool = False,
+                timeout: float = None) -> Any: ...
 
     def parent(self,
                level_or_loc: Union[Tuple[str, str], str, int] = 1,

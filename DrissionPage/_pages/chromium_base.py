@@ -38,12 +38,12 @@ __ERROR__ = 'error'
 
 
 class ChromiumBase(BasePage):
-    """标签页、frame、页面基类"""
+    """标签页、Frame、Page基类"""
 
-    def __init__(self, browser, tab_id=None):
+    def __init__(self, browser, target_id=None):
         """
         :param browser: Chromium
-        :param tab_id: 要控制的标签页id，不指定默认为激活的
+        :param target_id: 要控制的target id，不指定默认为激活的标签页
         """
         super().__init__()
         self._browser = browser
@@ -68,19 +68,19 @@ class ChromiumBase(BasePage):
             self._listener = None
 
         self._d_set_runtime_settings()
-        self._connect_browser(tab_id)
+        self._connect_browser(target_id)
 
     def _d_set_runtime_settings(self):
         pass
 
-    def _connect_browser(self, tab_id=None):
+    def _connect_browser(self, target_id=None):
         """连接浏览器，在第一次时运行
-        :param tab_id: 要控制的标签页id，不指定默认为激活的
+        :param target_id: 要控制的target id，不指定默认为激活的标签页
         :return: None
         """
         self._is_reading = False
 
-        if not tab_id:
+        if not target_id:
             tabs = self.browser._driver.get(f'http://{self.browser.address}/json').json()
             tabs = [(i['id'], i['url']) for i in tabs
                     if i['type'] in ('page', 'webview') and not i['url'].startswith('devtools://')]
@@ -89,30 +89,30 @@ class ChromiumBase(BasePage):
                 for k, t in enumerate(tabs):
                     if t[1] == 'chrome://privacy-sandbox-dialog/notice':
                         dialog = k
-                    elif not tab_id:
-                        tab_id = t[0]
+                    elif not target_id:
+                        target_id = t[0]
 
-                    if tab_id and dialog is not None:
+                    if target_id and dialog is not None:
                         break
 
                 if dialog is not None:
                     close_privacy_dialog(self, tabs[dialog][0])
 
             else:
-                tab_id = tabs[0][0]
+                target_id = tabs[0][0]
 
-        self._driver_init(tab_id)
+        self._driver_init(target_id)
         if self._js_ready_state == 'complete' and self._ready_state is None:
             self._get_document()
             self._ready_state = 'complete'
 
-    def _driver_init(self, tab_id):
+    def _driver_init(self, target_id):
         """新建页面、页面刷新、切换标签页后要进行的cdp参数初始化
-        :param tab_id: 要跳转到的标签页id
+        :param target_id: 要跳转到的target id
         :return: None
         """
         self._is_loading = True
-        self._driver = self.browser._get_driver(tab_id, self)
+        self._driver = self.browser._get_driver(target_id, self)
 
         self._alert = Alert()
         self._driver.set_callback('Page.javascriptDialogOpening', self._on_alert_open, immediate=True)
@@ -529,7 +529,7 @@ class ChromiumBase(BasePage):
         """获取一个符合条件的元素对象
         :param locator: 定位符或元素对象
         :param index: 获取第几个元素，从1开始，可传入负数获取倒数第几个
-        :param timeout: 查找超时时间（秒）
+        :param timeout: 查找超时时间（秒），默认与页面等待时间一致
         :return: ChromiumElement对象
         """
         return self._ele(locator, timeout=timeout, index=index, method='ele()')
@@ -537,27 +537,30 @@ class ChromiumBase(BasePage):
     def eles(self, locator, timeout=None):
         """获取所有符合条件的元素对象
         :param locator: 定位符或元素对象
-        :param timeout: 查找超时时间（秒）
+        :param timeout: 查找超时时间（秒），默认与页面等待时间一致
         :return: ChromiumElement对象组成的列表
         """
         return self._ele(locator, timeout=timeout, index=None)
 
-    def s_ele(self, locator=None, index=1):
+    def s_ele(self, locator=None, index=1, timeout=None):
         """查找一个符合条件的元素以SessionElement形式返回，处理复杂页面时效率很高
         :param locator: 元素的定位信息，可以是loc元组，或查询字符串
         :param index: 获取第几个，从1开始，可传入负数获取倒数第几个
+        :param timeout: 查找元素超时时间（秒），默认与页面等待时间一致
         :return: SessionElement对象或属性、文本
         """
         return (NoneElement(self, method='s_ele()', args={'locator': locator, 'index': index})
-                if locator and not self.wait.eles_loaded(locator)
+                if locator and not self.wait.eles_loaded(locator, timeout=timeout)
                 else make_session_ele(self, locator, index=index, method='s_ele()'))
 
-    def s_eles(self, locator):
+    def s_eles(self, locator, timeout=None):
         """查找所有符合条件的元素以SessionElement列表形式返回
         :param locator: 元素的定位信息，可以是loc元组，或查询字符串
+        :param timeout: 查找元素超时时间（秒），默认与页面等待时间一致
         :return: SessionElement对象组成的列表
         """
-        return make_session_ele(self, locator, index=None) if self.wait.eles_loaded(locator) else SessionElementsList()
+        return (make_session_ele(self, locator, index=None)
+                if self.wait.eles_loaded(locator, timeout=timeout) else SessionElementsList())
 
     def _find_elements(self, locator, timeout=None, index=1, relative=False, raise_err=None):
         """执行元素查找
