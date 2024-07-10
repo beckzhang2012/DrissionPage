@@ -148,12 +148,12 @@ class ChromiumPage(ChromiumBase):
         """
         return self.browser.new_tab(url=url, new_window=new_window, background=background, new_context=new_context)
 
-    def activate_tab(self, id_or_ind):
+    def activate_tab(self, id_ind_tab):
         """使标签页变为活动状态
-        :param id_or_ind: 标签页id（str）或标签页序号（int），序号从1开始
+        :param id_ind_tab: 标签页id（str）、Tab对象或标签页序号（int），序号从1开始
         :return: None
         """
-        self.browser.activate_tab(id_or_ind)
+        self.browser.activate_tab(id_ind_tab)
 
     def close(self):
         """关闭Page管理的标签页"""

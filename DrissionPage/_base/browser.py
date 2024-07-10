@@ -376,15 +376,17 @@ class Chromium(object):
         while self.tabs_count != end_len and perf_counter() < end_time:
             sleep(.1)
 
-    def activate_tab(self, id_or_ind):
+    def activate_tab(self, id_ind_tab):
         """使标签页变为活动状态
-        :param id_or_ind: 标签页id（str）或标签页序号（int），序号从1开始
+        :param id_ind_tab: 标签页id（str）、Tab对象或标签页序号（int），序号从1开始
         :return: None
         """
-        if isinstance(id_or_ind, int):
-            id_or_ind += -1 if id_or_ind else 1
-            id_or_ind = self.tab_ids[id_or_ind]
-        self._run_cdp('Target.activateTarget', targetId=id_or_ind)
+        if isinstance(id_ind_tab, int):
+            id_ind_tab += -1 if id_ind_tab else 1
+            id_ind_tab = self.tab_ids[id_ind_tab]
+        elif isinstance(id_ind_tab, ChromiumTab):
+            id_ind_tab = id_ind_tab.tab_id
+        self._run_cdp('Target.activateTarget', targetId=id_ind_tab)
 
     def reconnect(self):
         """断开重连"""

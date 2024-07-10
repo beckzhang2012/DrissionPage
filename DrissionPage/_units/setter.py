@@ -229,15 +229,6 @@ class BrowserSetter(BrowserBaseSetter):
             self._cookies_setter = BrowserCookiesSetter(self._owner)
         return self._cookies_setter
 
-    def tab_to_front(self, tab_or_id):
-        """激活标签页使其处于最前面
-        :param tab_or_id: 标签页对象或id
-        :return: None
-        """
-        if not isinstance(tab_or_id, str):  # 传入Tab对象
-            tab_or_id = tab_or_id.tab_id
-        self._owner.activate_tab(tab_or_id)
-
     def auto_handle_alert(self, on_off=True, accept=True):
         """设置是否启用自动处理弹窗
         :param on_off: bool表示开或关
@@ -273,6 +264,16 @@ class BrowserSetter(BrowserBaseSetter):
         if mode not in types:
             raise ValueError(f'''mode参数只能是 '{"', '".join(types.keys())}' 之一，现在是：{mode}''')
         self._owner._dl_mgr.set_file_exists('browser', mode)
+
+    # ---------- 即将废弃 ----------
+    def tab_to_front(self, tab_or_id):
+        """激活标签页使其处于最前面
+        :param tab_or_id: 标签页对象或id
+        :return: None
+        """
+        if not isinstance(tab_or_id, str):  # 传入Tab对象
+            tab_or_id = tab_or_id.tab_id
+        self._owner.activate_tab(tab_or_id)
 
 
 class ChromiumBaseSetter(BrowserBaseSetter):
@@ -427,17 +428,6 @@ class TabSetter(ChromiumBaseSetter):
 
 class ChromiumPageSetter(TabSetter):
 
-    def tab_to_front(self, tab_or_id=None):
-        """激活标签页使其处于最前面
-        :param tab_or_id: 标签页对象或id，为None表示当前标签页
-        :return: None
-        """
-        if not tab_or_id:
-            tab_or_id = self._owner.tab_id
-        elif not isinstance(tab_or_id, str):  # 传入Tab对象
-            tab_or_id = tab_or_id.tab_id
-        self._owner.browser.activate_tab(tab_or_id)
-
     def auto_handle_alert(self, on_off=True, accept=True, all_tabs=False):
         """设置是否启用自动处理弹窗
         :param on_off: bool表示开或关
@@ -449,6 +439,18 @@ class ChromiumPageSetter(TabSetter):
             Settings.auto_handle_alert = on_off
         else:
             self._owner._alert.auto = accept if on_off else None
+
+    # ---------- 即将废弃 ----------
+    def tab_to_front(self, tab_or_id=None):
+        """激活标签页使其处于最前面
+        :param tab_or_id: 标签页对象或id，为None表示当前标签页
+        :return: None
+        """
+        if not tab_or_id:
+            tab_or_id = self._owner.tab_id
+        elif not isinstance(tab_or_id, str):  # 传入Tab对象
+            tab_or_id = tab_or_id.tab_id
+        self._owner.browser.activate_tab(tab_or_id)
 
 
 class MixPageSetter(ChromiumPageSetter):
@@ -588,6 +590,22 @@ class ChromiumFrameSetter(ChromiumBaseSetter):
         :return: None
         """
         self._owner.frame_ele.set.attr(name, value)
+
+    def property(self, name, value):
+        """设置元素property属性
+        :param name: 属性名
+        :param value: 属性值
+        :return: None
+        """
+        self._owner.frame_ele.set.property(name=name, value=value)
+
+    def style(self, name, value):
+        """设置元素style样式
+        :param name: 样式名称
+        :param value: 样式值
+        :return: None
+        """
+        self._owner.frame_ele.set.style(name=name, value=value)
 
 
 class LoadMode(object):
