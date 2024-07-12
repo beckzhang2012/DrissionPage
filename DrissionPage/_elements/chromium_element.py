@@ -359,7 +359,8 @@ class ChromiumElement(DrissionElement):
         :param timeout: 超时时间（秒），为None使用所在页面设置
         :return: 元素对象
         """
-        if locator and not locator.startswith(('x:', 'xpath:', 'x=', 'xpath=', 'c:', 'css:', 'c=', 'css=')):
+        if locator and not (isinstance(locator, str) and not locator.startswith(
+                ('x:', 'xpath:', 'x=', 'xpath=', 'c:', 'css:', 'c=', 'css='))):
             raise ValueError('locator参数只能是str格式且不支持xpath和css形式。')
 
         if x == y is None:
