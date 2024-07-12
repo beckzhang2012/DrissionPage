@@ -351,20 +351,55 @@ class ChromiumElement(DrissionElement):
         else:
             return NoneElement(page=self.owner, method='on()', args={'timeout': timeout})
 
-    def offset(self, offset_x, offset_y):
-        """获取相对本元素左上角左边指定偏移量位置的元素
-        :param offset_x: 横坐标偏移量，向右为正
-        :param offset_y: 纵坐标偏移量，向下为正
+    def offset(self, locator=None, x=None, y=None, timeout=None):
+        """获取相对本元素左上角左边指定偏移量位置的元素，如果offset_x和offset_y都是None，定位到元素中间点
+        :param locator: 定位符，只支持str，且不支持xpath和css方式
+        :param x: 横坐标偏移量，向右为正
+        :param y: 纵坐标偏移量，向下为正
+        :param timeout: 超时时间（秒），为None使用所在页面设置
         :return: 元素对象
         """
-        x, y = self.rect.location
+        if locator and not locator.startswith(('x:', 'xpath:', 'x=', 'xpath=', 'c:', 'css:', 'c=', 'css=')):
+            raise ValueError('locator参数只能是str格式且不支持xpath和css形式。')
+
+        if x == y is None:
+            x, y = self.rect.midpoint
+            x = int(x)
+            y = int(y)
+        else:
+            nx, ny = self.rect.location
+            nx += x if x else 0
+            ny += y if y else 0
+            x = int(nx)
+            y = int(ny)
+        loc_data = locator_to_tuple(locator) if locator else None
+        timeout = timeout if timeout is not None else self.owner.timeout
+        end_time = perf_counter() + timeout
         try:
-            return ChromiumElement(owner=self.owner,
-                                   backend_id=self.owner._run_cdp('DOM.getNodeForLocation', x=x + offset_x,
-                                                                  y=y + offset_y, includeUserAgentShadowDOM=True,
-                                                                  ignorePointerEventsNone=False)['backendNodeId'])
+            ele = ChromiumElement(owner=self.owner,
+                                  backend_id=self.owner._run_cdp('DOM.getNodeForLocation', x=x, y=y,
+                                                                 includeUserAgentShadowDOM=True,
+                                                                 ignorePointerEventsNone=False)['backendNodeId'])
         except CDPError:
-            return NoneElement(page=self.owner, method='offset()', args={'offset_x': offset_x, 'offset_y': offset_y})
+            ele = False
+        if ele and (loc_data is None or _check_ele(ele, loc_data)):
+            return ele
+
+        while perf_counter() < end_time:
+            try:
+                ele = ChromiumElement(owner=self.owner,
+                                      backend_id=self.owner._run_cdp('DOM.getNodeForLocation', x=x, y=y,
+                                                                     includeUserAgentShadowDOM=True,
+                                                                     ignorePointerEventsNone=False)['backendNodeId'])
+            except CDPError:
+                ele = False
+
+            if ele and (loc_data is None or _check_ele(ele, loc_data)):
+                return ele
+            sleep(.1)
+
+        return NoneElement(page=self.owner, method='offset()',
+                           args={'locator': locator, 'offset_x': x, 'offset_y': y, 'timeout': timeout})
 
     def east(self, loc_or_pixel=None, index=1):
         """获取元素右边某个指定元素

@@ -168,7 +168,11 @@ class ChromiumElement(DrissionElement):
 
     def east(self, loc_or_pixel: Union[str, int, None] = None, index: int = 1) -> ChromiumElement: ...
 
-    def offset(self, offset_x: int, offset_y: int) -> ChromiumElement: ...
+    def offset(self,
+               locator: Optional[str] = None,
+               x: int = None,
+               y: int = None,
+               timeout: float = None) -> ChromiumElement: ...
 
     def _get_relative_eles(self,
                            mode: str = 'north',
