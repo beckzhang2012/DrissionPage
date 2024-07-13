@@ -193,7 +193,7 @@ class ChromiumElement(DrissionElement):
     def wait(self):
         """返回用于等待的对象"""
         if self._wait is None:
-            self._wait = ElementWaiter(self.owner, self)
+            self._wait = ElementWaiter(self)
         return self._wait
 
     @property
@@ -1673,6 +1673,9 @@ def parse_js_result(page, ele, result, end_time):
 
     elif the_type == 'undefined':
         return None
+
+    elif the_type == 'function':
+        return result['description']
 
     else:
         return result['value']

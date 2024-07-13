@@ -34,6 +34,7 @@ __ERROR__ = 'error'
 
 class Chromium(object):
     _BROWSERS = {}
+    _lock = Lock()
 
     def __new__(cls, addr_or_opts=None, session_options=None):
         """
@@ -42,8 +43,12 @@ class Chromium(object):
         """
         opt = handle_options(addr_or_opts)
         is_headless, browser_id, is_exists = run_browser(opt)
-        if browser_id in cls._BROWSERS:
-            return cls._BROWSERS[browser_id]
+        with cls._lock:
+            if browser_id in cls._BROWSERS:
+                r = cls._BROWSERS[browser_id]
+                while not hasattr(r, '_driver'):
+                    sleep(.1)
+                return r
         r = object.__new__(cls)
         r._chromium_options = opt
         r.is_headless = is_headless
@@ -62,11 +67,9 @@ class Chromium(object):
         self._created = True
 
         self._type = 'Chromium'
-
         self._frames = {}
         self._drivers = {}
         self._all_drivers = {}
-        self._lock = Lock()
 
         self._set = None
         self._wait = None
