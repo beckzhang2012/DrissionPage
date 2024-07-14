@@ -390,10 +390,14 @@ class PageWaiter(TabWaiter):
 class ElementWaiter(OriginWaiter):
     """等待元素在dom中某种状态，如删除、显示、隐藏"""
 
+    def __init__(self, owner):
+        super().__init__(owner)
+        self._ele = owner
+
     @property
     def _timeout(self):
         """返回超时设置"""
-        return self._owner.owner.timeout
+        return self._ele.owner.timeout
 
     def deleted(self, timeout=None, raise_err=None):
         """等待元素从dom删除
@@ -461,7 +465,7 @@ class ElementWaiter(OriginWaiter):
             timeout = self._timeout
         end_time = perf_counter() + timeout
         while perf_counter() < end_time:
-            if not self._owner.states.is_enabled or not self._owner.states.is_alive:
+            if not self._ele.states.is_enabled or not self._ele.states.is_alive:
                 return True
             sleep(.05)
 
@@ -482,8 +486,8 @@ class ElementWaiter(OriginWaiter):
         end_time = perf_counter() + timeout
         while perf_counter() < end_time:
             try:
-                size = self._owner.states.has_rect
-                location = self._owner.rect.location
+                size = self._ele.states.has_rect
+                location = self._ele.rect.location
                 break
             except NoRectError:
                 pass
@@ -493,10 +497,10 @@ class ElementWaiter(OriginWaiter):
 
         while perf_counter() < end_time:
             sleep(gap)
-            if self._owner.rect.size == size and self._owner.rect.location == location:
+            if self._ele.rect.size == size and self._ele.rect.location == location:
                 return True
-            size = self._owner.rect.size
-            location = self._owner.rect.location
+            size = self._ele.rect.size
+            location = self._ele.rect.location
 
         if raise_err is True or Settings.raise_when_wait_failed is True:
             raise WaitTimeoutError(f'等待元素停止运动失败（等待{timeout}秒）。')
@@ -534,7 +538,7 @@ class ElementWaiter(OriginWaiter):
         :param err_text: 抛出错误时显示的信息
         :return: 是否等待成功
         """
-        a = self._owner.states.__getattribute__(attr)
+        a = self._ele.states.__getattribute__(attr)
         if (a and mode) or (not a and not mode):
             return True if isinstance(a, bool) else a
 
@@ -542,7 +546,7 @@ class ElementWaiter(OriginWaiter):
             timeout = self._timeout
         end_time = perf_counter() + timeout
         while perf_counter() < end_time:
-            a = self._owner.states.__getattribute__(attr)
+            a = self._ele.states.__getattribute__(attr)
             if (a and mode) or (not a and not mode):
                 return True if isinstance(a, bool) else a
             sleep(.05)
@@ -556,11 +560,8 @@ class ElementWaiter(OriginWaiter):
 
 class FrameWaiter(BaseWaiter, ElementWaiter):
     def __init__(self, owner):
-        """
-        :param owner: ChromiumFrame对象
-        """
         super().__init__(owner)
-        super(BaseWaiter, self).__init__(owner.frame_ele)
+        self._ele = owner.frame_ele
 
     @property
     def _timeout(self):

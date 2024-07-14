@@ -48,9 +48,9 @@ class PortFinder(object):
             PortFinder.prev_time = perf_counter()
             if scope in (True, None):
                 scope = (9600, 59600)
-            msx_times = scope[1] - scope[0]
+            max_times = scope[1] - scope[0]
             times = 0
-            while times < msx_times:
+            while times < max_times:
                 times += 1
                 port = randint(*scope)
                 if port in PortFinder.used_port or port_is_using('127.0.0.1', port):
