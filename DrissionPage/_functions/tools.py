@@ -19,7 +19,7 @@ from ..errors import (ContextLostError, ElementLostError, CDPError, PageDisconne
 
 class PortFinder(object):
     used_port = set()
-    prev_time = None
+    prev_time = 0
     lock = Lock()
     checked_paths = set()
 
@@ -43,9 +43,8 @@ class PortFinder(object):
         """
         from random import randint
         with PortFinder.lock:
-            if PortFinder.prev_time and perf_counter() - PortFinder.prev_time > 30:
+            if PortFinder.prev_time and perf_counter() - PortFinder.prev_time > 60:
                 PortFinder.used_port.clear()
-            PortFinder.prev_time = perf_counter()
             if scope in (True, None):
                 scope = (9600, 59600)
             max_times = scope[1] - scope[0]
@@ -61,6 +60,8 @@ class PortFinder(object):
                         rmtree(path)
                     except:
                         continue
+                PortFinder.used_port.add(port)
+                PortFinder.prev_time = perf_counter()
                 return port, str(path)
             raise OSError('未找到可用端口。')
 

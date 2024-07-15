@@ -823,7 +823,7 @@ class ChromiumElement(DrissionElement):
             self._run_js('this.focus();')
 
     def hover(self, offset_x=None, offset_y=None):
-        """鼠标悬停，可接受偏移量，偏移量相对于元素左上角坐标。不传入x或y值时悬停在元素中点
+        """鼠标悬停，可接受偏移量，偏移量相对于元素左上角坐标。不传入offset_x和offset_y值时悬停在元素中点
         :param offset_x: 相对元素左上角坐标的x轴偏移量
         :param offset_y: 相对元素左上角坐标的y轴偏移量
         :return: None

@@ -10,6 +10,7 @@ from typing import Union, List, Optional, Iterable
 from .._base.base import BaseParser
 from .._elements.chromium_element import ChromiumElement
 from .._elements.session_element import SessionElement
+from .._pages.chromium_frame import ChromiumFrame
 
 
 def get_eles(locators: Union[List[str], tuple],
@@ -17,6 +18,11 @@ def get_eles(locators: Union[List[str], tuple],
              any_one: bool = False,
              first_ele: bool = True,
              timeout: float = 10) -> dict: ...
+
+
+def get_frame(owner: BaseParser,
+              loc_ind_ele: Union[str, int, tuple, ChromiumFrame, ChromiumElement],
+              timeout: float = None) -> ChromiumFrame: ...
 
 
 class SessionElementsList(list):

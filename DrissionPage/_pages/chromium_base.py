@@ -19,8 +19,8 @@ from .._elements.chromium_element import run_js, make_chromium_eles
 from .._elements.none_element import NoneElement
 from .._elements.session_element import make_session_ele
 from .._functions.cookies import CookiesList
-from .._functions.elements import SessionElementsList
-from .._functions.locator import get_loc, is_loc
+from .._functions.elements import SessionElementsList, get_frame
+from .._functions.locator import get_loc
 from .._functions.settings import Settings
 from .._functions.tools import raise_error
 from .._functions.web import location_in_viewport
@@ -770,41 +770,7 @@ class ChromiumBase(BasePage):
         :param timeout: 查找元素超时时间（秒）
         :return: ChromiumFrame对象
         """
-        if isinstance(loc_ind_ele, str):
-            if not is_loc(loc_ind_ele):
-                xpath = f'xpath://*[(name()="iframe" or name()="frame") and ' \
-                        f'(@name="{loc_ind_ele}" or @id="{loc_ind_ele}")]'
-            else:
-                xpath = loc_ind_ele
-            ele = self._ele(xpath, timeout=timeout)
-            if ele and ele._type != 'ChromiumFrame':
-                raise TypeError('该定位符不是指向frame元素。')
-            r = ele
-
-        elif isinstance(loc_ind_ele, tuple):
-            ele = self._ele(loc_ind_ele, timeout=timeout)
-            if ele and ele._type != 'ChromiumFrame':
-                raise TypeError('该定位符不是指向frame元素。')
-            r = ele
-
-        elif isinstance(loc_ind_ele, int):
-            if loc_ind_ele == 0:
-                loc_ind_ele = 1
-            elif loc_ind_ele < 0:
-                loc_ind_ele = f'last()+{loc_ind_ele}+1'
-            xpath = f'xpath:(//*[name()="frame" or name()="iframe"])[{loc_ind_ele}]'
-            r = self._ele(xpath, timeout=timeout)
-
-        elif loc_ind_ele._type == 'ChromiumFrame':
-            r = loc_ind_ele
-
-        else:
-            raise TypeError('必须传入定位符、iframe序号、id、name、ChromiumFrame对象其中之一。')
-
-        if isinstance(r, NoneElement):
-            r.method = 'get_frame()'
-            r.args = {'loc_ind_ele': loc_ind_ele}
-        return r
+        return get_frame(self, loc_ind_ele=loc_ind_ele, timeout=timeout)
 
     def get_frames(self, locator=None, timeout=None):
         """获取所有符合条件的frame对象

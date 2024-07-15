@@ -13,6 +13,7 @@ from urllib.parse import quote
 from DownloadKit import DownloadKit
 
 from .._elements.none_element import NoneElement
+from .._functions.elements import get_frame
 from .._functions.locator import get_loc
 from .._functions.settings import Settings
 from .._functions.web import format_html
@@ -69,6 +70,16 @@ class BaseElement(BaseParser):
 
     def nexts(self):
         pass
+
+    def get_frame(self, loc_or_ind, timeout=None):
+        """获取元素中一个frame对象
+        :param loc_or_ind: 定位符、iframe序号，序号从1开始，可传入负数获取倒数第几个
+        :param timeout: 查找元素超时时间（秒）
+        :return: ChromiumFrame对象
+        """
+        if not isinstance(loc_or_ind, (int, str, tuple)):
+            raise TypeError('loc_or_ind参数是定位符或序号。')
+        return get_frame(self, loc_ind_ele=loc_or_ind, timeout=timeout)
 
     def _ele(self, locator, timeout=None, index=1, relative=False, raise_err=None, method=None):
         """调用获取元素的方法

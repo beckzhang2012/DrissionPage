@@ -25,7 +25,7 @@ class Actions:
         self.curr_y = 0
         self._holding = 'left'
 
-    def move_to(self, ele_or_loc, offset_x=0, offset_y=0, duration=.5):
+    def move_to(self, ele_or_loc, offset_x=None, offset_y=None, duration=.5):
         """鼠标移动到元素中点，或页面上的某个绝对坐标。可设置偏移量
         当带偏移量时，偏移量相对于元素左上角坐标
         :param ele_or_loc: 元素对象、绝对坐标或文本定位符，坐标为tuple(int, int)形式
@@ -35,6 +35,11 @@ class Actions:
         :return: self
         """
         is_loc = False
+        mid_point = offset_x == offset_y is None
+        if offset_x is None:
+            offset_x = 0
+        if offset_y is None:
+            offset_y = 0
         if isinstance(ele_or_loc, (tuple, list)):
             is_loc = True
             lx = ele_or_loc[0] + offset_x
@@ -42,7 +47,7 @@ class Actions:
         elif isinstance(ele_or_loc, str) or ele_or_loc._type == 'ChromiumElement':
             ele_or_loc = self.owner(ele_or_loc)
             self.owner.scroll.to_see(ele_or_loc)
-            x, y = ele_or_loc.rect.location if offset_x or offset_y else ele_or_loc.rect.midpoint
+            x, y = ele_or_loc.rect.midpoint if mid_point else ele_or_loc.rect.location
             lx = x + offset_x
             ly = y + offset_y
         else:
@@ -58,8 +63,7 @@ class Actions:
         if is_loc:
             cx, cy = location_to_client(self.owner, lx, ly)
         else:
-            x, y = ele_or_loc.rect.viewport_location if offset_x or offset_y \
-                else ele_or_loc.rect.viewport_midpoint
+            x, y = ele_or_loc.rect.viewport_midpoint if mid_point else ele_or_loc.rect.viewport_location
             cx = x + offset_x
             cy = y + offset_y
 

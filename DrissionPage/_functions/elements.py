@@ -7,6 +7,7 @@
 """
 from time import perf_counter
 
+from .locator import is_loc
 from .._elements.none_element import NoneElement
 
 
@@ -400,6 +401,50 @@ def get_eles(locators, owner, any_one=False, first_ele=True, timeout=10):
         if False not in res.values():
             break
     return res
+
+
+def get_frame(owner, loc_ind_ele, timeout=None):
+    """获取页面中一个frame对象
+    :param owner: 要在其中查找元素的对象
+    :param loc_ind_ele: 定位符、iframe序号、ChromiumFrame对象，序号从1开始，可传入负数获取倒数第几个
+    :param timeout: 查找元素超时时间（秒）
+    :return: ChromiumFrame对象
+    """
+    if isinstance(loc_ind_ele, str):
+        if not is_loc(loc_ind_ele):
+            xpath = f'xpath://*[(name()="iframe" or name()="frame") and ' \
+                    f'(@name="{loc_ind_ele}" or @id="{loc_ind_ele}")]'
+        else:
+            xpath = loc_ind_ele
+        ele = owner._ele(xpath, timeout=timeout)
+        if ele and ele._type != 'ChromiumFrame':
+            raise TypeError('该定位符不是指向frame元素。')
+        r = ele
+
+    elif isinstance(loc_ind_ele, tuple):
+        ele = owner._ele(loc_ind_ele, timeout=timeout)
+        if ele and ele._type != 'ChromiumFrame':
+            raise TypeError('该定位符不是指向frame元素。')
+        r = ele
+
+    elif isinstance(loc_ind_ele, int):
+        if loc_ind_ele == 0:
+            loc_ind_ele = 1
+        elif loc_ind_ele < 0:
+            loc_ind_ele = f'last()+{loc_ind_ele}+1'
+        xpath = f'xpath:(//*[name()="frame" or name()="iframe"])[{loc_ind_ele}]'
+        r = owner._ele(xpath, timeout=timeout)
+
+    elif loc_ind_ele._type == 'ChromiumFrame':
+        r = loc_ind_ele
+
+    else:
+        raise TypeError('必须传入定位符、iframe序号、id、name、ChromiumFrame对象其中之一。')
+
+    if isinstance(r, NoneElement):
+        r.method = 'get_frame()'
+        r.args = {'loc_ind_ele': loc_ind_ele}
+    return r
 
 
 def _get_attr_all(src_list, aim_list, name, value, method, equal=True):

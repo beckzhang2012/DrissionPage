@@ -42,8 +42,6 @@ class BrowserWaiter(OriginWaiter):
 class BaseWaiter(OriginWaiter):
     _owner: ChromiumBase = ...
 
-    def __call__(self, second: float, scope: float = None) -> ChromiumBase: ...
-
     def ele_deleted(self,
                     loc_or_ele: Union[str, tuple, ChromiumElement],
                     timeout: float = None,
