@@ -12,6 +12,7 @@ from re import sub
 from urllib.parse import urlparse, urljoin, urlunparse
 
 from DataRecorder.tools import make_valid_name
+from requests.structures import CaseInsensitiveDict
 
 
 def get_ele_txt(e):
@@ -369,7 +370,7 @@ def format_headers(txt):
     :param txt: 从浏览器复制的原始文本格式headers
     :return: dict格式headers
     """
-    if isinstance(txt, dict):
+    if isinstance(txt, (dict, CaseInsensitiveDict)):
         for k, v in txt.items():
             txt[k] = str(v)
         return txt
