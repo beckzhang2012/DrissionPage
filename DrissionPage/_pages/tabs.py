@@ -207,7 +207,7 @@ class MixTab(SessionPage, ChromiumTab, BasePage):
     @property
     def timeout(self):
         """返回通用timeout设置"""
-        return super()._timeout if self._mode == 's' else self.timeouts.base
+        return self._timeout if self._mode == 's' else self.timeouts.base
 
     def get(self, url, show_errmsg=False, retry=None, interval=None, timeout=None, **kwargs):
         """跳转到一个url
