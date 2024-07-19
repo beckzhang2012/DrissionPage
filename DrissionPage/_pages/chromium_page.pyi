@@ -62,6 +62,9 @@ class ChromiumPage(ChromiumBase):
     def browser_version(self) -> str: ...
 
     @property
+    def address(self) -> str: ...
+
+    @property
     def set(self) -> ChromiumPageSetter: ...
 
     def save(self,

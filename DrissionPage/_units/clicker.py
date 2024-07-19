@@ -43,7 +43,7 @@ class Clicker(object):
                 select = self._ele.parent('t:select')
                 if select.select.is_multi:
                     self._ele.parent('t:select').select.cancel_by_option(self._ele)
-            return
+            return self._ele
 
         if not by_js:  # 模拟点击
             can_click = False
@@ -101,11 +101,11 @@ class Clicker(object):
                     lx, ly = self._ele.rect._get_page_coord(vx, vy)
 
                 self._click(lx, ly, vx, vy)
-                return True
+                return self._ele
 
         if by_js is not False:
             self._ele._run_js('this.click();')
-            return True
+            return self._ele
         if Settings.raise_when_click_failed:
             raise CanNotClickError
         return False
@@ -113,7 +113,7 @@ class Clicker(object):
     def right(self):
         """右键单击"""
         self._ele.owner.scroll.to_see(self._ele)
-        self._click(*self._ele.rect.click_point, *self._ele.rect.viewport_click_point, button='right')
+        return self._click(*self._ele.rect.click_point, *self._ele.rect.viewport_click_point, button='right')
 
     def middle(self, get_tab=True):
         """中键单击，默认返回新出现的tab对象
@@ -143,14 +143,14 @@ class Clicker(object):
             w, h = self._ele.rect.size
             offset_x = w // 2
             offset_y = h // 2
-        self._click(*offset_scroll(self._ele, offset_x, offset_y), button=button, count=count)
+        return self._click(*offset_scroll(self._ele, offset_x, offset_y), button=button, count=count)
 
     def multi(self, times=2):
         """多次点击
         :param times: 默认双击
         :return: None
         """
-        self.at(count=times)
+        return self.at(count=times)
 
     def to_download(self, save_path=None, rename=None, suffix=None, new_tab=False, by_js=False, timeout=None):
         """点击触发下载
@@ -198,6 +198,34 @@ class Clicker(object):
         return (self._ele.tab.browser.get_mix_tab(tid) if self._ele.tab._type == 'MixTab'
                 else self._ele.tab.browser.get_tab(tid))
 
+    def for_url_change(self, text=None, exclude=False, by_js=False, timeout=None):
+        """点击并等待tab的url变成包含或不包含指定文本
+        :param text: 用于识别的文本，为None等待当前url变化
+        :param exclude: 是否排除，为True时当url不包含text指定文本时返回True，text为None时自动设为True
+        :param by_js: 是否用js点击
+        :param timeout: 超时时间（秒），为None使用页面设置
+        :return: 是否等待成功
+        """
+        if text is None:
+            exclude = True
+            text = self._ele.tab.url
+        self.left(by_js=by_js)
+        return True if self._ele.tab.wait.url_change(text=text, exclude=exclude, timeout=timeout) else False
+
+    def for_title_change(self, text=None, exclude=False, by_js=False, timeout=None):
+        """点击并等待tab的title变成包含或不包含指定文本
+        :param text: 用于识别的文本，为None等待当前title变化
+        :param exclude: 是否排除，为True时当title不包含text指定文本时返回True，text为None时自动设为True
+        :param by_js: 是否用js点击
+        :param timeout: 超时时间（秒），为None使用页面设置
+        :return: 是否等待成功
+        """
+        if text is None:
+            exclude = True
+            text = self._ele.tab.title
+        self.left(by_js=by_js)
+        return True if self._ele.tab.wait.title_change(text=text, exclude=exclude, timeout=timeout) else False
+
     def _click(self, loc_x, loc_y, view_x, view_y, button='left', count=1):
         """实施点击
         :param loc_x: 绝对x坐标
@@ -213,3 +241,4 @@ class Clicker(object):
                                  y=view_y, button=button, clickCount=count, _ignore=AlertExistsError)
         self._ele.owner._run_cdp('Input.dispatchMouseEvent', type='mouseReleased', x=view_x,
                                  y=view_y, button=button, _ignore=AlertExistsError)
+        return self._ele

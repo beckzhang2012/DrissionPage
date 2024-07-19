@@ -107,6 +107,11 @@ class ChromiumPage(ChromiumBase):
         """返回所控制的浏览器版本号"""
         return self._browser.version
 
+    @property
+    def address(self):
+        """返回浏览器地址ip:port"""
+        return self.browser.address
+
     def save(self, path=None, name=None, as_pdf=False, **kwargs):
         """把当前页面保存为文件，如果path和name参数都为None，只返回文本
         :param path: 保存路径，为None且name不为None时保存在当前路径
