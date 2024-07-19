@@ -15,7 +15,7 @@ from websocket import (WebSocketTimeoutException, WebSocketConnectionClosedExcep
                        WebSocketException, WebSocketBadStatusException)
 
 from .._functions.settings import Settings
-from ..errors import PageDisconnectedError
+from ..errors import PageDisconnectedError, BrowserConnectError
 
 
 class Driver(object):
@@ -206,6 +206,8 @@ class Driver(object):
                 raise RuntimeError('请升级websocket-client库。')
             else:
                 return
+        except ConnectionRefusedError:
+            raise BrowserConnectError('浏览器未开启或已关闭。')
         self._recv_th.start()
         self._handle_event_th.start()
         return True
