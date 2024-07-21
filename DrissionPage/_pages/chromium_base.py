@@ -374,7 +374,7 @@ class ChromiumBase(BasePage):
     @property
     def _target_id(self):
         """返回当前标签页id"""
-        return self.driver.id if not self.driver._stopped.is_set() else ''
+        return self.driver.id if self.driver.is_running else ''
 
     @property
     def active_ele(self):

@@ -6,7 +6,7 @@
 @License  : BSD 3-Clause.
 """
 from queue import Queue
-from threading import Thread, Event
+from threading import Thread
 from typing import Union, Callable, Dict, Optional
 
 from requests import Response, Session
@@ -35,7 +35,8 @@ class Driver(object):
     _recv_th: Thread
     _handle_event_th: Thread
     _handle_immediate_event_th: Optional[Thread]
-    _stopped: Event
+    # _stopped: Event
+    is_running: bool
     event_handlers: dict
     immediate_event_handlers: dict
     method_results: dict

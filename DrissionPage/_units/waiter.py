@@ -285,18 +285,26 @@ class BaseWaiter(OriginWaiter):
         :param raise_err: 等待失败时是否报错，为None时根据Settings设置
         :return: 是否等待成功
         """
+
+        def do():
+            if arg == 'url':
+                v = self._owner.url
+            elif arg == 'title':
+                v = self._owner.title
+            else:
+                raise ValueError
+            if (not exclude and text in v) or (exclude and text not in v):
+                return True
+
+        if do():
+            return True
+
         if timeout is None:
             timeout = self._owner.timeout
 
         end_time = perf_counter() + timeout
         while perf_counter() < end_time:
-            if arg == 'url':
-                val = self._owner.url
-            elif arg == 'title':
-                val = self._owner.title
-            else:
-                raise ValueError
-            if (not exclude and text in val) or (exclude and text not in val):
+            if do():
                 return True
             sleep(.05)
 
@@ -313,19 +321,18 @@ class BaseWaiter(OriginWaiter):
         :param raise_err: 等待失败时是否报错，为None时根据Settings设置
         :return: 是否等待成功
         """
-        if timeout != 0:
-            if timeout is None or timeout is True:
-                timeout = self._owner.timeout
-            end_time = perf_counter() + timeout
-            while perf_counter() < end_time:
-                if self._owner._is_loading == start:
-                    return True
-                sleep(gap)
+        timeout = timeout if timeout is not None else self._owner.timeout
+        timeout = .1 if timeout <= 0 else timeout
+        end_time = perf_counter() + timeout
+        while perf_counter() < end_time:
+            if self._owner._is_loading == start:
+                return True
+            sleep(gap)
 
-            if raise_err is True or Settings.raise_when_wait_failed is True:
-                raise WaitTimeoutError(f'等待页面加载失败（等待{timeout}秒）。')
-            else:
-                return False
+        if raise_err is True or Settings.raise_when_wait_failed is True:
+            raise WaitTimeoutError(f'等待页面加载失败（等待{timeout}秒）。')
+        else:
+            return False
 
 
 class TabWaiter(BaseWaiter):
@@ -461,6 +468,9 @@ class ElementWaiter(OriginWaiter):
         :param raise_err: 等待失败时是否报错，为None时根据Settings设置
         :return: 成功返回元素对象，失败返回False
         """
+        if not self._ele.states.is_enabled or not self._ele.states.is_alive:
+            return self._ele
+
         if timeout is None:
             timeout = self._timeout
         end_time = perf_counter() + timeout
@@ -483,6 +493,9 @@ class ElementWaiter(OriginWaiter):
         """
         if timeout is None:
             timeout = self._timeout
+        if timeout <= 0:
+            timeout = .1
+
         end_time = perf_counter() + timeout
         while perf_counter() < end_time:
             try:
@@ -514,9 +527,10 @@ class ElementWaiter(OriginWaiter):
         :param raise_err: 等待失败时是否报错，为None时根据Settings设置
         :return: 成功返回元素对象，失败返回False
         """
+        timeout = timeout if timeout is not None else self._timeout
         t1 = perf_counter()
         r = self._wait_state('is_clickable', True, timeout, raise_err, err_text='等待元素可点击失败（等{}秒）。')
-        r = self.stop_moving(timeout=perf_counter() - t1) if wait_moved and r else r
+        r = self.stop_moving(timeout=timeout - perf_counter() + t1) if wait_moved and r else r
         if raise_err and not r:
             raise WaitTimeoutError(f'等待元素可点击失败（等{timeout}秒）。')
         return r

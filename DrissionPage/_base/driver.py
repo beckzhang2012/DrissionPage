@@ -7,7 +7,7 @@
 """
 from json import dumps, loads, JSONDecodeError
 from queue import Queue, Empty
-from threading import Thread, Event
+from threading import Thread
 from time import perf_counter, sleep
 
 from requests import Session
@@ -44,7 +44,7 @@ class Driver(object):
         self._handle_event_th.daemon = True
         self._handle_immediate_event_th = None
 
-        self._stopped = Event()
+        self.is_running = False
 
         self.event_handlers = {}
         self.immediate_event_handlers = {}
@@ -87,7 +87,7 @@ class Driver(object):
             self.method_results.pop(ws_id, None)
             return {'error': {'message': 'connection disconnected'}, 'type': 'connection_error'}
 
-        while not self._stopped.is_set():
+        while self.is_running:
             try:
                 result = self.method_results[ws_id].get(timeout=.2)
                 self.method_results.pop(ws_id, None)
@@ -108,7 +108,7 @@ class Driver(object):
 
     def _recv_loop(self):
         """接收浏览器信息的守护线程方法"""
-        while not self._stopped.is_set():
+        while self.is_running:
             try:
                 # self._ws.settimeout(1)
                 msg_json = self._ws.recv()
@@ -146,7 +146,7 @@ class Driver(object):
 
     def _handle_event_loop(self):
         """当接收到浏览器信息，执行已绑定的方法"""
-        while not self._stopped.is_set():
+        while self.is_running:
             try:
                 event = self.event_queue.get(timeout=1)
             except Empty:
@@ -184,7 +184,7 @@ class Driver(object):
         :param kwargs: cdp参数
         :return: 执行结果
         """
-        if self._stopped.is_set():
+        if not self.is_running:
             return {'error': 'connection disconnected', 'type': 'connection_error'}
 
         timeout = kwargs.pop('_timeout', Settings.cdp_timeout)
@@ -198,7 +198,7 @@ class Driver(object):
 
     def start(self):
         """启动连接"""
-        self._stopped.clear()
+        self.is_running = True
         try:
             self._ws = create_connection(self._websocket_url, enable_multithread=True, suppress_origin=True)
         except WebSocketBadStatusException as e:
@@ -221,10 +221,10 @@ class Driver(object):
 
     def _stop(self):
         """中断连接"""
-        if self._stopped.is_set():
+        if not self.is_running:
             return False
 
-        self._stopped.set()
+        self.is_running = False
         if self._ws:
             self._ws.close()
             self._ws = None

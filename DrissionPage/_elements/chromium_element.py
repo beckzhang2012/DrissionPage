@@ -903,7 +903,11 @@ class ChromiumElement(DrissionElement):
             txt5 = '''return path;'''
 
         elif mode == 'css':
-            txt1 = ''
+            txt1 = '''
+            let i = el.getAttribute("id");
+            if (i){path = '>' + el.tagName.toLowerCase() + "#" + i + path;
+            break;}
+            '''
             txt3 = ''
             txt4 = '''path = '>' + el.tagName.toLowerCase() + ":nth-child(" + nth + ")" + path;'''
             txt5 = '''return path.substr(1);'''
@@ -913,6 +917,7 @@ class ChromiumElement(DrissionElement):
 
         js = '''function(){
         function e(el) {
+        //return el;
             if (!(el instanceof Element)) return;
             let path = '';
             while (el.nodeType === Node.ELEMENT_NODE) {
@@ -1243,7 +1248,12 @@ class ShadowRoot(BaseElement):
                 if not eles:
                     return None
 
-                css = [i.css_path[61:] for i in eles]
+                css = []
+                for i in eles:
+                    c = i.css_path
+                    if c.startswith('html:nth-child(1)>body:nth-child(1)>shadow_root:nth-child(1)'):
+                        c = c[61:]
+                    css.append(c)
                 if index is not None:
                     try:
                         node_id = self.owner._run_cdp('DOM.querySelector', nodeId=self._node_id,

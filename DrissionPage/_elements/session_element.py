@@ -276,6 +276,10 @@ class SessionElement(DrissionElement):
 
         while ele:
             if mode == 'css':
+                id_ = ele.attr('id')
+                if id_:
+                    path_str = f'>{ele.tag}#{id_}{path_str}'
+                    break
                 brothers = len(ele.eles(f'xpath:./preceding-sibling::*'))
                 path_str = f'>{ele.tag}:nth-child({brothers + 1}){path_str}'
             else:
