@@ -60,7 +60,7 @@ class BrowserWaiter(OriginWaiter):
         :return: 成功返回任务对象，失败返回False
         """
         if not self._owner._dl_mgr._running:
-            raise RuntimeError('此功能需显式设置下载路径（使用set.download_path()方法、配置对象或ini文件均可）。')
+            raise RuntimeError('此功能需显式设置下载路径才能使用。使用set.download_path()方法、配置对象或ini文件均可。')
         self._owner._dl_mgr.set_flag('browser', False if cancel_it else True)
         if timeout is None:
             timeout = self._owner.timeout
@@ -130,7 +130,7 @@ class BaseWaiter(OriginWaiter):
         end_time = perf_counter() + timeout
         ele = self._owner._ele(loc_or_ele, raise_err=False, timeout=timeout)
         timeout = end_time - perf_counter()
-        if timeout <= 0:
+        if not ele:
             if raise_err is True or Settings.raise_when_wait_failed is True:
                 raise WaitTimeoutError(f'等待元素显示失败（等待{timeout}秒）。')
             else:

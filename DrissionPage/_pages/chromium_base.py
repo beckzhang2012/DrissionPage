@@ -168,7 +168,7 @@ class ChromiumBase(BasePage):
             result = False
 
         if result:
-            r = self._run_cdp('Page.getFrameTree')
+            r = self._run_cdp('Page.getFrameTree', _ignore=PageDisconnectedError)
             for i in findall(r"'id': '(.*?)'", str(r)):
                 self.browser._frames[i] = self.tab_id
 
