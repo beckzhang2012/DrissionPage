@@ -53,8 +53,7 @@ class Clicker(object):
     def for_title_change(self, text: str = None, exclude: bool = False,
                          by_js: bool = False, timeout: float = None) -> bool: ...
 
-    def _click(self, loc_x: float,
-               loc_y: float,
+    def _click(self,
                view_x: float,
                view_y: float,
                button: str = 'left',

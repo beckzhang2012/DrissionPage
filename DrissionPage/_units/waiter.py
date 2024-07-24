@@ -35,16 +35,19 @@ class BrowserWaiter(OriginWaiter):
     def new_tab(self, timeout=None, curr_tab=None, raise_err=None):
         """等待新标签页出现
         :param timeout: 超时时间（秒），为None则使用页面对象timeout属性
-        :param curr_tab: 指定当前最新的tab id，用于判断新tab出现，为None自动获取
+        :param curr_tab: 指定当前最新的tab对象或tab id，用于判断新tab出现，为None自动获取
         :param raise_err: 等待失败时是否报错，为None时根据Settings设置
         :return: 等到新标签页返回其id，否则返回False
         """
-        curr_tid = curr_tab if curr_tab else self._owner.tab_ids[0]
+        if not curr_tab:
+            curr_tab = self._owner.tab_ids[0]
+        elif hasattr(curr_tab, '_type'):
+            curr_tab = curr_tab.tab_id
         timeout = timeout if timeout is not None else self._owner.timeout
         end_time = perf_counter() + timeout
         while perf_counter() < end_time:
             latest_tid = self._owner.tab_ids[0]
-            if curr_tid != latest_tid:
+            if curr_tab != latest_tid:
                 return latest_tid
             sleep(.01)
 
@@ -193,7 +196,7 @@ class BaseWaiter(OriginWaiter):
         by = ('id', 'xpath', 'link text', 'partial link text', 'name', 'tag name', 'class name', 'css selector')
         locators = ((get_loc(locators)[1],) if (isinstance(locators, str) or isinstance(locators, tuple)
                                                 and locators[0] in by and len(locators) == 2)
-                    else [get_loc(l)[1] for l in locators])
+                    else [get_loc(x)[1] for x in locators])
         method = any if any_one else all
 
         timeout = self._owner.timeout if timeout is None else timeout
@@ -321,7 +324,8 @@ class BaseWaiter(OriginWaiter):
         :param raise_err: 等待失败时是否报错，为None时根据Settings设置
         :return: 是否等待成功
         """
-        timeout = timeout if timeout is not None else self._owner.timeout
+        if timeout is None:
+            timeout = self._owner.timeout
         timeout = .1 if timeout <= 0 else timeout
         end_time = perf_counter() + timeout
         while perf_counter() < end_time:
@@ -527,7 +531,8 @@ class ElementWaiter(OriginWaiter):
         :param raise_err: 等待失败时是否报错，为None时根据Settings设置
         :return: 成功返回元素对象，失败返回False
         """
-        timeout = timeout if timeout is not None else self._timeout
+        if timeout is None:
+            timeout = self._timeout
         t1 = perf_counter()
         r = self._wait_state('is_clickable', True, timeout, raise_err, err_text='等待元素可点击失败（等{}秒）。')
         r = self.stop_moving(timeout=timeout - perf_counter() + t1) if wait_moved and r else r

@@ -393,7 +393,7 @@ def get_eles(locators, owner, any_one=False, first_ele=True, timeout=10):
         for loc in locators:
             if res[loc] is not False:
                 continue
-            ele = owner.ele(loc, timeout=0) if first_ele else owner.eles(loc, timeout=0)
+            ele = owner._ele(loc, timeout=0, raise_err=False, index=1 if first_ele else None)
             if ele:
                 res[loc] = ele
                 if any_one:

@@ -81,7 +81,7 @@ class Chromium(object):
         self.address = self._chromium_options.address
         self._driver = BrowserDriver(self.id, 'browser', self.address, self)
 
-        if self.is_headless != self._chromium_options.is_headless or (
+        if (not self._chromium_options._ua_set and self.is_headless != self._chromium_options.is_headless) or (
                 self._is_exists and self._chromium_options._new_env):
             self.quit(3, True)
             connect_browser(self._chromium_options)

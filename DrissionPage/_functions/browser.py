@@ -81,6 +81,8 @@ def get_launch_args(opt):
             user_path = f'--user-data-dir={Path(i[16:]).absolute()}'
             result.add(user_path)
             continue
+        elif i.startswith('--user-agent='):
+            opt._ua_set = True
         result.add(i)
 
     if not user_path and not opt.system_user_path:
