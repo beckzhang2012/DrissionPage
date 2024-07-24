@@ -133,7 +133,7 @@ class BaseWaiter(OriginWaiter):
         end_time = perf_counter() + timeout
         ele = self._owner._ele(loc_or_ele, raise_err=False, timeout=timeout)
         timeout = end_time - perf_counter()
-        if timeout <= 0:
+        if timeout <= 0 or not ele:
             if raise_err is True or Settings.raise_when_wait_failed is True:
                 raise WaitTimeoutError(f'等待元素显示失败（等待{timeout}秒）。')
             else:
