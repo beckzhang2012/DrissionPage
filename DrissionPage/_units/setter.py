@@ -428,6 +428,34 @@ class TabSetter(ChromiumBaseSetter):
 
 class ChromiumPageSetter(TabSetter):
 
+    def NoneElement_value(self, value=None, on_off=True):
+        """设置空元素是否返回设定值
+        :param value: 返回的设定值
+        :param on_off: 是否启用
+        :return: None
+        """
+        super().NoneElement_value(value, on_off)
+        self._owner.browser._none_ele_return_value = on_off
+        self._owner.browser._none_ele_value = value
+
+    def retry_times(self, times):
+        """设置连接失败重连次数"""
+        super().retry_times(times)
+        self._owner.browser.retry_times = times
+
+    def retry_interval(self, interval):
+        """设置连接失败重连间隔"""
+        super().retry_interval(interval)
+        self._owner.browser.retry_interval = interval
+
+    def download_path(self, path):
+        """设置下载路径
+        :param path: 下载路径
+        :return: None
+        """
+        super().download_path(path)
+        self._owner.browser._download_path = self._owner._download_path
+
     def auto_handle_alert(self, on_off=True, accept=True, all_tabs=False):
         """设置是否启用自动处理弹窗
         :param on_off: bool表示开或关
@@ -625,18 +653,20 @@ class LoadMode(object):
         if value.lower() not in ('normal', 'eager', 'none'):
             raise ValueError("只能选择 'normal', 'eager', 'none'。")
         self._owner._load_mode = value
+        if self._owner._type in ('ChromiumPage', 'MixPage'):
+            self._owner.browser._load_mode = value
 
     def normal(self):
         """设置页面加载策略为normal"""
-        self._owner._load_mode = 'normal'
+        self.__call__('normal')
 
     def eager(self):
         """设置页面加载策略为eager"""
-        self._owner._load_mode = 'eager'
+        self.__call__('eager')
 
     def none(self):
         """设置页面加载策略为none"""
-        self._owner._load_mode = 'none'
+        self.__call__('none')
 
 
 class PageScrollSetter(object):
