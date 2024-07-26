@@ -194,6 +194,7 @@ class ChromiumFrame(ChromiumBase):
     def _onFrameDetached(self, **kwargs):
         """同域变异域"""
         self.browser._frames.pop(kwargs['frameId'], None)
+        ChromiumFrame._Frames.pop(kwargs['frameId'], None)
         if kwargs['frameId'] == self._frame_id:
             self._reload()
 
@@ -411,7 +412,7 @@ class ChromiumFrame(ChromiumBase):
         :param timeout: 查找超时时间（秒）
         :return: 上级元素对象
         """
-        return self.frame_ele.parent(level_or_loc, index)
+        return self.frame_ele.parent(level_or_loc, index, timeout=timeout)
 
     def prev(self, locator='', index=1, timeout=0, ele_only=True):
         """返回当前元素前面一个符合条件的同级元素，可用查询语法筛选，可指定返回筛选结果的第几个
