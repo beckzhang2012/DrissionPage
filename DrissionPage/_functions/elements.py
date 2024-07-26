@@ -170,6 +170,7 @@ class SessionFilter(SessionFilterOne):
         """
         self._list = _text_all(self._list, SessionElementsList(page=self._list._page),
                                text=text, fuzzy=fuzzy, contain=contain)
+        return self
 
     def _get_attr(self, name, value, method, equal=True):
         """返回通过某个方法可获得某个值的元素

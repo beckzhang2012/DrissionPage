@@ -136,10 +136,11 @@ class DrissionElement(BaseElement):
                                                                    for x in self.eles('xpath:./text() | *')]
         return [format_html(x.strip(' ').rstrip('\n')) for x in texts if x and sub('[\r\n\t ]', '', x) != '']
 
-    def parent(self, level_or_loc=1, index=1):
+    def parent(self, level_or_loc=1, index=1, timeout=None):
         """返回上面某一级父元素，可指定层数或用查询语法定位
         :param level_or_loc: 第几级父元素，1开始，或定位符
         :param index: 当level_or_loc传入定位符，使用此参数选择第几个结果，1开始
+        :param timeout: 时间（秒）
         :return: 上级元素对象
         """
         if isinstance(level_or_loc, int):
@@ -154,7 +155,7 @@ class DrissionElement(BaseElement):
         else:
             raise TypeError('level_or_loc参数只能是tuple、int或str。')
 
-        return self._ele(loc, timeout=0, relative=True, raise_err=False, method='parent()')
+        return self._ele(loc, timeout=timeout, relative=True, raise_err=False, method='parent()')
 
     def child(self, locator='', index=1, timeout=None, ele_only=True):
         """返回直接子元素元素或节点组成的列表，可用查询语法筛选

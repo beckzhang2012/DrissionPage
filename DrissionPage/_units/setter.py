@@ -770,6 +770,7 @@ class WindowSetter(object):
                 return self._owner._run_cdp('Browser.getWindowForTarget')
             except:
                 sleep(.1)
+        raise RuntimeError('获取窗口信息失败。')
 
     def _perform(self, bounds):
         """执行改变窗口大小操作

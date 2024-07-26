@@ -372,11 +372,15 @@ def format_headers(txt):
     """
     if isinstance(txt, (dict, CaseInsensitiveDict)):
         for k, v in txt.items():
-            txt[k] = str(v)
+            if k in (':method', ':scheme', ':authority', ':path'):
+                txt.pop(k)
+            else:
+                txt[k] = str(v)
         return txt
     headers = {}
     for header in txt.split('\n'):
         if header:
             name, value = header.split(': ', maxsplit=1)
-            headers[name] = value
+            if name not in (':method', ':scheme', ':authority', ':path'):
+                headers[name] = value
     return headers
