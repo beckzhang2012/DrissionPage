@@ -22,6 +22,7 @@ class ChromiumOptions(object):
         self._prefs_to_del = []
         self.clear_file_flags = False
         self._is_headless = False
+        self._ua_set = False
 
         if read_file is False:
             ini_path = False

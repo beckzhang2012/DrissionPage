@@ -21,6 +21,7 @@ from .._units.waiter import FrameWaiter
 
 
 class ChromiumFrame(ChromiumBase):
+    _Frames: dict = ...
 
     def __init__(self,
                  owner: Union[ChromiumTab, ChromiumFrame],
@@ -156,7 +157,8 @@ class ChromiumFrame(ChromiumBase):
 
     def parent(self,
                level_or_loc: Union[Tuple[str, str], str, int] = 1,
-               index: int = 1) -> ChromiumElement: ...
+               index: int = 1,
+               timeout: float = 0) -> ChromiumElement: ...
 
     def prev(self,
              locator: Union[Tuple[str, str], str, int] = '',

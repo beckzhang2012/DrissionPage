@@ -10,6 +10,7 @@ from re import search, findall, DOTALL
 from time import sleep, perf_counter
 
 from .._elements.chromium_element import ChromiumElement
+from .._functions.settings import Settings
 from .._pages.chromium_base import ChromiumBase
 from .._units.listener import FrameListener
 from .._units.rect import FrameRect
@@ -21,6 +22,24 @@ from ..errors import ContextLostError, ElementLostError, PageDisconnectedError, 
 
 
 class ChromiumFrame(ChromiumBase):
+    _Frames = {}
+
+    def __new__(cls, owner, ele, info=None):
+        """
+        :param owner: frame所在的页面对象
+        :param ele: frame所在元素
+        :param info: frame所在元素信息
+        """
+        node = info['node'] if info else owner._run_cdp('DOM.describeNode', backendNodeId=ele._backend_id)['node']
+        if Settings.singleton_tab_obj and node['frameId'] in cls._Frames:
+            r = cls._Frames[node['frameId']]
+            while not hasattr(r, '_frame_id'):
+                sleep(.1)
+            return r
+        r = object.__new__(cls)
+        cls._Frames[node['frameId']] = r
+        return r
+
     def __init__(self, owner, ele, info=None):
         """
         :param owner: frame所在的页面对象
@@ -33,7 +52,7 @@ class ChromiumFrame(ChromiumBase):
         self._frame_ele = ele
         self._reloading = False
 
-        node = info['node'] if not info else owner._run_cdp('DOM.describeNode', backendNodeId=ele._backend_id)['node']
+        node = info['node'] if info else owner._run_cdp('DOM.describeNode', backendNodeId=ele._backend_id)['node']
         self._frame_id = node['frameId']
         if self._is_inner_frame():
             self._is_diff_domain = False
@@ -175,6 +194,7 @@ class ChromiumFrame(ChromiumBase):
     def _onFrameDetached(self, **kwargs):
         """同域变异域"""
         self.browser._frames.pop(kwargs['frameId'], None)
+        ChromiumFrame._Frames.pop(kwargs['frameId'], None)
         if kwargs['frameId'] == self._frame_id:
             self._reload()
 
@@ -385,13 +405,14 @@ class ChromiumFrame(ChromiumBase):
         else:
             return self.doc_ele._run_js(script, *args, as_expr=as_expr, timeout=timeout)
 
-    def parent(self, level_or_loc=1, index=1):
+    def parent(self, level_or_loc=1, index=1, timeout=0):
         """返回上面某一级父元素，可指定层数或用查询语法定位
         :param level_or_loc: 第几级父元素，1开始，或定位符
         :param index: 当level_or_loc传入定位符，使用此参数选择第几个结果，1开始
+        :param timeout: 查找超时时间（秒）
         :return: 上级元素对象
         """
-        return self.frame_ele.parent(level_or_loc, index)
+        return self.frame_ele.parent(level_or_loc, index, timeout=timeout)
 
     def prev(self, locator='', index=1, timeout=0, ele_only=True):
         """返回当前元素前面一个符合条件的同级元素，可用查询语法筛选，可指定返回筛选结果的第几个

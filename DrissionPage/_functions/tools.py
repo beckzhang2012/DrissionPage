@@ -226,6 +226,8 @@ def raise_error(result, ignore=None, user=False):
         r = StorageError()
     elif error == 'Sanitizing cookie failed':
         r = CookieFormatError(f'cookie格式不正确：{result["args"]}')
+    elif error == 'Invalid header name':
+        r = ValueError(f'header名不正确。\n参数：{result["args"]["headers"]}')
     elif error == 'Given expression does not evaluate to a function':
         r = JavaScriptError(f'传入的js无法解析成函数：\n{result["args"]["functionDeclaration"]}')
     elif error.endswith("' wasn't found"):

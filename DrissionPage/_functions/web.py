@@ -136,7 +136,7 @@ def offset_scroll(ele, offset_x, offset_y):
     :param ele: 元素对象
     :param offset_x: 偏移量x
     :param offset_y: 偏移量y
-    :return: 绝对坐标和相对坐标
+    :return: 相对坐标
     """
     loc_x, loc_y = ele.rect.location
     cp_x, cp_y = ele.rect.click_point
@@ -150,7 +150,7 @@ def offset_scroll(ele, offset_x, offset_y):
     ccp_x, ccp_y = ele.rect.viewport_click_point
     cx = cl_x + offset_x if offset_x else ccp_x
     cy = cl_y + offset_y if offset_y else ccp_y
-    return lx, ly, cx, cy
+    return cx, cy
 
 
 def make_absolute_link(link, baseURI=None):
@@ -372,11 +372,15 @@ def format_headers(txt):
     """
     if isinstance(txt, (dict, CaseInsensitiveDict)):
         for k, v in txt.items():
-            txt[k] = str(v)
+            if k in (':method', ':scheme', ':authority', ':path'):
+                txt.pop(k)
+            else:
+                txt[k] = str(v)
         return txt
     headers = {}
     for header in txt.split('\n'):
         if header:
             name, value = header.split(': ', maxsplit=1)
-            headers[name] = value
+            if name not in (':method', ':scheme', ':authority', ':path'):
+                headers[name] = value
     return headers

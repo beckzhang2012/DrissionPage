@@ -232,13 +232,14 @@ class ChromiumElement(DrissionElement):
             if (is_checked and uncheck) or (not is_checked and not uncheck):
                 self.click()
 
-    def parent(self, level_or_loc=1, index=1):
+    def parent(self, level_or_loc=1, index=1, timeout=0):
         """返回上面某一级父元素，可指定层数或用查询语法定位
         :param level_or_loc: 第几级父元素，1开始，或定位符
         :param index: 当level_or_loc传入定位符，使用此参数选择第几个结果，1开始
+        :param timeout: 查找超时时间（秒）
         :return: 上级元素对象
         """
-        return super().parent(level_or_loc, index)
+        return super().parent(level_or_loc, index, timeout=timeout)
 
     def child(self, locator='', index=1, timeout=None, ele_only=True):
         """返回当前元素的一个符合条件的直接子元素，可用查询语法筛选，可指定返回筛选结果的第几个
@@ -1041,10 +1042,11 @@ class ShadowRoot(BaseElement):
         Thread(target=run_js, args=(self, script, as_expr,
                                     self.owner.timeouts.script if timeout is None else timeout, args)).start()
 
-    def parent(self, level_or_loc=1, index=1):
+    def parent(self, level_or_loc=1, index=1, timeout=0):
         """返回上面某一级父元素，可指定层数或用查询语法定位
         :param level_or_loc: 第几级父元素，或定位符
         :param index: 当level_or_loc传入定位符，使用此参数选择第几个结果
+        :param timeout: 查找超时时间（秒）
         :return: ChromiumElement对象
         """
         if isinstance(level_or_loc, int):
@@ -1061,12 +1063,13 @@ class ShadowRoot(BaseElement):
         else:
             raise TypeError('level_or_loc参数只能是tuple、int或str。')
 
-        return self.parent_ele._ele(loc, timeout=0, relative=True, raise_err=False, method='parent()')
+        return self.parent_ele._ele(loc, timeout=timeout, relative=True, raise_err=False, method='parent()')
 
-    def child(self, locator='', index=1):
+    def child(self, locator='', index=1, timeout=None):
         """返回直接子元素元素或节点组成的列表，可用查询语法筛选
         :param locator: 用于筛选的查询语法
         :param index: 第几个查询结果，1开始
+        :param timeout: 查找超时时间（秒）
         :return: 直接子元素或节点文本组成的列表
         """
         if not locator:
@@ -1078,14 +1081,16 @@ class ShadowRoot(BaseElement):
             loc = loc[1].lstrip('./')
 
         loc = f'xpath:./{loc}'
-        ele = self._ele(loc, index=index, relative=True)
+        ele = self._ele(loc, index=index, relative=True, timeout=timeout)
 
-        return ele if ele else NoneElement(self.owner, 'child()', {'locator': locator, 'index': index})
+        return ele if ele else NoneElement(self.owner, 'child()',
+                                           {'locator': locator, 'index': index, 'timeout': timeout})
 
-    def next(self, locator='', index=1):
+    def next(self, locator='', index=1, timeout=None):
         """返回当前元素后面一个符合条件的同级元素，可用查询语法筛选，可指定返回筛选结果的第几个
         :param locator: 用于筛选的查询语法
         :param index: 第几个查询结果，1开始
+        :param timeout: 查找超时时间（秒）
         :return: ChromiumElement对象
         """
         loc = get_loc(locator, True)
@@ -1094,15 +1099,17 @@ class ShadowRoot(BaseElement):
 
         loc = loc[1].lstrip('./')
         xpath = f'xpath:./{loc}'
-        ele = self.parent_ele._ele(xpath, index=index, relative=True)
+        ele = self.parent_ele._ele(xpath, index=index, relative=True, timeout=timeout)
 
-        return ele if ele else NoneElement(self.owner, 'next()', {'locator': locator, 'index': index})
+        return ele if ele else NoneElement(self.owner, 'next()',
+                                           {'locator': locator, 'index': index, 'timeout': timeout})
 
-    def before(self, locator='', index=1):
+    def before(self, locator='', index=1, timeout=None):
         """返回文档中当前元素前面符合条件的一个元素，可用查询语法筛选，可指定返回筛选结果的第几个
         查找范围不限同级元素，而是整个DOM文档
         :param locator: 用于筛选的查询语法
         :param index: 前面第几个查询结果，1开始
+        :param timeout: 查找超时时间（秒）
         :return: 本元素前面的某个元素或节点
         """
         loc = get_loc(locator, True)
@@ -1111,23 +1118,27 @@ class ShadowRoot(BaseElement):
 
         loc = loc[1].lstrip('./')
         xpath = f'xpath:./preceding::{loc}'
-        ele = self.parent_ele._ele(xpath, index=index, relative=True)
+        ele = self.parent_ele._ele(xpath, index=index, relative=True, timeout=timeout)
 
-        return ele if ele else NoneElement(self.owner, 'before()', {'locator': locator, 'index': index})
+        return ele if ele else NoneElement(self.owner, 'before()',
+                                           {'locator': locator, 'index': index, 'timeout': timeout})
 
-    def after(self, locator='', index=1):
+    def after(self, locator='', index=1, timeout=None):
         """返回文档中此当前元素后面符合条件的一个元素，可用查询语法筛选，可指定返回筛选结果的第几个
         查找范围不限同级元素，而是整个DOM文档
         :param locator: 用于筛选的查询语法
         :param index: 后面第几个查询结果，1开始
+        :param timeout: 查找超时时间（秒）
         :return: 本元素后面的某个元素或节点
         """
-        nodes = self.afters(locator=locator)
-        return nodes[index - 1] if nodes else NoneElement(self.owner, 'after()', {'locator': locator, 'index': index})
+        nodes = self.afters(locator=locator, timeout=timeout)
+        return nodes[index - 1] if nodes else NoneElement(self.owner, 'after()',
+                                                          {'locator': locator, 'index': index, 'timeout': timeout})
 
-    def children(self, locator=''):
+    def children(self, locator='', timeout=None):
         """返回当前元素符合条件的直接子元素或节点组成的列表，可用查询语法筛选
         :param locator: 用于筛选的查询语法
+        :param timeout: 查找超时时间（秒）
         :return: 直接子元素或节点文本组成的列表
         """
         if not locator:
@@ -1139,11 +1150,12 @@ class ShadowRoot(BaseElement):
             loc = loc[1].lstrip('./')
 
         loc = f'xpath:./{loc}'
-        return self._ele(loc, index=None, relative=True)
+        return self._ele(loc, index=None, relative=True, timeout=timeout)
 
-    def nexts(self, locator=''):
+    def nexts(self, locator='', timeout=None):
         """返回当前元素后面符合条件的同级元素或节点组成的列表，可用查询语法筛选
         :param locator: 用于筛选的查询语法
+        :param timeout: 查找超时时间（秒）
         :return: ChromiumElement对象组成的列表
         """
         loc = get_loc(locator, True)
@@ -1152,12 +1164,13 @@ class ShadowRoot(BaseElement):
 
         loc = loc[1].lstrip('./')
         xpath = f'xpath:./{loc}'
-        return self.parent_ele._ele(xpath, index=None, relative=True)
+        return self.parent_ele._ele(xpath, index=None, relative=True, timeout=timeout)
 
-    def befores(self, locator=''):
+    def befores(self, locator='', timeout=None):
         """返回文档中当前元素前面符合条件的元素或节点组成的列表，可用查询语法筛选
         查找范围不限同级元素，而是整个DOM文档
         :param locator: 用于筛选的查询语法
+        :param timeout: 查找超时时间（秒）
         :return: 本元素前面的元素或节点组成的列表
         """
         loc = get_loc(locator, True)
@@ -1166,18 +1179,19 @@ class ShadowRoot(BaseElement):
 
         loc = loc[1].lstrip('./')
         xpath = f'xpath:./preceding::{loc}'
-        return self.parent_ele._ele(xpath, index=None, relative=True)
+        return self.parent_ele._ele(xpath, index=None, relative=True, timeout=timeout)
 
-    def afters(self, locator=''):
+    def afters(self, locator='', timeout=None):
         """返回文档中当前元素后面符合条件的元素或节点组成的列表，可用查询语法筛选
         查找范围不限同级元素，而是整个DOM文档
         :param locator: 用于筛选的查询语法
+        :param timeout: 查找超时时间（秒）
         :return: 本元素后面的元素或节点组成的列表
         """
         eles1 = self.nexts(locator)
         loc = get_loc(locator, True)[1].lstrip('./')
         xpath = f'xpath:./following::{loc}'
-        return eles1 + self.parent_ele._ele(xpath, index=None, relative=True)
+        return eles1 + self.parent_ele._ele(xpath, index=None, relative=True, timeout=timeout)
 
     def ele(self, locator, index=1, timeout=None):
         """返回当前元素下级符合条件的一个元素
@@ -1251,7 +1265,10 @@ class ShadowRoot(BaseElement):
                 css = []
                 for i in eles:
                     c = i.css_path
-                    if c.startswith('html:nth-child(1)>body:nth-child(1)>shadow_root:nth-child(1)'):
+                    if c in ('html:nth-child(1)', 'html:nth-child(1)>body:nth-child(1)',
+                             'html:nth-child(1)>body:nth-child(1)>shadow_root:nth-child(1)'):
+                        continue
+                    elif c.startswith('html:nth-child(1)>body:nth-child(1)>shadow_root:nth-child(1)'):
                         c = c[61:]
                     css.append(c)
                 if index is not None:
@@ -1265,7 +1282,8 @@ class ShadowRoot(BaseElement):
                 else:
                     node_ids = [self.owner._run_cdp('DOM.querySelector', nodeId=self._node_id, selector=i)['nodeId']
                                 for i in css]
-                    if 0 in node_ids:
+                    node_ids = [i for i in node_ids if i]
+                    if not node_ids:
                         return None
                     r = make_chromium_eles(self.owner, _ids=node_ids, index=index, is_obj_id=False)
                     return None if r is False else r
@@ -1476,6 +1494,8 @@ def make_chromium_eles(page, _ids, index=1, is_obj_id=True, ele_only=False):
     else:  # 获取全部
         nodes = ChromiumElementsList(page=page)
         for obj_id in _ids:
+            # if obj_id == 0:
+            #     continue
             tmp = get_node_func(page, obj_id, ele_only)
             if tmp is False:
                 return False

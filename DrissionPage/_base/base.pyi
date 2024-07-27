@@ -13,9 +13,10 @@ from DownloadKit import DownloadKit
 from .._elements.none_element import NoneElement
 from .._elements.session_element import SessionElement
 from .._functions.elements import SessionElementsList
+from .._pages.chromium_frame import ChromiumFrame
 from .._pages.chromium_page import ChromiumPage
-from .._pages.session_page import SessionPage
 from .._pages.mix_page import MixPage
+from .._pages.session_page import SessionPage
 
 
 class BaseParser(object):
@@ -82,6 +83,8 @@ class BaseElement(BaseParser):
 
     def nexts(self): ...
 
+    def get_frame(self, loc_or_ind, timeout=None) -> ChromiumFrame: ...
+
 
 class DrissionElement(BaseElement):
 
@@ -103,7 +106,8 @@ class DrissionElement(BaseElement):
 
     def parent(self,
                level_or_loc: Union[tuple, str, int] = 1,
-               index: int = 1) -> Union[DrissionElement, None]: ...
+               index: int = 1,
+               timeout: float = None) -> Union[DrissionElement, None]: ...
 
     def child(self,
               locator: Union[Tuple[str, str], str, int] = '',
