@@ -170,7 +170,7 @@ class ChromiumPage(ChromiumBase):
         :param others: 是否关闭指定标签页之外的
         :return: None
         """
-        self.browser.close_tabs(tabs_or_ids=tabs_or_ids, others=others)
+        self.browser.close_tabs(tabs_or_ids=tabs_or_ids or self.tab_id, others=others)
 
     def quit(self, timeout=5, force=True):
         """关闭浏览器
