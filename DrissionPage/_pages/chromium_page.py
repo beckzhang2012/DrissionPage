@@ -172,13 +172,14 @@ class ChromiumPage(ChromiumBase):
         """
         self.browser.close_tabs(tabs_or_ids=tabs_or_ids or self.tab_id, others=others)
 
-    def quit(self, timeout=5, force=True):
+    def quit(self, timeout=5, force=True, del_data=False):
         """关闭浏览器
         :param timeout: 等待浏览器关闭超时时间（秒）
         :param force: 关闭超时是否强制终止进程
+        :param del_data: 是否删除用户文件夹
         :return: None
         """
-        self.browser.quit(timeout, force)
+        self.browser.quit(timeout, force, del_data=del_data)
 
     def _on_disconnect(self):
         """浏览器退出时执行"""

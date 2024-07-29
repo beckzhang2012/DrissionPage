@@ -194,6 +194,7 @@ def test_connect(ip, port, timeout=30):
     end_time = perf_counter() + timeout
     s = Session()
     s.trust_env = False
+    s.keep_alive = False
     while perf_counter() < end_time:
         try:
             r = s.get(f'http://{ip}:{port}/json', timeout=10, headers={'Connection': 'close'})

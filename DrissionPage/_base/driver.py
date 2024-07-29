@@ -285,6 +285,7 @@ class BrowserDriver(Driver):
         super().__init__(tab_id, tab_type, address, owner)
         self._control_session = Session()
         self._control_session.trust_env = False
+        self._control_session.keep_alive = False
 
     def __repr__(self):
         return f'<BrowserDriver {self.id}>'

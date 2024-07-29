@@ -87,6 +87,7 @@ class Chromium(object):
             connect_browser(self._chromium_options)
             s = Session()
             s.trust_env = False
+            s.keep_alive = False
             ws = s.get(f'http://{self._chromium_options.address}/json/version', headers={'Connection': 'close'})
             self.id = ws.json()['webSocketDebuggerUrl'].split('/')[-1]
             self._driver = BrowserDriver(self.id, 'browser', self.address, self)
@@ -400,10 +401,11 @@ class Chromium(object):
         self._driver.set_callback('Target.targetDestroyed', self._onTargetDestroyed)
         self._driver.set_callback('Target.targetCreated', self._onTargetCreated)
 
-    def quit(self, timeout=5, force=False):
+    def quit(self, timeout=5, force=False, del_data=False):
         """关闭浏览器
         :param timeout: 等待浏览器关闭超时时间（秒）
         :param force: 是否立刻强制终止进程
+        :param del_data: 是否删除用户文件夹
         :return: None
         """
         try:
@@ -417,39 +419,43 @@ class Chromium(object):
             for driver in tab:
                 driver.stop()
 
-        if not force:
-            return
-
-        try:
-            pids = [pid['id'] for pid in self._run_cdp('SystemInfo.getProcessInfo')['processInfo']]
-        except:
-            return
-
-        from psutil import Process
-        for pid in pids:
+        if force:
+            pids = None
             try:
-                Process(pid).kill()
+                pids = [pid['id'] for pid in self._run_cdp('SystemInfo.getProcessInfo')['processInfo']]
             except:
                 pass
 
-        from os import popen
-        from platform import system
-        end_time = perf_counter() + timeout
-        while perf_counter() < end_time:
-            ok = True
-            for pid in pids:
-                txt = f'tasklist | findstr {pid}' if system().lower() == 'windows' else f'ps -ef | grep {pid}'
-                p = popen(txt)
-                sleep(.05)
-                try:
-                    if f'  {pid} ' in p.read():
-                        ok = False
-                        break
-                except TypeError:
-                    pass
+            if pids:
+                from psutil import Process
+                for pid in pids:
+                    try:
+                        Process(pid).kill()
+                    except:
+                        pass
 
-            if ok:
-                break
+                from os import popen
+                from platform import system
+                end_time = perf_counter() + timeout
+                while perf_counter() < end_time:
+                    ok = True
+                    for pid in pids:
+                        txt = f'tasklist | findstr {pid}' if system().lower() == 'windows' else f'ps -ef | grep {pid}'
+                        p = popen(txt)
+                        sleep(.05)
+                        try:
+                            if f'  {pid} ' in p.read():
+                                ok = False
+                                break
+                        except TypeError:
+                            pass
+
+                    if ok:
+                        break
+
+        if del_data and not self._chromium_options.is_auto_port and self._chromium_options.user_data_path:
+            path = Path(self._chromium_options.user_data_path)
+            rmtree(path, True)
 
     def _get_driver(self, tab_id, owner=None):
         """新建并返回指定tab id的Driver
@@ -555,6 +561,7 @@ def run_browser(chromium_options):
     try:
         s = Session()
         s.trust_env = False
+        s.keep_alive = False
         ws = s.get(f'http://{chromium_options.address}/json/version', headers={'Connection': 'close'})
         if not ws:
             raise BrowserConnectError('\n浏览器连接失败，请确认浏览器是否启动。')
