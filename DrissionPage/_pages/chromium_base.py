@@ -109,7 +109,7 @@ class ChromiumBase(BasePage):
             self._ready_state = 'complete'
 
     def _driver_init(self, target_id):
-        """新建页面、页面刷新、切换标签页后要进行的cdp参数初始化
+        """新建页面、页面刷新后要进行的cdp参数初始化
         :param target_id: 要跳转到的target id
         :return: None
         """

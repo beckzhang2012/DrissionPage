@@ -30,15 +30,15 @@ class ChromiumFrame(ChromiumBase):
         :param ele: frame所在元素
         :param info: frame所在元素信息
         """
-        node = info['node'] if info else owner._run_cdp('DOM.describeNode', backendNodeId=ele._backend_id)['node']
-        if Settings.singleton_tab_obj and node['frameId'] in cls._Frames:
-            r = cls._Frames[node['frameId']]
-            while not hasattr(r, '_frame_id'):
+        fid = info['node']['frameId'] if info else owner._run_cdp('DOM.describeNode',
+                                                                  backendNodeId=ele._backend_id)['node']['frameId']
+        if Settings.singleton_tab_obj and fid in cls._Frames:
+            r = cls._Frames[fid]
+            while not hasattr(r, '_type') or r._type != 'ChromiumFrame':
                 sleep(.1)
             return r
         r = object.__new__(cls)
-        r._frame_id = node['frameId']
-        cls._Frames[node['frameId']] = r
+        cls._Frames[fid] = r
         return r
 
     def __init__(self, owner, ele, info=None):
@@ -47,6 +47,10 @@ class ChromiumFrame(ChromiumBase):
         :param ele: frame所在元素
         :param info: frame所在元素信息
         """
+        if Settings.singleton_tab_obj and hasattr(self, '_created'):
+            return
+        self._created = True
+
         self._tab = owner._tab
         self._target_page = owner
         self._backend_id = ele._backend_id
@@ -54,6 +58,7 @@ class ChromiumFrame(ChromiumBase):
         self._reloading = False
 
         node = info['node'] if info else owner._run_cdp('DOM.describeNode', backendNodeId=ele._backend_id)['node']
+        self._frame_id = node['frameId']
         if self._is_inner_frame():
             self._is_diff_domain = False
             self.doc_ele = ChromiumElement(self._target_page, backend_id=node['contentDocument']['backendNodeId'])
@@ -195,8 +200,6 @@ class ChromiumFrame(ChromiumBase):
         """同域变异域"""
         self.browser._frames.pop(kwargs['frameId'], None)
         ChromiumFrame._Frames.pop(kwargs['frameId'], None)
-        while not hasattr(self, '_frame_id'):
-            sleep(.1)
         if kwargs['frameId'] == self._frame_id:
             self._reload()
 
