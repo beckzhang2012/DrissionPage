@@ -25,6 +25,7 @@ from .._functions.settings import Settings
 from .._functions.tools import raise_error
 from .._functions.web import location_in_viewport
 from .._units.actions import Actions
+from .._units.console import Console
 from .._units.listener import Listener
 from .._units.rect import TabRect
 from .._units.screencast import Screencast
@@ -58,6 +59,7 @@ class ChromiumBase(BasePage):
         self._rect = None
         self._wait = None
         self._scroll = None
+        self._console = None
         self._upload_list = None
         self._doc_got = False  # 用于在LoadEventFired和FrameStoppedLoading间标记是否已获取doc
         self._download_path = None
@@ -313,6 +315,13 @@ class ChromiumBase(BasePage):
         if self._rect is None:
             self._rect = TabRect(self)
         return self._rect
+
+    @property
+    def console(self):
+        """返回获取控制台信息的对象"""
+        if self._console is None:
+            self._console = Console(self)
+        return self._console
 
     @property
     def timeout(self):

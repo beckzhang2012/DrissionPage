@@ -37,6 +37,7 @@ class ChromiumFrame(ChromiumBase):
                 sleep(.1)
             return r
         r = object.__new__(cls)
+        r._frame_id = node['frameId']
         cls._Frames[node['frameId']] = r
         return r
 
@@ -53,7 +54,6 @@ class ChromiumFrame(ChromiumBase):
         self._reloading = False
 
         node = info['node'] if info else owner._run_cdp('DOM.describeNode', backendNodeId=ele._backend_id)['node']
-        self._frame_id = node['frameId']
         if self._is_inner_frame():
             self._is_diff_domain = False
             self.doc_ele = ChromiumElement(self._target_page, backend_id=node['contentDocument']['backendNodeId'])
@@ -195,6 +195,8 @@ class ChromiumFrame(ChromiumBase):
         """同域变异域"""
         self.browser._frames.pop(kwargs['frameId'], None)
         ChromiumFrame._Frames.pop(kwargs['frameId'], None)
+        while not hasattr(self, '_frame_id'):
+            sleep(.1)
         if kwargs['frameId'] == self._frame_id:
             self._reload()
 

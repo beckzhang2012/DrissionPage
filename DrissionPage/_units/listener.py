@@ -168,7 +168,7 @@ class Listener(object):
         caught = 0
         end = perf_counter() + timeout if timeout else None
         while self._driver.is_running:
-            if (timeout and perf_counter() > end) or not self._driver.is_running:
+            if timeout and perf_counter() > end:
                 return
             if self._caught.qsize() >= gap:
                 yield self._caught.get_nowait() if gap == 1 else [self._caught.get_nowait() for _ in range(gap)]

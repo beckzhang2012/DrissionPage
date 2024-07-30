@@ -375,10 +375,11 @@ class MixPage(SessionPage, ChromiumPage, BasePage):
         elif self._mode == 'd':
             return super(SessionPage, self)._find_elements(locator, timeout=timeout, index=index, relative=relative)
 
-    def quit(self, timeout=5, force=True):
+    def quit(self, timeout=5, force=True, del_data=False):
         """关闭浏览器和Session
         :param timeout: 等待浏览器关闭超时时间（秒）
         :param force: 关闭超时是否强制终止进程
+        :param del_data: 是否删除用户文件夹
         :return: None
         """
         if self._has_session:
@@ -387,7 +388,7 @@ class MixPage(SessionPage, ChromiumPage, BasePage):
             self._response = None
             self._has_session = None
         if self._has_driver:
-            super(SessionPage, self).quit(timeout, force)
+            super(SessionPage, self).quit(timeout, force, del_data=del_data)
             self._driver = None
             self._has_driver = None
 
