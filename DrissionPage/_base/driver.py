@@ -10,12 +10,15 @@ from queue import Queue, Empty
 from threading import Thread
 from time import perf_counter, sleep
 
+from requests import adapters
 from requests import Session
 from websocket import (WebSocketTimeoutException, WebSocketConnectionClosedException, create_connection,
                        WebSocketException, WebSocketBadStatusException)
 
 from .._functions.settings import Settings
 from ..errors import PageDisconnectedError, BrowserConnectError
+
+adapters.DEFAULT_RETRIES = 5
 
 
 class Driver(object):
@@ -283,14 +286,15 @@ class BrowserDriver(Driver):
         self._created = True
         BrowserDriver.BROWSERS[tab_id] = self
         super().__init__(tab_id, tab_type, address, owner)
-        self._control_session = Session()
-        self._control_session.trust_env = False
-        self._control_session.keep_alive = False
 
     def __repr__(self):
         return f'<BrowserDriver {self.id}>'
 
     def get(self, url):
-        r = self._control_session.get(url, headers={'Connection': 'close'})
+        s = Session()
+        s.trust_env = False
+        s.keep_alive = False
+        r = s.get(url, headers={'Connection': 'close'})
         r.close()
+        s.close()
         return r

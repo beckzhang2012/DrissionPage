@@ -164,11 +164,12 @@ class ChromiumElement(DrissionElement):
     @property
     def sr(self):
         """返回当前元素的shadow_root元素对象"""
-        info = self.owner._run_cdp('DOM.describeNode', backendNodeId=self._backend_id)['node']
-        if not info.get('shadowRoots', None):
-            return None
-
-        return ShadowRoot(self, backend_id=info['shadowRoots'][0]['backendNodeId'])
+        end_time = perf_counter() + self.owner.timeout
+        while perf_counter() < end_time:
+            info = self.owner._run_cdp('DOM.describeNode', backendNodeId=self._backend_id)['node']
+            if info.get('shadowRoots', None):
+                return ShadowRoot(self, backend_id=info['shadowRoots'][0]['backendNodeId'])
+        return None
 
     @property
     def shadow_root(self):

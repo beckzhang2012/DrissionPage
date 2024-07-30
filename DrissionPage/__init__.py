@@ -14,4 +14,4 @@ from ._pages.chromium_page import ChromiumPage
 from ._pages.mix_page import MixPage
 from ._pages.mix_page import MixPage as WebPage
 
-__version__ = '4.1.0.0b17'
+__version__ = '4.1.0.0b18'

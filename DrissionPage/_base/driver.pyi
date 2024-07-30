@@ -9,7 +9,7 @@ from queue import Queue
 from threading import Thread
 from typing import Union, Callable, Dict, Optional
 
-from requests import Response, Session
+from requests import Response
 from websocket import WebSocket
 
 from .browser import Chromium
@@ -69,7 +69,6 @@ class Driver(object):
 class BrowserDriver(Driver):
     BROWSERS: Dict[str, Driver] = ...
     owner: Chromium = ...
-    _control_session: Session = ...
 
     def __new__(cls, tab_id: str, tab_type: str, address: str, owner: Chromium): ...
 
