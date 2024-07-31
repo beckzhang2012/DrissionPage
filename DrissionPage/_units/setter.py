@@ -348,7 +348,7 @@ class ChromiumBaseSetter(BrowserBaseSetter):
             files = (files,)
         self._owner._upload_list = [str(Path(i).absolute()) for i in files]
 
-    def headers(self, headers) -> None:
+    def headers(self, headers):
         """设置固定发送的headers
         :param headers: dict格式的headers数据，或从浏览器复制的headers文本（\n分行）
         :return: None
@@ -494,7 +494,7 @@ class MixPageSetter(ChromiumPageSetter):
             self._cookies_setter = MixPageCookiesSetter(self._owner)
         return self._cookies_setter
 
-    def headers(self, headers) -> None:
+    def headers(self, headers):
         """设置固定发送的headers
         :param headers: dict格式的headers数据
         :return: None
@@ -525,7 +525,7 @@ class MixTabSetter(TabSetter):
             self._cookies_setter = MixPageCookiesSetter(self._owner)
         return self._cookies_setter
 
-    def headers(self, headers) -> None:
+    def headers(self, headers):
         """设置固定发送的headers
         :param headers: dict格式的headers数据
         :return: None
