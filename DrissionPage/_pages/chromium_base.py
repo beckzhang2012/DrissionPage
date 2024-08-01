@@ -19,7 +19,7 @@ from .._elements.chromium_element import run_js, make_chromium_eles
 from .._elements.none_element import NoneElement
 from .._elements.session_element import make_session_ele
 from .._functions.cookies import CookiesList
-from .._functions.elements import SessionElementsList, get_frame
+from .._functions.elements import SessionElementsList, get_frame, ChromiumElementsList
 from .._functions.locator import get_loc
 from .._functions.settings import Settings
 from .._functions.tools import raise_error
@@ -627,7 +627,7 @@ class ChromiumBase(BasePage):
                         raise PageDisconnectedError
 
             if perf_counter() >= end_time:
-                return NoneElement(self) if index is not None else []
+                return NoneElement(self) if index is not None else ChromiumElementsList()
 
             sleep(.1)
             timeout = end_time - perf_counter()

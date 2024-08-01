@@ -165,11 +165,7 @@ def make_absolute_link(link, baseURI=None):
     link = link.strip().replace('\\', '/')
     parsed = urlparse(link)._asdict()
     if baseURI:
-        if link.startswith('./'):
-            baseURI = baseURI[:baseURI.rfind('/') + 1]
-        else:
-            p = urlparse(baseURI)._asdict()
-            baseURI = f'{p["scheme"]}://{p["netloc"]}'
+        baseURI = baseURI.rstrip('/\\')
 
     # 是相对路径，与页面url拼接并返回
     if not parsed['netloc']:

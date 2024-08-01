@@ -1298,7 +1298,7 @@ class ShadowRoot(BaseElement):
 
         if result:
             return result
-        return NoneElement(self.owner) if index is not None else []
+        return NoneElement(self.owner) if index is not None else ChromiumElementsList()
 
     def _get_node_id(self, obj_id):
         """返回元素node id"""
