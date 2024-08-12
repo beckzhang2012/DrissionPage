@@ -58,9 +58,12 @@ class ChromiumTab(ChromiumBase):
         self._load_mode = self.browser._load_mode
         self._download_path = self.browser.download_path
 
-    def close(self):
-        """关闭当前标签页"""
-        self.browser.close_tabs(self.tab_id)
+    def close(self, others=False):
+        """关闭当前标签页
+        :param others: 是否关闭其它，保留自己
+        :return: None
+        """
+        self.browser.close_tabs(self.tab_id, others=others)
 
     @property
     def set(self):
@@ -361,9 +364,12 @@ class MixTab(SessionPage, ChromiumTab, BasePage):
         elif self._mode == 'd':
             return super(SessionPage, self).cookies(all_domains, all_info)
 
-    def close(self):
-        """关闭当前标签页"""
-        self.browser.close_tabs(self.tab_id)
+    def close(self, others=False):
+        """关闭当前标签页
+        :param others: 是否关闭其它，保留自己
+        :return: None
+        """
+        self.browser.close_tabs(self.tab_id, others=others)
         self._session.close()
         if self._response is not None:
             self._response.close()

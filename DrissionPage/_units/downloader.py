@@ -20,9 +20,6 @@ class DownloadManager(object):
         :param browser: Browser对象
         """
         self._browser = browser
-        # self._page = browser.page
-        # self._when_download_file_exists = 'rename'
-        # self._save_path = None
 
         t = TabDownloadSettings('browser')
         t.path = self._browser.download_path
@@ -33,9 +30,6 @@ class DownloadManager(object):
         self._missions = {}  # {guid: DownloadMission}
         self._tab_missions = {}  # {tab_id: DownloadMission}
         self._flags = {}  # {tab_id: [bool, DownloadMission]}
-
-        # if self._page.download_path:
-        #     self.set_path(self._page, self._page.download_path)
 
         self._running = False
 
@@ -196,7 +190,7 @@ class DownloadManager(object):
         elif skip:
             self.skip(m)
         else:
-            self._tab_missions.setdefault(tab_id, []).append(guid)
+            self._tab_missions.setdefault(tab_id, []).append(m)
 
         if self.get_flag(tab_id) is not None:
             self._flags[tab_id] = m
