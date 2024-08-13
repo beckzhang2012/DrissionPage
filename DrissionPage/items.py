@@ -10,6 +10,7 @@ from ._elements.none_element import NoneElement
 from ._elements.session_element import SessionElement
 from ._pages.chromium_frame import ChromiumFrame
 from ._pages.tabs import ChromiumTab, MixTab
+from ._pages.tabs import MixTab as WebPageTab
 
 __all__ = ['ChromiumElement', 'ShadowRoot', 'NoneElement', 'SessionElement', 'ChromiumFrame', 'ChromiumTab',
-           'MixTab']
+           'MixTab', 'WebPageTab']

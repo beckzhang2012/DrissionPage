@@ -209,6 +209,27 @@ def format_cookie(cookie):
     elif cookie['name'].startswith('__Secure-'):
         cookie['secure'] = True
 
+    if 'sameSite' in cookie:
+        sameSite = cookie['sameSite']
+        if sameSite in (None, False):
+            cookie.pop('sameSite')
+        elif sameSite not in ('None', 'Lax', 'Strict'):
+            raise ValueError(f'{cookie}\nsameSite字段必须为"None"、"Lax"、"Strict"之一。')
+
+    if 'priority' in cookie:
+        priority = cookie['priority']
+        if priority in (None, False):
+            cookie.pop('priority')
+        elif priority not in ('Low', 'Medium', 'High'):
+            raise ValueError(f'{cookie}\npriority字段必须为"Low"、"Medium"、"High"之一。')
+
+    if 'sourceScheme' in cookie:
+        sourceScheme = cookie['sourceScheme']
+        if sourceScheme in (None, False):
+            cookie.pop('sourceScheme')
+        elif sourceScheme not in ('Unset', 'NonSecure', 'Secure'):
+            raise ValueError(f'{cookie}\nsourceScheme字段必须为"Unset"、"NonSecure"、"Secure"之一。')
+
     return cookie
 
 
@@ -221,10 +242,15 @@ class CookiesList(list):
         """以str格式返回，只包含name和value字段"""
         return '; '.join([f'{c["name"]}={c["value"]}' for c in self])
 
+    def as_json(self):
+        """以json格式返回"""
+        from json import dumps
+        return dumps(self)
+
 
 def _dict_cookies_to_tuple(cookies: dict):
     """把dict形式的cookies转换为tuple形式
-    :param cookies: 单个或多个cookies，单个时包含'name'和'value'
+    :param cookies: 单个或多个cookies，单个时包含 'name' 和 'value'
     :return: 多个dict格式cookies组成的列表
     """
     if 'name' in cookies and 'value' in cookies:  # 单个cookie

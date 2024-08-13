@@ -57,21 +57,13 @@ class BaseParser(object):
 
 
 class BaseElement(BaseParser):
+    owner: BasePage = ...
 
-    def __init__(self, owner: BasePage = None):
-        self.owner: BasePage = ...
+    def __init__(self, owner: BasePage = None): ...
 
     # ----------------以下属性或方法由后代实现----------------
     @property
     def tag(self) -> str: ...
-
-    def _ele(self,
-             locator: Union[Tuple[str, str], str],
-             timeout: float = None,
-             index: Optional[int] = 1,
-             relative: bool = False,
-             raise_err: bool = None,
-             method: str = None): ...
 
     def parent(self, level_or_loc: Union[tuple, str, int] = 1): ...
 
@@ -83,86 +75,206 @@ class BaseElement(BaseParser):
 
     def nexts(self): ...
 
-    def get_frame(self, loc_or_ind, timeout=None) -> ChromiumFrame: ...
+    def get_frame(self, loc_or_ind, timeout=None) -> ChromiumFrame:
+        """获取元素中一个frame对象
+        :param loc_or_ind: 定位符、iframe序号，序号从1开始，可传入负数获取倒数第几个
+        :param timeout: 查找元素超时时间（秒）
+        :return: ChromiumFrame对象
+        """
+        ...
+
+    def _ele(self,
+             locator: Union[Tuple[str, str], str],
+             timeout: float = None,
+             index: Optional[int] = 1,
+             relative: bool = False,
+             raise_err: bool = None,
+             method: str = None):
+        """调用获取元素的方法
+        :param locator: 定位符
+        :param timeout: 超时时间（秒）
+        :param index: 获取第几个，从1开始，可传入负数获取倒数第几个
+        :param relative: 是否相对定位
+        :param raise_err: 找不到时是否抛出异常
+        :param method: 调用的方法名
+        :return: 元素对象或它们组成的列表
+        """
+        ...
 
 
 class DrissionElement(BaseElement):
+    """ChromiumElement 和 SessionElement的基类，但不是ShadowRoot的基类"""
 
     def __init__(self, owner: BasePage = None): ...
 
     @property
-    def link(self) -> str: ...
+    def link(self) -> str:
+        """返回href或src绝对url"""
+        ...
 
     @property
-    def css_path(self) -> str: ...
+    def css_path(self) -> str:
+        """返回css path路径"""
+        ...
 
     @property
-    def xpath(self) -> str: ...
+    def xpath(self) -> str:
+        """返回xpath路径"""
+        ...
 
     @property
-    def comments(self) -> list: ...
+    def comments(self) -> list:
+        """返回元素注释文本组成的列表"""
+        ...
 
-    def texts(self, text_node_only: bool = False) -> list: ...
+    def texts(self, text_node_only: bool = False) -> list:
+        """返回元素内所有直接子节点的文本，包括元素和文本节点
+        :param text_node_only: 是否只返回文本节点
+        :return: 文本列表
+        """
+        ...
 
     def parent(self,
                level_or_loc: Union[tuple, str, int] = 1,
                index: int = 1,
-               timeout: float = None) -> Union[DrissionElement, None]: ...
+               timeout: float = None) -> Union[DrissionElement, None]:
+        """返回上面某一级父元素，可指定层数或用查询语法定位
+        :param level_or_loc: 第几级父元素，1开始，或定位符
+        :param index: 当level_or_loc传入定位符，使用此参数选择第几个结果，1开始
+        :param timeout: 时间（秒）
+        :return: 上级元素对象
+        """
+        ...
 
     def child(self,
               locator: Union[Tuple[str, str], str, int] = '',
               index: int = 1,
               timeout: float = None,
-              ele_only: bool = True) -> Union[DrissionElement, str, NoneElement]: ...
+              ele_only: bool = True) -> Union[DrissionElement, str, NoneElement]:
+        """返回直接子元素元素或节点组成的列表，可用查询语法筛选
+        :param locator: 用于筛选的查询语法
+        :param index: 第几个查询结果，1开始
+        :param timeout: 查找节点的超时时间（秒）
+        :param ele_only: 是否只获取元素，为False时把文本、注释节点也纳入
+        :return: 直接子元素或节点文本组成的列表
+        """
+        ...
 
     def prev(self,
              locator: Union[Tuple[str, str], str, int] = '',
              index: int = 1,
              timeout: float = None,
-             ele_only: bool = True) -> Union[DrissionElement, str, NoneElement]: ...
+             ele_only: bool = True) -> Union[DrissionElement, str, NoneElement]:
+        """返回前面的一个兄弟元素，可用查询语法筛选，可指定返回筛选结果的第几个
+        :param locator: 用于筛选的查询语法
+        :param index: 前面第几个查询结果，1开始
+        :param timeout: 查找节点的超时时间（秒）
+        :param ele_only: 是否只获取元素，为False时把文本、注释节点也纳入
+        :return: 兄弟元素
+        """
+        ...
 
     def next(self,
              locator: Union[Tuple[str, str], str, int] = '',
              index: int = 1,
              timeout: float = None,
-             ele_only: bool = True) -> Union[DrissionElement, str, NoneElement]: ...
+             ele_only: bool = True) -> Union[DrissionElement, str, NoneElement]:
+        """返回后面的一个兄弟元素，可用查询语法筛选，可指定返回筛选结果的第几个
+        :param locator: 用于筛选的查询语法
+        :param index: 后面第几个查询结果，1开始
+        :param timeout: 查找节点的超时时间（秒）
+        :param ele_only: 是否只获取元素，为False时把文本、注释节点也纳入
+        :return: 兄弟元素
+        """
+        ...
 
     def before(self,
                locator: Union[Tuple[str, str], str, int] = '',
                index: int = 1,
                timeout: float = None,
-               ele_only: bool = True) -> Union[DrissionElement, str, NoneElement]: ...
+               ele_only: bool = True) -> Union[DrissionElement, str, NoneElement]:
+        """返回前面的一个兄弟元素，可用查询语法筛选，可指定返回筛选结果的第几个
+        :param locator: 用于筛选的查询语法
+        :param index: 前面第几个查询结果，1开始
+        :param timeout: 查找节点的超时时间（秒）
+        :param ele_only: 是否只获取元素，为False时把文本、注释节点也纳入
+        :return: 本元素前面的某个元素或节点
+        """
+        ...
 
     def after(self,
               locator: Union[Tuple[str, str], str, int] = '',
               index: int = 1,
               timeout: float = None,
-              ele_only: bool = True) -> Union[DrissionElement, str, NoneElement]: ...
+              ele_only: bool = True) -> Union[DrissionElement, str, NoneElement]:
+        """返回后面的一个兄弟元素，可用查询语法筛选，可指定返回筛选结果的第几个
+        :param locator: 用于筛选的查询语法
+        :param index: 后面第几个查询结果，1开始
+        :param timeout: 查找节点的超时时间（秒）
+        :param ele_only: 是否只获取元素，为False时把文本、注释节点也纳入
+        :return: 本元素后面的某个元素或节点
+        """
+        ...
 
     def children(self,
                  locator: Union[Tuple[str, str], str] = '',
                  timeout: float = None,
-                 ele_only: bool = True) -> List[Union[DrissionElement, str]]: ...
+                 ele_only: bool = True) -> List[Union[DrissionElement, str]]:
+        """返回直接子元素元素或节点组成的列表，可用查询语法筛选
+        :param locator: 用于筛选的查询语法
+        :param timeout: 查找节点的超时时间（秒）
+        :param ele_only: 是否只获取元素，为False时把文本、注释节点也纳入
+        :return: 直接子元素或节点文本组成的列表
+        """
+        ...
 
     def prevs(self,
               locator: Union[Tuple[str, str], str] = '',
               timeout: float = None,
-              ele_only: bool = True) -> List[Union[DrissionElement, str]]: ...
+              ele_only: bool = True) -> List[Union[DrissionElement, str]]:
+        """返回前面全部兄弟元素或节点组成的列表，可用查询语法筛选
+        :param locator: 用于筛选的查询语法
+        :param timeout: 查找节点的超时时间（秒）
+        :param ele_only: 是否只获取元素，为False时把文本、注释节点也纳入
+        :return: 兄弟元素或节点文本组成的列表
+        """
+        ...
 
     def nexts(self,
               locator: Union[Tuple[str, str], str] = '',
               timeout: float = None,
-              ele_only: bool = True) -> List[Union[DrissionElement, str]]: ...
+              ele_only: bool = True) -> List[Union[DrissionElement, str]]:
+        """返回后面全部兄弟元素或节点组成的列表，可用查询语法筛选
+        :param locator: 用于筛选的查询语法
+        :param timeout: 查找节点的超时时间（秒）
+        :param ele_only: 是否只获取元素，为False时把文本、注释节点也纳入
+        :return: 兄弟元素或节点文本组成的列表
+        """
+        ...
 
     def befores(self,
                 locator: Union[Tuple[str, str], str] = '',
                 timeout: float = None,
-                ele_only: bool = True) -> List[Union[DrissionElement, str]]: ...
+                ele_only: bool = True) -> List[Union[DrissionElement, str]]:
+        """返回后面全部兄弟元素或节点组成的列表，可用查询语法筛选
+        :param locator: 用于筛选的查询语法
+        :param timeout: 查找节点的超时时间（秒）
+        :param ele_only: 是否只获取元素，为False时把文本、注释节点也纳入
+        :return: 本元素前面的元素或节点组成的列表
+        """
+        ...
 
     def afters(self,
                locator: Union[Tuple[str, str], str] = '',
                timeout: float = None,
-               ele_only: bool = True) -> List[Union[DrissionElement, str]]: ...
+               ele_only: bool = True) -> List[Union[DrissionElement, str]]:
+        """返回前面全部兄弟元素或节点组成的列表，可用查询语法筛选
+        :param locator: 用于筛选的查询语法
+        :param timeout: 查找节点的超时时间（秒）
+        :param ele_only: 是否只获取元素，为False时把文本、注释节点也纳入
+        :return: 本元素后面的元素或节点组成的列表
+        """
+        ...
 
     def _get_relative(self,
                       func: str,
@@ -171,7 +283,17 @@ class DrissionElement(BaseElement):
                       locator: Union[Tuple[str, str], str] = '',
                       index: int = 1,
                       timeout: float = None,
-                      ele_only: bool = True) -> DrissionElement: ...
+                      ele_only: bool = True) -> DrissionElement:
+        """获取一个亲戚元素或节点，可用查询语法筛选，可指定返回筛选结果的第几个
+        :param func: 方法名称
+        :param direction: 方向，'following' 或 'preceding'
+        :param locator: 用于筛选的查询语法
+        :param index: 前面第几个查询结果，1开始
+        :param timeout: 查找节点的超时时间（秒）
+        :param ele_only: 是否只获取元素，为False时把文本、注释节点也纳入
+        :return: 本元素前面的某个元素或节点
+        """
+        ...
 
     def _get_relatives(self,
                        index: int = None,
@@ -179,7 +301,16 @@ class DrissionElement(BaseElement):
                        direction: str = 'following',
                        brother: bool = True,
                        timeout: float = 0.5,
-                       ele_only: bool = True) -> List[Union[DrissionElement, str]]: ...
+                       ele_only: bool = True) -> List[Union[DrissionElement, str]]:
+        """按要求返回兄弟元素或节点组成的列表
+        :param index: 获取第几个，该参数不为None时只获取该编号的元素
+        :param locator: 用于筛选的查询语法
+        :param direction: 'following' 或 'preceding'，查找的方向
+        :param brother: 查找范围，在同级查找还是整个dom前后查找
+        :param timeout: 查找等待时间（秒）
+        :return: 元素对象或字符串
+        """
+        ...
 
     # ----------------以下属性或方法由后代实现----------------
     @property
@@ -198,30 +329,47 @@ class DrissionElement(BaseElement):
 
 
 class BasePage(BaseParser):
+    """页面类的基类"""
 
-    def __init__(self):
-        self._url_available: bool = ...
-        self.retry_times: int = ...
-        self.retry_interval: float = ...
-        self._download_path: str = ...
-        self._DownloadKit: DownloadKit = ...
-        self._none_ele_return_value: bool = ...
-        self._none_ele_value: Any = ...
-        self._page: Union[ChromiumPage, SessionPage, MixPage] = ...
+    _url_available: Optional[bool] = ...
+    retry_times: int = ...
+    retry_interval: float = ...
+    _download_path: Optional[str] = ...
+    _DownloadKit: Optional[DownloadKit] = ...
+    _none_ele_return_value: bool = ...
+    _none_ele_value: Any = ...
+    _page: Union[ChromiumPage, SessionPage, MixPage] = ...
 
-    @property
-    def title(self) -> Union[str, None]: ...
-
-    @property
-    def url_available(self) -> bool: ...
+    def __init__(self): ...
 
     @property
-    def download_path(self) -> str: ...
+    def title(self) -> Union[str, None]:
+        """返回网页title"""
+        ...
 
     @property
-    def download(self) -> DownloadKit: ...
+    def url_available(self) -> bool:
+        """返回当前访问的url有效性"""
+        ...
 
-    def _before_connect(self, url: str, retry: int, interval: float) -> tuple: ...
+    @property
+    def download_path(self) -> str:
+        """返回默认下载路径"""
+        ...
+
+    @property
+    def download(self) -> DownloadKit:
+        """返回下载器对象"""
+        ...
+
+    def _before_connect(self, url: str, retry: int, interval: float) -> tuple:
+        """连接前的准备
+        :param url: 要访问的url
+        :param retry: 重试次数
+        :param interval: 重试间隔
+        :return: 重试次数、间隔、是否文件组成的tuple
+        """
+        ...
 
     # ----------------以下属性或方法由后代实现----------------
     @property
@@ -241,4 +389,13 @@ class BasePage(BaseParser):
              timeout: float = None,
              index: Optional[int] = 1,
              raise_err: bool = None,
-             method: str = None): ...
+             method: str = None):
+        """调用获取元素的方法
+        :param locator: 定位符
+        :param timeout: 超时时间（秒）
+        :param index: 获取第几个，从1开始，可传入负数获取倒数第几个
+        :param raise_err: 找不到时是否抛出异常
+        :param method: 调用的方法名
+        :return: 元素对象或它们组成的列表
+        """
+        ...

@@ -23,12 +23,6 @@ adapters.DEFAULT_RETRIES = 5
 
 class Driver(object):
     def __init__(self, tab_id, tab_type, address, owner=None):
-        """
-        :param tab_id: 标签页id
-        :param tab_type: 标签页类型
-        :param address: 浏览器连接地址
-        :param owner: 创建这个驱动的对象
-        """
         self.id = tab_id
         self.address = address
         self.type = tab_type
@@ -58,11 +52,6 @@ class Driver(object):
         self.start()
 
     def _send(self, message, timeout=None):
-        """发送信息到浏览器，并返回浏览器返回的信息
-        :param message: 发送给浏览器的数据
-        :param timeout: 超时时间，为None表示无限
-        :return: 浏览器返回的数据
-        """
         self._cur_id += 1
         ws_id = self._cur_id
         message['id'] = ws_id
@@ -110,7 +99,6 @@ class Driver(object):
         return {'error': {'message': 'connection disconnected'}, 'type': 'connection_error'}
 
     def _recv_loop(self):
-        """接收浏览器信息的守护线程方法"""
         while self.is_running:
             try:
                 # self._ws.settimeout(1)
@@ -148,7 +136,6 @@ class Driver(object):
             #     print(f'未知信息：{msg}')
 
     def _handle_event_loop(self):
-        """当接收到浏览器信息，执行已绑定的方法"""
         while self.is_running:
             try:
                 event = self.event_queue.get(timeout=1)
@@ -170,11 +157,6 @@ class Driver(object):
                 pass
 
     def _handle_immediate_event(self, function, kwargs):
-        """处理立即执行的动作
-        :param function: 要运行下方法
-        :param kwargs: 方法参数
-        :return: None
-        """
         self.immediate_event_queue.put((function, kwargs))
         if self._handle_immediate_event_th is None or not self._handle_immediate_event_th.is_alive():
             self._handle_immediate_event_th = Thread(target=self._handle_immediate_event_loop)
@@ -200,7 +182,6 @@ class Driver(object):
             return result['result']
 
     def start(self):
-        """启动连接"""
         self.is_running = True
         try:
             self._ws = create_connection(self._websocket_url, enable_multithread=True, suppress_origin=True)
@@ -216,14 +197,12 @@ class Driver(object):
         return True
 
     def stop(self):
-        """中断连接"""
         self._stop()
         while self._handle_event_th.is_alive() or self._recv_th.is_alive():
             sleep(.1)
         return True
 
     def _stop(self):
-        """中断连接"""
         if not self.is_running:
             return False
 
@@ -259,12 +238,6 @@ class Driver(object):
             self.owner._on_disconnect()
 
     def set_callback(self, event, callback, immediate=False):
-        """绑定cdp event和回调方法
-        :param event: cdp event
-        :param callback: 绑定到cdp event的回调方法
-        :param immediate: 是否要立即处理的动作
-        :return: None
-        """
         handler = self.immediate_event_handlers if immediate else self.event_handlers
         if callback:
             handler[event] = callback

@@ -37,10 +37,6 @@ class Chromium(object):
     _lock = Lock()
 
     def __new__(cls, addr_or_opts=None, session_options=None):
-        """
-        :param addr_or_opts: 浏览器地址:端口、ChromiumOptions对象或端口数字（int）
-        :param session_options: 使用双模Tab时使用的默认Session配置，为True使用ini文件配置
-        """
         opt = handle_options(addr_or_opts)
         is_headless, browser_id, is_exists = run_browser(opt)
         with cls._lock:
@@ -51,17 +47,13 @@ class Chromium(object):
                 return r
         r = object.__new__(cls)
         r._chromium_options = opt
-        r.is_headless = is_headless
+        r._is_headless = is_headless
         r._is_exists = is_exists
         r.id = browser_id
         cls._BROWSERS[browser_id] = r
         return r
 
     def __init__(self, addr_or_opts=None, session_options=None):
-        """
-        :param addr_or_opts: 浏览器地址:端口、ChromiumOptions对象或端口数字（int）
-        :param session_options: 使用双模Tab时使用的默认Session配置，为True使用ini文件配置
-        """
         if hasattr(self, '_created'):
             return
         self._created = True
@@ -81,7 +73,7 @@ class Chromium(object):
         self.address = self._chromium_options.address
         self._driver = BrowserDriver(self.id, 'browser', self.address, self)
 
-        if (not self._chromium_options._ua_set and self.is_headless != self._chromium_options.is_headless) or (
+        if (not self._chromium_options._ua_set and self._is_headless != self._chromium_options.is_headless) or (
                 self._is_exists and self._chromium_options._new_env):
             self.quit(3, True)
             connect_browser(self._chromium_options)
@@ -118,32 +110,26 @@ class Chromium(object):
 
     @property
     def user_data_path(self):
-        """返回用户文件夹路径"""
         return self._chromium_options.user_data_path
 
     @property
     def process_id(self):
-        """返回浏览器进程id"""
         return self._process_id
 
     @property
     def timeout(self):
-        """返回timeouts设置"""
         return self._timeouts.base
 
     @property
     def timeouts(self):
-        """返回timeouts设置"""
         return self._timeouts
 
     @property
     def load_mode(self):
-        """返回加载模式"""
         return self._load_mode
 
     @property
     def download_path(self):
-        """返回默认下载路径"""
         return self._download_path
 
     @property
@@ -154,69 +140,38 @@ class Chromium(object):
 
     @property
     def wait(self):
-        """返回用于等待的对象"""
         if self._wait is None:
             self._wait = BrowserWaiter(self)
         return self._wait
 
     @property
     def tabs_count(self):
-        """返回标签页数量"""
         j = self._run_cdp('Target.getTargets')['targetInfos']  # 不要改用get，避免卡死
         return len([i for i in j if i['type'] in ('page', 'webview') and not i['url'].startswith('devtools://')])
 
     @property
     def tab_ids(self):
-        """返回所有标签页id组成的列表"""
         j = self._driver.get(f'http://{self.address}/json').json()  # 不要改用cdp，因为顺序不对
         return [i['id'] for i in j if i['type'] in ('page', 'webview') and not i['url'].startswith('devtools://')]
 
     @property
     def latest_tab(self):
-        """返回最新的标签页，最新标签页指最后创建或最后被激活的
-        当Settings.singleton_tab_obj==True时返回Tab对象，否则返回tab id"""
         return self.get_tab(self.tab_ids[0], as_id=not Settings.singleton_tab_obj)
 
     def cookies(self, all_info=False):
-        """以list格式返回所有域名的cookies
-        :param all_info: 是否返回所有内容，False则只返回name, value, domain
-        :return: cookies组成的列表
-        """
         cks = self._run_cdp(f'Storage.getCookies')['cookies']
         r = cks if all_info else [{'name': c['name'], 'value': c['value'], 'domain': c['domain']} for c in cks]
         return CookiesList(r)
 
     def new_tab(self, url=None, new_window=False, background=False, new_context=False):
-        """新建一个标签页
-        :param url: 新标签页跳转到的网址
-        :param new_window: 是否在新窗口打开标签页
-        :param background: 是否不激活新标签页，如new_window为True则无效
-        :param new_context: 是否创建新的上下文
-        :return: 新标签页对象
-        """
         return self._new_tab(ChromiumTab, url=url, new_window=new_window,
                              background=background, new_context=new_context)
 
     def new_mix_tab(self, url=None, new_window=False, background=False, new_context=False):
-        """新建一个标签页
-        :param url: 新标签页跳转到的网址
-        :param new_window: 是否在新窗口打开标签页
-        :param background: 是否不激活新标签页，如new_window为True则无效
-        :param new_context: 是否创建新的上下文
-        :return: 新标签页对象
-        """
         return self._new_tab(MixTab, url=url, new_window=new_window,
                              background=background, new_context=new_context)
 
     def _new_tab(self, obj, url=None, new_window=False, background=False, new_context=False):
-        """新建一个标签页
-        :param obj: 要创建的Tab类型
-        :param url: 新标签页跳转到的网址
-        :param new_window: 是否在新窗口打开标签页
-        :param background: 是否不激活新标签页，如new_window为True则无效
-        :param new_context: 是否创建新的上下文
-        :return: 新标签页对象
-        """
         tab = None
         if new_context:
             tab = self._run_cdp('Target.createBrowserContext')['browserContextId']
@@ -244,57 +199,18 @@ class Chromium(object):
         return tab
 
     def get_tab(self, id_or_num=None, title=None, url=None, tab_type='page', as_id=False):
-        """获取一个标签页对象，id_or_num不为None时，后面几个参数无效
-        :param id_or_num: 要获取的标签页id或序号，序号从1开始，可传入负数获取倒数第几个，不是视觉排列顺序，而是激活顺序
-        :param title: 要匹配title的文本，模糊匹配，为None则匹配所有
-        :param url: 要匹配url的文本，模糊匹配，为None则匹配所有
-        :param tab_type: tab类型，可用列表输入多个，如 'page', 'iframe' 等，为None则匹配所有
-        :param as_id: 是否返回标签页id而不是标签页对象
-        :return: Tab对象
-        """
         return self._get_tab(id_or_num=id_or_num, title=title, url=url, tab_type=tab_type, as_id=as_id)
 
     def get_tabs(self, title=None, url=None, tab_type='page', as_id=False):
-        """查找符合条件的tab，返回它们组成的列表，title和url是与关系
-        :param title: 要匹配title的文本
-        :param url: 要匹配url的文本
-        :param tab_type: tab类型，可用列表输入多个
-        :param as_id: 是否返回标签页id而不是标签页对象
-        :return: Tab对象列表
-        """
         return self._get_tabs(title=title, url=url, tab_type=tab_type, as_id=as_id)
 
     def get_mix_tab(self, id_or_num=None, title=None, url=None, tab_type='page', as_id=False):
-        """获取一个标签页对象，id_or_num不为None时，后面几个参数无效
-        :param id_or_num: 要获取的标签页id或序号，序号从1开始，可传入负数获取倒数第几个，不是视觉排列顺序，而是激活顺序
-        :param title: 要匹配title的文本，模糊匹配，为None则匹配所有
-        :param url: 要匹配url的文本，模糊匹配，为None则匹配所有
-        :param tab_type: tab类型，可用列表输入多个，如 'page', 'iframe' 等，为None则匹配所有
-        :param as_id: 是否返回标签页id而不是标签页对象
-        :return: Tab对象
-        """
         return self._get_tab(id_or_num=id_or_num, title=title, url=url, tab_type=tab_type, mix=True, as_id=as_id)
 
     def get_mix_tabs(self, title=None, url=None, tab_type='page', as_id=False):
-        """查找符合条件的tab，返回它们组成的列表，title和url是与关系
-        :param title: 要匹配title的文本
-        :param url: 要匹配url的文本
-        :param tab_type: tab类型，可用列表输入多个
-        :param as_id: 是否返回标签页id而不是标签页对象
-        :return: Tab对象列表
-        """
         return self._get_tabs(title=title, url=url, tab_type=tab_type, mix=True, as_id=as_id)
 
     def _get_tab(self, id_or_num=None, title=None, url=None, tab_type='page', mix=False, as_id=False):
-        """获取一个标签页对象，id_or_num不为None时，后面几个参数无效
-        :param id_or_num: 要获取的标签页id或序号，序号从1开始，可传入负数获取倒数第几个，不是视觉排列顺序，而是激活顺序
-        :param title: 要匹配title的文本，模糊匹配，为None则匹配所有
-        :param url: 要匹配url的文本，模糊匹配，为None则匹配所有
-        :param tab_type: tab类型，可用列表输入多个，如 'page', 'iframe' 等，为None则匹配所有
-        :param mix: 是否返回可切换模式的Tab对象
-        :param as_id: 是否返回标签页id而不是标签页对象，mix=False时无效
-        :return: Tab对象
-        """
         if id_or_num is not None:
             if isinstance(id_or_num, str):
                 id_or_num = id_or_num
@@ -319,14 +235,6 @@ class Chromium(object):
             return MixTab(self, id_or_num) if mix else ChromiumTab(self, id_or_num)
 
     def _get_tabs(self, title=None, url=None, tab_type='page', mix=False, as_id=False):
-        """查找符合条件的tab，返回它们组成的列表，title和url是与关系
-        :param title: 要匹配title的文本
-        :param url: 要匹配url的文本
-        :param tab_type: tab类型，可用列表输入多个
-        :param mix: 是否返回可切换模式的Tab对象
-        :param as_id: 是否返回标签页id而不是标签页对象，mix=False时无效
-        :return: Tab对象列表
-        """
         tabs = self._driver.get(f'http://{self.address}/json').json()  # 不要改用cdp
 
         if isinstance(tab_type, str):
@@ -347,11 +255,6 @@ class Chromium(object):
                 return [ChromiumTab(self, tab['id']) for tab in tabs]
 
     def close_tabs(self, tabs_or_ids=None, others=False):
-        """关闭传入的标签页，默认关闭当前页。可传入多个
-        :param tabs_or_ids: 要关闭的标签页对象或id，可传入列表或元组，为None时关闭最后操作的
-        :param others: 是否关闭指定标签页之外的
-        :return: None
-        """
         all_tabs = set(self.tab_ids)
         if isinstance(tabs_or_ids, str):
             tabs = {tabs_or_ids}
@@ -381,10 +284,6 @@ class Chromium(object):
             sleep(.1)
 
     def activate_tab(self, id_ind_tab):
-        """使标签页变为活动状态
-        :param id_ind_tab: 标签页id（str）、Tab对象或标签页序号（int），序号从1开始
-        :return: None
-        """
         if isinstance(id_ind_tab, int):
             id_ind_tab += -1 if id_ind_tab else 1
             id_ind_tab = self.tab_ids[id_ind_tab]
@@ -393,7 +292,6 @@ class Chromium(object):
         self._run_cdp('Target.activateTarget', targetId=id_ind_tab)
 
     def reconnect(self):
-        """断开重连"""
         self._driver.stop()
         BrowserDriver.BROWSERS.pop(self.id)
         self._driver = BrowserDriver(self.id, 'browser', self.address, self)
@@ -402,12 +300,6 @@ class Chromium(object):
         self._driver.set_callback('Target.targetCreated', self._onTargetCreated)
 
     def quit(self, timeout=5, force=False, del_data=False):
-        """关闭浏览器
-        :param timeout: 等待浏览器关闭超时时间（秒）
-        :param force: 是否立刻强制终止进程
-        :param del_data: 是否删除用户文件夹
-        :return: None
-        """
         try:
             self._run_cdp('Browser.close')
         except PageDisconnectedError:
@@ -457,12 +349,12 @@ class Chromium(object):
             path = Path(self._chromium_options.user_data_path)
             rmtree(path, True)
 
+    def _run_cdp(self, cmd, **cmd_args):
+        ignore = cmd_args.pop('_ignore', None)
+        r = self._driver.run(cmd, **cmd_args)
+        return r if __ERROR__ not in r else raise_error(r, ignore)
+
     def _get_driver(self, tab_id, owner=None):
-        """新建并返回指定tab id的Driver
-        :param tab_id: 标签页id
-        :param owner: 使用该驱动的对象
-        :return: Driver对象
-        """
         d = self._drivers.pop(tab_id, None)
         if not d:
             d = Driver(tab_id, 'page', self.address)
@@ -471,7 +363,6 @@ class Chromium(object):
         return d
 
     def _onTargetCreated(self, **kwargs):
-        """标签页创建时执行"""
         if (kwargs['targetInfo']['type'] in ('page', 'webview')
                 and kwargs['targetInfo']['targetId'] not in self._all_drivers
                 and not kwargs['targetInfo']['url'].startswith('devtools://')):
@@ -484,7 +375,6 @@ class Chromium(object):
                 pass
 
     def _onTargetDestroyed(self, **kwargs):
-        """标签页关闭时执行"""
         tab_id = kwargs['targetId']
         self._dl_mgr.clear_tab_info(tab_id)
         for key in [k for k, i in self._frames.items() if i == tab_id]:
@@ -493,16 +383,6 @@ class Chromium(object):
             d.stop()
         self._drivers.pop(tab_id, None)
         self._all_drivers.pop(tab_id, None)
-
-    def _run_cdp(self, cmd, **cmd_args):
-        """执行Chrome DevTools Protocol语句
-        :param cmd: 协议项目
-        :param cmd_args: 参数
-        :return: 执行的结果
-        """
-        ignore = cmd_args.pop('_ignore', None)
-        r = self._driver.run(cmd, **cmd_args)
-        return r if __ERROR__ not in r else raise_error(r, ignore)
 
     def _on_disconnect(self):
         Chromium._BROWSERS.pop(self.id, None)
