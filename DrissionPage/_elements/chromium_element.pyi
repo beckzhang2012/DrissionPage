@@ -526,7 +526,7 @@ class ChromiumElement(DrissionElement):
         """
         ...
 
-    def input(self, vals: Any, clear: bool = False, by_js: bool = False) -> None:
+    def input(self, vals: Any, clear: bool = False, by_js: bool = False) -> ChromiumElement:
         """输入文本或组合键，也可用于输入文件路径到input元素（路径间用\n间隔）
         :param vals: 文本值或按键组合
         :param clear: 输入前是否清空文本框
@@ -535,7 +535,7 @@ class ChromiumElement(DrissionElement):
         """
         ...
 
-    def clear(self, by_js: bool = False) -> None:
+    def clear(self, by_js: bool = False) -> ChromiumElement:
         """清空元素文本
         :param by_js: 是否用js方式清空，为False则用全选+del模拟输入删除
         :return: None
@@ -546,11 +546,11 @@ class ChromiumElement(DrissionElement):
         """输入前使元素获取焦点"""
         ...
 
-    def focus(self) -> None:
+    def focus(self) -> ChromiumElement:
         """使元素获取焦点"""
         ...
 
-    def hover(self, offset_x: int = None, offset_y: int = None) -> None:
+    def hover(self, offset_x: int = None, offset_y: int = None) -> ChromiumElement:
         """鼠标悬停，可接受偏移量，偏移量相对于元素左上角坐标。不传入offset_x和offset_y值时悬停在元素中点
         :param offset_x: 相对元素左上角坐标的x轴偏移量
         :param offset_y: 相对元素左上角坐标的y轴偏移量
@@ -558,7 +558,7 @@ class ChromiumElement(DrissionElement):
         """
         ...
 
-    def drag(self, offset_x: int = 0, offset_y: int = 0, duration: float = 0.5) -> None:
+    def drag(self, offset_x: int = 0, offset_y: int = 0, duration: float = 0.5) -> ChromiumElement:
         """拖拽当前元素到相对位置
         :param offset_x: x变化值
         :param offset_y: y变化值
@@ -567,7 +567,9 @@ class ChromiumElement(DrissionElement):
         """
         ...
 
-    def drag_to(self, ele_or_loc: Union[Tuple[int, int], str, ChromiumElement], duration: float = 0.5) -> None:
+    def drag_to(self,
+                ele_or_loc: Union[Tuple[int, int], str, ChromiumElement],
+                duration: float = 0.5) -> ChromiumElement:
         """拖拽当前元素，目标为另一个元素或坐标元组(x, y)
         :param ele_or_loc: 另一个元素或坐标元组，坐标为元素中点的坐标
         :param duration: 拖动用时，传入0即瞬间到达

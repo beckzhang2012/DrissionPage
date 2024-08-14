@@ -566,6 +566,8 @@ class ChromiumElement(DrissionElement):
         else:
             self.owner.actions.type(vals)
 
+        return self
+
     def clear(self, by_js=False):
         if by_js:
             self._run_js("this.value='';")
@@ -574,6 +576,7 @@ class ChromiumElement(DrissionElement):
 
         self._input_focus()
         self.input(('\ue009', 'a', '\ue017'), clear=False)
+        return self
 
     def _input_focus(self):
         try:
@@ -586,15 +589,18 @@ class ChromiumElement(DrissionElement):
             self.owner._run_cdp('DOM.focus', backendNodeId=self._backend_id)
         except Exception:
             self._run_js('this.focus();')
+        return self
 
     def hover(self, offset_x=None, offset_y=None):
         self.owner.actions.move_to(self, offset_x=offset_x, offset_y=offset_y, duration=.1)
+        return self
 
     def drag(self, offset_x=0, offset_y=0, duration=.5):
         curr_x, curr_y = self.rect.midpoint
         offset_x += curr_x
         offset_y += curr_y
         self.drag_to((offset_x, offset_y), duration)
+        return self
 
     def drag_to(self, ele_or_loc, duration=.5):
         if isinstance(ele_or_loc, ChromiumElement):
@@ -602,6 +608,7 @@ class ChromiumElement(DrissionElement):
         elif not isinstance(ele_or_loc, (list, tuple)):
             raise TypeError('需要ChromiumElement对象或坐标。')
         self.owner.actions.hold(self).move_to(ele_or_loc, duration=duration).release()
+        return self
 
     def _get_obj_id(self, node_id=None, backend_id=None):
         if node_id:
@@ -675,6 +682,7 @@ class ChromiumElement(DrissionElement):
             files = files.split('\n')
         files = [str(Path(i).absolute()) for i in files]
         self.owner._run_cdp('DOM.setFileInputFiles', files=files, backendNodeId=self._backend_id)
+        return self
 
 
 class ShadowRoot(BaseElement):

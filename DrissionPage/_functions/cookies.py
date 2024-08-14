@@ -12,10 +12,6 @@ from tldextract import extract
 
 
 def cookie_to_dict(cookie):
-    """把Cookie对象转为dict格式
-    :param cookie: Cookie对象、字符串或字典
-    :return: cookie字典
-    """
     if isinstance(cookie, Cookie):
         cookie_dict = cookie.__dict__.copy()
         cookie_dict.pop('rfc2109', None)
@@ -44,10 +40,6 @@ def cookie_to_dict(cookie):
 
 
 def cookies_to_tuple(cookies):
-    """把cookies转为tuple格式
-    :param cookies: cookies信息，可为CookieJar, list, tuple, str, dict
-    :return: 返回tuple形式的cookies
-    """
     if isinstance(cookies, (list, tuple, CookieJar)):
         cookies = tuple(cookie_to_dict(cookie) for cookie in cookies)
 
@@ -74,11 +66,6 @@ def cookies_to_tuple(cookies):
 
 
 def set_session_cookies(session, cookies):
-    """设置Session对象的cookies
-    :param session: Session对象
-    :param cookies: cookies信息
-    :return: None
-    """
     for cookie in cookies_to_tuple(cookies):
         if cookie['value'] is None:
             cookie['value'] = ''
@@ -94,11 +81,6 @@ def set_session_cookies(session, cookies):
 
 
 def set_browser_cookies(browser, cookies):
-    """设置cookies值
-    :param browser: 页面对象
-    :param cookies: cookies信息
-    :return: None
-    """
     c = []
     for cookie in cookies_to_tuple(cookies):
         if 'domain' not in cookie and 'url' not in cookie:
@@ -108,11 +90,6 @@ def set_browser_cookies(browser, cookies):
 
 
 def set_tab_cookies(page, cookies):
-    """设置cookies值
-    :param page: 页面对象
-    :param cookies: cookies信息
-    :return: None
-    """
     for cookie in cookies_to_tuple(cookies):
         cookie = format_cookie(cookie)
 
@@ -154,11 +131,6 @@ def set_tab_cookies(page, cookies):
 
 
 def is_cookie_in_driver(page, cookie):
-    """查询cookie是否在浏览器内
-    :param page: BasePage对象
-    :param cookie: dict格式cookie
-    :return: bool
-    """
     if 'domain' in cookie:
         for c in page.cookies(all_domains=True):
             if cookie['name'] == c['name'] and cookie['value'] == c['value'] and cookie['domain'] == c.get('domain',
@@ -172,10 +144,6 @@ def is_cookie_in_driver(page, cookie):
 
 
 def format_cookie(cookie):
-    """设置cookie为可用格式
-    :param cookie: dict格式cookie
-    :return: 格式化后的cookie字典
-    """
     if 'expiry' in cookie:
         cookie['expires'] = int(cookie['expiry'])
         cookie.pop('expiry')
@@ -235,15 +203,12 @@ def format_cookie(cookie):
 
 class CookiesList(list):
     def as_dict(self):
-        """以dict格式返回，只包含name和value字段"""
         return {c['name']: c['value'] for c in self}
 
     def as_str(self):
-        """以str格式返回，只包含name和value字段"""
         return '; '.join([f'{c["name"]}={c["value"]}' for c in self])
 
     def as_json(self):
-        """以json格式返回"""
         from json import dumps
         return dumps(self)
 

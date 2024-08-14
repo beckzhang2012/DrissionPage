@@ -21,10 +21,6 @@ from ..errors import BrowserConnectError
 
 
 def connect_browser(option):
-    """连接或启动浏览器
-    :param option: ChromiumOptions对象
-    :return: 返回是否接管的浏览器
-    """
     address = option.address.replace('localhost', '127.0.0.1').lstrip('http://').lstrip('https://')
     browser_path = option.browser_path
 
@@ -67,10 +63,6 @@ def connect_browser(option):
 
 
 def get_launch_args(opt):
-    """从ChromiumOptions获取命令行启动参数
-    :param opt: ChromiumOptions
-    :return: 启动参数列表
-    """
     # ----------处理arguments-----------
     result = set()
     user_path = False
@@ -107,10 +99,6 @@ def get_launch_args(opt):
 
 
 def set_prefs(opt):
-    """处理启动配置中的prefs项，目前只能对已存在文件夹配置
-    :param opt: ChromiumOptions
-    :return: None
-    """
     if not opt.user_data_path or (not opt.preferences and not opt._prefs_to_del):
         return
     prefs = opt.preferences
@@ -149,10 +137,6 @@ def set_prefs(opt):
 
 
 def set_flags(opt):
-    """处理启动配置中的flags项
-    :param opt: ChromiumOptions
-    :return: None
-    """
     if not opt.user_data_path or (not opt.clear_file_flags and not opt.flags):
         return
 
@@ -185,12 +169,6 @@ def set_flags(opt):
 
 
 def test_connect(ip, port, timeout=30):
-    """测试浏览器是否可用
-    :param ip: 浏览器ip
-    :param port: 浏览器端口
-    :param timeout: 超时时间（秒）
-    :return: None
-    """
     end_time = perf_counter() + timeout
     s = Session()
     s.trust_env = False
@@ -276,7 +254,6 @@ def _remove_arg_from_dict(target_dict: dict, arg: str) -> None:
 
 
 def get_chrome_path(ini_path):
-    """从ini文件或系统变量中获取chrome可执行文件的路径"""
     # -----------从ini文件中获取--------------
     if ini_path and Path(ini_path).exists():
         path = OptionsManager(ini_path).chromium_options.get('browser_path', None)

@@ -23,9 +23,9 @@ class ElementStates(object):
 
     @property
     def is_displayed(self):
-        return not (self._ele.style('visibility') == 'hidden' or
-                    self._ele._run_js('return this.offsetParent === null;')
-                    or self._ele.style('display') == 'none' or self._ele.property('hidden'))
+        return not (self._ele.style('visibility') == 'hidden'
+                    or self._ele.style('display') == 'none'
+                    or self._ele.property('hidden'))
 
     @property
     def is_enabled(self):

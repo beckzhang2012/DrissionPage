@@ -26,14 +26,9 @@ class Screencast(object):
 
     @property
     def set_mode(self):
-        """返回用于设置录屏幕式的对象"""
         return ScreencastMode(self)
 
     def start(self, save_path=None):
-        """开始录屏
-        :param save_path: 录屏保存位置
-        :return: None
-        """
         self.set_save_path(save_path)
         if self._path is None:
             raise ValueError('save_path必须设置。')
@@ -83,10 +78,6 @@ class Screencast(object):
             self._owner._run_js(js)
 
     def stop(self, video_name=None):
-        """停止录屏
-        :param video_name: 视频文件名，为None时以当前时间名命
-        :return: 文件路径
-        """
         if video_name and not video_name.endswith('mp4'):
             video_name = f'{video_name}.mp4'
         name = f'{time()}.mp4' if not video_name else video_name
@@ -128,7 +119,7 @@ class Screencast(object):
         imgInfo = img.shape
         size = (imgInfo[1], imgInfo[0])
 
-        videoWrite = VideoWriter(path, VideoWriter_fourcc(*"mp4v"), 5, size)
+        videoWrite = VideoWriter(path, VideoWriter_fourcc(*"H264"), 5, size)
 
         for i in pic_list:
             img = imread(str(i))
@@ -139,10 +130,6 @@ class Screencast(object):
         return f'{self._path}{sep}{name}'
 
     def set_save_path(self, save_path=None):
-        """设置保存路径
-        :param save_path: 保存路径
-        :return: None
-        """
         if save_path:
             save_path = Path(save_path)
             if save_path.exists() and save_path.is_file():
@@ -151,7 +138,6 @@ class Screencast(object):
             self._path = save_path
 
     def _run(self):
-        """非节俭模式运行方法"""
         self._running = True
         path = self._tmp_path or self._path
         while self._enable:
@@ -160,7 +146,6 @@ class Screencast(object):
         self._running = False
 
     def _onScreencastFrame(self, **kwargs):
-        """节俭模式运行方法"""
         path = self._tmp_path or self._path
         with open(f'{path}{sep}{kwargs["metadata"]["timestamp"]}.jpg', 'wb') as f:
             f.write(b64decode(kwargs['data']))
@@ -172,21 +157,16 @@ class ScreencastMode(object):
         self._screencast = screencast
 
     def video_mode(self):
-        """持续视频模式，生成的视频没有声音"""
         self._screencast._mode = 'video'
 
     def frugal_video_mode(self):
-        """设置节俭视频模式，页面有变化时才录制，生成的视频没有声音"""
         self._screencast._mode = 'frugal_video'
 
     def js_video_mode(self):
-        """设置使用js录制视频模式，可生成有声音的视频，但需要手动启动"""
         self._screencast._mode = 'js_video'
 
     def frugal_imgs_mode(self):
-        """设置节俭视频模式，页面有变化时才截图"""
         self._screencast._mode = 'frugal_imgs'
 
     def imgs_mode(self):
-        """设置图片模式，持续对页面进行截图"""
         self._screencast._mode = 'imgs'

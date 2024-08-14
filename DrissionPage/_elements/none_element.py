@@ -11,11 +11,6 @@ from ..errors import ElementNotFoundError
 
 class NoneElement(object):
     def __init__(self, page=None, method=None, args=None):
-        """
-        :param page: 元素所在页面
-        :param method: 查找元素的方法
-        :param args: 查找元素的参数
-        """
         if method and Settings.raise_when_ele_not_found:  # 无传入method时不自动抛出，由调用者处理
             raise ElementNotFoundError(None, method=method, arguments=args)
 
@@ -49,11 +44,10 @@ class NoneElement(object):
                 raise ElementNotFoundError(None, self.method, self.args)
 
     def __eq__(self, other):
-        if other is None:
-            return True
+        return other is None
 
     def __bool__(self):
         return False
 
     def __repr__(self):
-        return 'None'
+        return f'<NoneElement method={self.method}, {", ".join([f"{k}={v}" for k, v in self.args.items()])}>'
