@@ -25,75 +25,48 @@ class Scroller(object):
         self._wait_scrolled()
 
     def to_top(self):
-        """滚动到顶端，水平位置不变"""
         self._run_js('{}.scrollTo({}.scrollLeft, 0);')
         return self._owner
 
     def to_bottom(self):
-        """滚动到底端，水平位置不变"""
         self._run_js('{}.scrollTo({}.scrollLeft, {}.scrollHeight);')
         return self._owner
 
     def to_half(self):
-        """滚动到垂直中间位置，水平位置不变"""
         self._run_js('{}.scrollTo({}.scrollLeft, {}.scrollHeight/2);')
         return self._owner
 
     def to_rightmost(self):
-        """滚动到最右边，垂直位置不变"""
         self._run_js('{}.scrollTo({}.scrollWidth, {}.scrollTop);')
         return self._owner
 
     def to_leftmost(self):
-        """滚动到最左边，垂直位置不变"""
         self._run_js('{}.scrollTo(0, {}.scrollTop);')
         return self._owner
 
     def to_location(self, x, y):
-        """滚动到指定位置
-        :param x: 水平距离
-        :param y: 垂直距离
-        :return: None
-        """
         self._run_js(f'{{}}.scrollTo({x}, {y});')
         return self._owner
 
     def up(self, pixel=300):
-        """向上滚动若干像素，水平位置不变
-        :param pixel: 滚动的像素
-        :return: None
-        """
         pixel = -pixel
         self._run_js(f'{{}}.scrollBy(0, {pixel});')
         return self._owner
 
     def down(self, pixel=300):
-        """向下滚动若干像素，水平位置不变
-        :param pixel: 滚动的像素
-        :return: None
-        """
         self._run_js(f'{{}}.scrollBy(0, {pixel});')
         return self._owner
 
     def left(self, pixel=300):
-        """向左滚动若干像素，垂直位置不变
-        :param pixel: 滚动的像素
-        :return: None
-        """
         pixel = -pixel
         self._run_js(f'{{}}.scrollBy({pixel}, 0);')
         return self._owner
 
     def right(self, pixel=300):
-        """向右滚动若干像素，垂直位置不变
-        :param pixel: 滚动的像素
-        :return: None
-        """
         self._run_js(f'{{}}.scrollBy({pixel}, 0);')
         return self._owner
 
     def _wait_scrolled(self):
-        """等待滚动结束"""
         if not self._wait_complete:
             return
 
@@ -118,44 +91,26 @@ class Scroller(object):
 
 class ElementScroller(Scroller):
     def to_see(self, center=None):
-        """滚动页面直到元素可见
-        :param center: 是否尽量滚动到页面正中，为None时如果被遮挡，则滚动到页面正中
-        :return: None
-        """
         self._owner.owner.scroll.to_see(self._owner, center=center)
         return self._owner
 
     def to_center(self):
-        """元素尽量滚动到视口中间"""
         self._owner.owner.scroll.to_see(self._owner, center=True)
         return self._owner
 
 
 class PageScroller(Scroller):
     def __init__(self, owner):
-        """
-        :param owner: 页面对象
-        """
         super().__init__(owner)
         self._t1 = 'window'
         self._t2 = 'document.documentElement'
 
     def to_see(self, loc_or_ele, center=None):
-        """滚动页面直到元素可见
-        :param loc_or_ele: 元素的定位信息，可以是loc元组，或查询字符串
-        :param center: 是否尽量滚动到页面正中，为None时如果被遮挡，则滚动到页面正中
-        :return: None
-        """
         ele = self._owner._ele(loc_or_ele)
         self._to_see(ele, center)
         return self._owner
 
     def _to_see(self, ele, center):
-        """执行滚动页面直到元素可见
-        :param ele: 元素对象
-        :param center: 是否尽量滚动到页面正中，为None时如果被遮挡，则滚动到页面正中
-        :return: None
-        """
         txt = 'true' if center else 'false'
         ele._run_js(f'this.scrollIntoViewIfNeeded({txt});')
         if center or (center is not False and ele.states.is_covered):
@@ -173,19 +128,14 @@ class PageScroller(Scroller):
 
 
 class FrameScroller(PageScroller):
-    def __init__(self, frame):
+    def __init__(self, owner):
         """
-        :param frame: ChromiumFrame对象
+        :param owner: ChromiumFrame对象
         """
-        super().__init__(frame.doc_ele)
+        super().__init__(owner.doc_ele)
         self._t1 = self._t2 = 'this.documentElement'
 
     def to_see(self, loc_or_ele, center=None):
-        """滚动页面直到元素可见
-        :param loc_or_ele: 元素的定位信息，可以是loc元组，或查询字符串
-        :param center: 是否尽量滚动到页面正中，为None时如果被遮挡，则滚动到页面正中
-        :return: None
-        """
         ele = self._owner._ele(loc_or_ele)
         self._to_see(ele, center)
         return self._owner

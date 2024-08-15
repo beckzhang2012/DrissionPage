@@ -53,7 +53,6 @@ class ConsoleData(object):
         self._data = data
 
     def __getattr__(self, item):
-        """获取属性"""
         return self._data.get(item, None)
 
     def __repr__(self):

@@ -266,7 +266,7 @@ def make_session_ele(html_or_ele, loc=None, index=1, method=None):
 
         # 把lxml元素对象包装成SessionElement对象并按需要返回一个或全部
         if index is None:
-            r = SessionElementsList(page=page)
+            r = SessionElementsList(owner=page)
             for e in eles:
                 if e != '\n':
                     r.append(SessionElement(e, page) if isinstance(e, HtmlElement) else e)

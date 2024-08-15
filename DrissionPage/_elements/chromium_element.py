@@ -981,7 +981,7 @@ def find_by_xpath(ele, xpath, index, timeout, relative=True):
             res = ele.owner._run_cdp('Runtime.getProperties', objectId=res['result']['objectId'],
                                      ownProperties=True)['result'][:-1]
             if index is None:
-                r = ChromiumElementsList(page=ele.owner)
+                r = ChromiumElementsList(owner=ele.owner)
                 for i in res:
                     if i['value']['type'] == 'object':
                         r.append(make_chromium_eles(ele.owner, _ids=i['value']['objectId'], is_obj_id=True))
@@ -1010,7 +1010,7 @@ def find_by_xpath(ele, xpath, index, timeout, relative=True):
 
     if result:
         return result
-    return NoneElement(ele.owner) if index is not None else ChromiumElementsList(page=ele.owner)
+    return NoneElement(ele.owner) if index is not None else ChromiumElementsList(owner=ele.owner)
 
 
 def find_by_css(ele, selector, index, timeout):
@@ -1049,7 +1049,7 @@ def find_by_css(ele, selector, index, timeout):
 
     if result:
         return result
-    return NoneElement(ele.owner) if index is not None else ChromiumElementsList(page=ele.owner)
+    return NoneElement(ele.owner) if index is not None else ChromiumElementsList(owner=ele.owner)
 
 
 def make_chromium_eles(page, _ids, index=1, is_obj_id=True, ele_only=False):
@@ -1073,7 +1073,7 @@ def make_chromium_eles(page, _ids, index=1, is_obj_id=True, ele_only=False):
             return get_node_func(page, obj_id, ele_only)
 
     else:  # 获取全部
-        nodes = ChromiumElementsList(page=page)
+        nodes = ChromiumElementsList(owner=page)
         for obj_id in _ids:
             # if obj_id == 0:
             #     continue
