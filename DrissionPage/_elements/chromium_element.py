@@ -34,7 +34,6 @@ __FRAME_ELEMENT__ = ('iframe', 'frame')
 
 
 class ChromiumElement(DrissionElement):
-    """控制浏览器元素的对象"""
 
     def __init__(self, owner, node_id=None, obj_id=None, backend_id=None):
         super().__init__(owner)
@@ -423,7 +422,7 @@ class ChromiumElement(DrissionElement):
     def s_ele(self, locator=None, index=1, timeout=None):
         return (make_session_ele(self, locator, index=index, method='s_ele()')
                 if self.ele(locator, index=index, timeout=timeout)
-                else NoneElement(self, method='s_ele()', args={'locator': locator, 'index': index}))
+                else NoneElement(self.owner, method='s_ele()', args={'locator': locator, 'index': index}))
 
     def s_eles(self, locator=None, timeout=None):
         return (make_session_ele(self, locator, index=None)
@@ -686,7 +685,6 @@ class ChromiumElement(DrissionElement):
 
 
 class ShadowRoot(BaseElement):
-    """ShadowRoot是用于处理ShadowRoot的类，使用方法和ChromiumElement基本一致"""
 
     def __init__(self, parent_ele, obj_id=None, backend_id=None):
         super().__init__(parent_ele.owner)
@@ -847,7 +845,7 @@ class ShadowRoot(BaseElement):
     def s_ele(self, locator=None, index=1, timeout=None):
         return (make_session_ele(self, locator, index=index, method='s_ele()')
                 if self.ele(locator, index=index, timeout=timeout)
-                else NoneElement(self, method='s_ele()', args={'locator': locator, 'index': index}))
+                else NoneElement(self.owner, method='s_ele()', args={'locator': locator, 'index': index}))
 
     def s_eles(self, locator, timeout=None):
         return (make_session_ele(self, locator, index=None)

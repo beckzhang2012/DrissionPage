@@ -16,10 +16,6 @@ from requests.structures import CaseInsensitiveDict
 
 
 def get_ele_txt(e):
-    """获取元素内所有文本
-    :param e: 元素对象
-    :return: 元素内所有文本
-    """
     # 前面无须换行的元素
     nowrap_list = ('br', 'sub', 'sup', 'em', 'strong', 'a', 'font', 'b', 'span', 's', 'i', 'del', 'ins', 'img', 'td',
                    'th', 'abbr', 'bdi', 'bdo', 'cite', 'code', 'data', 'dfn', 'kbd', 'mark', 'q', 'rp', 'rt', 'ruby',
@@ -106,20 +102,10 @@ def get_ele_txt(e):
 
 
 def format_html(text):
-    """处理html编码字符
-    :param text: html文本
-    :return: 格式化后的html文本
-    """
     return unescape(text).replace('\xa0', ' ') if text else text
 
 
 def location_in_viewport(page, loc_x, loc_y):
-    """判断给定的坐标是否在视口中          |n
-    :param page: ChromePage对象
-    :param loc_x: 页面绝对坐标x
-    :param loc_y: 页面绝对坐标y
-    :return: bool
-    """
     js = f'''function(){{let x = {loc_x}; let y = {loc_y};
     const scrollLeft = document.documentElement.scrollLeft;
     const scrollTop = document.documentElement.scrollTop;
@@ -131,13 +117,6 @@ def location_in_viewport(page, loc_x, loc_y):
 
 
 def offset_scroll(ele, offset_x, offset_y):
-    """接收元素及偏移坐标，把坐标滚动到页面中间，返回该点坐标
-    有偏移量时以元素左上角坐标为基准，没有时以click_point为基准
-    :param ele: 元素对象
-    :param offset_x: 偏移量x
-    :param offset_y: 偏移量y
-    :return: 相对坐标
-    """
     loc_x, loc_y = ele.rect.location
     cp_x, cp_y = ele.rect.click_point
     lx = loc_x + offset_x if offset_x else cp_x
@@ -154,11 +133,6 @@ def offset_scroll(ele, offset_x, offset_y):
 
 
 def make_absolute_link(link, baseURI=None):
-    """获取绝对url
-    :param link: 超链接
-    :param baseURI: 页面或iframe的url
-    :return: 绝对链接
-    """
     if not link:
         return link
 
@@ -182,7 +156,6 @@ def make_absolute_link(link, baseURI=None):
 
 
 def is_js_func(func):
-    """检查文本是否js函数"""
     func = func.strip()
     if (func.startswith('function') or func.startswith('async ')) and func.endswith('}'):
         return True
@@ -192,12 +165,6 @@ def is_js_func(func):
 
 
 def get_blob(page, url, as_bytes=True):
-    """获取知道blob资源
-    :param page: 资源所在页面对象
-    :param url: 资源url
-    :param as_bytes: 是否以字节形式返回
-    :return: 资源内容
-    """
     if not url.startswith('blob'):
         raise TypeError('该链接非blob类型。')
     js = """
@@ -227,14 +194,6 @@ def get_blob(page, url, as_bytes=True):
 
 
 def save_page(tab, path=None, name=None, as_pdf=False, kwargs=None):
-    """把当前页面保存为文件，如果path和name参数都为None，只返回文本
-    :param tab: Tab或Page对象
-    :param path: 保存路径，为None且name不为None时保存在当前路径
-    :param name: 文件名，为None且path不为None时用title属性值
-    :param as_pdf: 为Ture保存为pdf，否则为mhtml且忽略kwargs参数
-    :param kwargs: pdf生成参数
-    :return: as_pdf为True时返回bytes，否则返回文件文本
-    """
     if name:
         if name.endswith('.pdf'):
             name = name[:-4]
@@ -258,12 +217,6 @@ def save_page(tab, path=None, name=None, as_pdf=False, kwargs=None):
 
 
 def get_mhtml(page, path=None, name=None):
-    """把当前页面保存为mhtml文件，如果path和name参数都为None，只返回mhtml文本
-    :param page: 要保存的页面对象
-    :param path: 保存路径，为None且name不为None时保存在当前路径
-    :param name: 文件名，为None且path不为None时用title属性值
-    :return: mhtml文本
-    """
     r = page._run_cdp('Page.captureSnapshot')['data']
     if path is None and name is None:
         return r
@@ -277,13 +230,6 @@ def get_mhtml(page, path=None, name=None):
 
 
 def get_pdf(page, path=None, name=None, kwargs=None):
-    """把当前页面保存为pdf文件，如果path和name参数都为None，只返回字节
-    :param page: 要保存的页面对象
-    :param path: 保存路径，为None且name不为None时保存在当前路径
-    :param name: 文件名，为None且path不为None时用title属性值
-    :param kwargs: pdf生成参数
-    :return: pdf文本
-    """
     if not kwargs:
         kwargs = {}
     kwargs['transferMode'] = 'ReturnAsBase64'
@@ -307,13 +253,6 @@ def get_pdf(page, path=None, name=None, kwargs=None):
 
 
 def tree(ele_or_page, text=False, show_js=False, show_css=False):
-    """把页面或元素对象DOM结构打印出来
-    :param ele_or_page: 页面或元素对象
-    :param text: 是否打印文本，输入数字可指定打印文本长度上线
-    :param show_js: 打印文本时是否包含<script>内文本，text参数为False时无效
-    :param show_css: 打印文本时是否包含<style>内文本，text参数为False时无效
-    :return: None
-    """
 
     def _tree(obj, last_one=True, body=''):
         list_ele = obj.children()
@@ -362,10 +301,6 @@ def tree(ele_or_page, text=False, show_js=False, show_css=False):
 
 
 def format_headers(txt):
-    """从浏览器复制的文本生成dict格式headers，文本用换行分隔
-    :param txt: 从浏览器复制的原始文本格式headers
-    :return: dict格式headers
-    """
     if isinstance(txt, (dict, CaseInsensitiveDict)):
         for k, v in txt.items():
             if k in (':method', ':scheme', ':authority', ':path'):

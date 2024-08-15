@@ -11,7 +11,8 @@ from .._base.base import BasePage
 
 
 class NoneElement(object):
-    def __init__(self, page: BasePage = None,
+    def __init__(self,
+                 page: BasePage = None,
                  method: str = None,
                  args: dict = None):
         """

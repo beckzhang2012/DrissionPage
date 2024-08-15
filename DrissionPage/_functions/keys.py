@@ -341,8 +341,6 @@ sys = system().lower()
 
 
 def keys_to_typing(value):
-    """把要输入的内容连成字符串，去掉其中 ctrl 等键。
-        返回的modifier表示是否有按下组合键"""
     typing = []
     modifier = 0
     for val in value:
@@ -361,12 +359,6 @@ def keys_to_typing(value):
 
 
 def make_input_data(modifiers, key, key_up=False):
-    """
-    :param modifiers: 功能键设置
-    :param key: 按键字符
-    :param key_up: 是否提起
-    :return: None
-    """
     data = keyDefinitions.get(key)
     if not data:
         return None
@@ -414,7 +406,6 @@ def make_input_data(modifiers, key, key_up=False):
 
 
 def send_key(page, modifier, key):
-    """发送一个字，在键盘中的字符触发按键，其它直接发送文本"""
     data = make_input_data(modifier, key)
     if data:
         page._run_cdp('Input.dispatchKeyEvent', **data)
@@ -426,11 +417,6 @@ def send_key(page, modifier, key):
 
 
 def input_text_or_keys(page, text_or_keys):
-    """输入文本，也可输入组合键，组合键用tuple形式输入
-    :param page: ChromiumBase对象
-    :param text_or_keys: 文本值或按键组合
-    :return: self
-    """
     if not isinstance(text_or_keys, (tuple, list)):
         text_or_keys = (str(text_or_keys),)
     modifier, text_or_keys = keys_to_typing(text_or_keys)

@@ -6,7 +6,7 @@
 @License  : BSD 3-Clause.
 """
 from queue import Queue
-from typing import Union, Dict, List, Iterable, Optional, Literal, Any
+from typing import Union, List, Iterable, Optional, Literal, Any
 
 from requests.structures import CaseInsensitiveDict
 
