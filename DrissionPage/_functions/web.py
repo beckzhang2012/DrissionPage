@@ -31,7 +31,7 @@ def get_ele_txt(e):
     if e.tag in noText_list:
         return e.raw_text
 
-    def get_node_txt(ele, pre: bool = False):
+    def get_node_txt(ele, pre=False) -> list:
         tag = ele.tag
         if tag == 'br':
             return [True]
@@ -84,10 +84,10 @@ def get_ele_txt(e):
             if i1 is True:
                 r.append('\n')
                 continue
-            if i2 is True:
+            elif i2 is True:
                 r.append(i1)
                 continue
-            if i1.endswith(' ') and i2.startswith(' '):
+            elif i1.endswith(' ') and i2.startswith(' '):
                 i1 = i1[:-1]
             r.append(i1)
         r.append('\n' if re_str[-1] is True else re_str[-1])
@@ -253,7 +253,6 @@ def get_pdf(page, path=None, name=None, kwargs=None):
 
 
 def tree(ele_or_page, text=False, show_js=False, show_css=False):
-
     def _tree(obj, last_one=True, body=''):
         list_ele = obj.children()
         length = len(list_ele)

@@ -90,7 +90,7 @@ def wait_until(function: callable, kwargs: dict = None, timeout: float = 10):
     ...
 
 
-def configs_to_here(file_name: Union[Path, str] = None) -> None:
+def configs_to_here(save_name: Union[Path, str] = None) -> None:
     """把默认ini文件复制到当前目录
     :param save_name: 指定文件名，为None则命名为'dp_configs.ini'
     :return: None

@@ -77,10 +77,12 @@ class SessionElement(DrissionElement):
 
     def parent(self,
                level_or_loc: Union[tuple, str, int] = 1,
-               index: int = 1) -> SessionElement:
+               index: int = 1,
+               timeout: float = None) -> SessionElement:
         """返回上面某一级父元素，可指定层数或用查询语法定位
         :param level_or_loc: 第几级父元素，或定位符
         :param index: 当level_or_loc传入定位符，使用此参数选择第几个结果
+        :param timeout: 此参数不起实际作用
         :return: 上级元素对象
         """
         ...

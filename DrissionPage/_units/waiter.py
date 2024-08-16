@@ -26,7 +26,6 @@ class OriginWaiter(object):
 
 
 class BrowserWaiter(OriginWaiter):
-
     def new_tab(self, timeout=None, curr_tab=None, raise_err=None):
         if not curr_tab:
             curr_tab = self._owner.tab_ids[0]
@@ -89,7 +88,6 @@ class BrowserWaiter(OriginWaiter):
 
 
 class BaseWaiter(OriginWaiter):
-
     def ele_deleted(self, loc_or_ele, timeout=None, raise_err=None):
         ele = self._owner._ele(loc_or_ele, raise_err=False, timeout=0)
         return ele.wait.deleted(timeout, raise_err=raise_err) if ele else True
@@ -249,21 +247,19 @@ class BaseWaiter(OriginWaiter):
 
 
 class TabWaiter(BaseWaiter):
-    """标签页对象等待对象"""
-
     def downloads_done(self, timeout=None, cancel_if_timeout=True):
         if not self._owner.browser._dl_mgr._running:
             raise RuntimeError('此功能需显式设置下载路径（使用set.download_path()方法、配置对象或ini文件均可）。')
         if not timeout:
             while self._owner.browser._dl_mgr.get_tab_missions(self._owner.tab_id):
                 sleep(.5)
-            return True
+            return self._owner
 
         else:
             end_time = perf_counter() + timeout
             while perf_counter() < end_time:
                 if not self._owner.browser._dl_mgr.get_tab_missions(self._owner.tab_id):
-                    return True
+                    return self._owner
                 sleep(.5)
 
             if self._owner.browser._dl_mgr.get_tab_missions(self._owner.tab_id):
@@ -272,18 +268,17 @@ class TabWaiter(BaseWaiter):
                         m.cancel()
                 return False
             else:
-                return True
+                return self._owner
 
     def alert_closed(self):
         while not self._owner.states.has_alert:
             sleep(.2)
         while self._owner.states.has_alert:
             sleep(.2)
+        return self._owner
 
 
-class PageWaiter(TabWaiter):
-    """ChromiumPage和MixPage的等待对象"""
-
+class ChromiumPageWaiter(TabWaiter):
     def new_tab(self, timeout=None, raise_err=None):
         return self._owner.browser.wait.new_tab(timeout=timeout, raise_err=raise_err)
 
@@ -292,8 +287,6 @@ class PageWaiter(TabWaiter):
 
 
 class ElementWaiter(OriginWaiter):
-    """等待元素在dom中某种状态，如删除、显示、隐藏"""
-
     def __init__(self, owner):
         super().__init__(owner)
         self._ele = owner

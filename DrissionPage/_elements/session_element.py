@@ -69,7 +69,7 @@ class SessionElement(DrissionElement):
     def raw_text(self):
         return str(self._inner_ele.text_content())
 
-    def parent(self, level_or_loc=1, index=1):
+    def parent(self, level_or_loc=1, index=1, timeout: float = None):
         return super().parent(level_or_loc, index)
 
     def child(self, locator='', index=1, timeout=None, ele_only=True):

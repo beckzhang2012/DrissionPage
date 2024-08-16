@@ -113,7 +113,7 @@ class Chromium(object):
         ...
 
     @property
-    def latest_tab(self) -> Union[ChromiumTab, str]:
+    def latest_tab(self) -> Union[ChromiumTab, MixTab, str]:
         """返回最新的标签页，最新标签页指最后创建或最后被激活的
         当Settings.singleton_tab_obj==True时返回Tab对象，否则返回tab id"""
         ...
@@ -206,7 +206,7 @@ class Chromium(object):
                     tab_type: str = 'page',
                     as_id: bool = False) -> Union[MixTab, str]:
         """获取一个标签页对象，id_or_num不为None时，后面几个参数无效
-        :param id_or_num: 要获取的标签页id或序号，序号从1开始，可传入负数获取倒数第几个，不是视觉排列顺序，而是激活顺序
+        :param id_or_num: 要获取的标签页id或序号，序号从1开始，可传入负数获取倒数第几个，不是视觉排列顺序，而是激活顺序，为None时获取最后的
         :param title: 要匹配title的文本，模糊匹配，为None则匹配所有
         :param url: 要匹配url的文本，模糊匹配，为None则匹配所有
         :param tab_type: tab类型，可用列表输入多个，如 'page', 'iframe' 等，为None则匹配所有

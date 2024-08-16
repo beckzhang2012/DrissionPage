@@ -20,7 +20,7 @@ from .._functions.cookies import CookiesList
 from .._functions.elements import SessionElementsList, ChromiumElementsList
 from .._units.rect import TabRect
 from .._units.setter import TabSetter, MixTabSetter
-from .._units.waiter import TabWaiter
+from .._units.waiter import TabWaiter, MixTabWaiter
 
 
 class ChromiumTab(ChromiumBase):
@@ -120,6 +120,7 @@ class MixTab(SessionPage, ChromiumTab):
     _mode: str = ...
     _has_driver: bool = ...
     _has_session: bool = ...
+    _set: MixTabSetter = ...
 
     def __init__(self, browser: Chromium, tab_id: str):
         """
@@ -144,6 +145,11 @@ class MixTab(SessionPage, ChromiumTab):
     @property
     def set(self) -> MixTabSetter:
         """返回用于设置的对象"""
+        ...
+
+    @property
+    def wait(self) -> MixTabWaiter:
+        """返回用于等待的对象"""
         ...
 
     @property
