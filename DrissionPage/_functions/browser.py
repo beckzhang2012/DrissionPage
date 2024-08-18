@@ -21,7 +21,7 @@ from ..errors import BrowserConnectError
 
 
 def connect_browser(option):
-    address = option.address.replace('localhost', '127.0.0.1').lstrip('http://').lstrip('https://')
+    address = option.address.replace('localhost', '127.0.0.1').lstrip('htps:/')
     browser_path = option.browser_path
 
     ip, port = address.split(':')

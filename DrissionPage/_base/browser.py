@@ -15,7 +15,6 @@ from websocket import WebSocketBadStatusException
 
 from .driver import BrowserDriver, Driver
 from .._configs.chromium_options import ChromiumOptions
-from .._configs.session_options import SessionOptions
 from .._functions.browser import connect_browser
 from .._functions.cookies import CookiesList
 from .._functions.settings import Settings
@@ -106,7 +105,7 @@ class Chromium(object):
         self._driver.set_callback('Target.targetCreated', self._onTargetCreated)
         self._dl_mgr = DownloadManager(self)
 
-        self._session_options = SessionOptions() if session_options is True else session_options
+        self._session_options = session_options
 
     @property
     def user_data_path(self):

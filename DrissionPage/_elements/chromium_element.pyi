@@ -965,10 +965,10 @@ class Pseudo(object):
 
     @property
     def before(self) -> str:
-        """返回当前元素的::before伪元素内容"""
+        """返回当前元素的::before伪元素文本内容"""
         ...
 
     @property
     def after(self) -> str:
-        """返回当前元素的::after伪元素内容"""
+        """返回当前元素的::after伪元素文本内容"""
         ...

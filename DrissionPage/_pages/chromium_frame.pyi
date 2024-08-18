@@ -155,6 +155,11 @@ class ChromiumFrame(ChromiumBase):
         ...
 
     @property
+    def link(self) -> str:
+        """返回href或src绝对url"""
+        ...
+
+    @property
     def title(self) -> str:
         """返回页面title"""
         ...
@@ -205,7 +210,7 @@ class ChromiumFrame(ChromiumBase):
         ...
 
     @property
-    def _js_ready_state(self)->Literal['loading', 'interactive', 'complete']:
+    def _js_ready_state(self) -> Literal['loading', 'interactive', 'complete']:
         """返回当前页面加载状态"""
         ...
 

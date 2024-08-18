@@ -260,6 +260,10 @@ class ChromiumFrame(ChromiumBase):
         return self.doc_ele._run_js('return this.documentElement.outerHTML;')
 
     @property
+    def link(self):
+        return self.frame_ele.link
+
+    @property
     def title(self):
         r = self._ele('t:title', raise_err=False)
         return r.text if r else None

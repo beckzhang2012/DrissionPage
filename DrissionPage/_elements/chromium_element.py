@@ -433,7 +433,7 @@ class ChromiumElement(DrissionElement):
 
     def style(self, style, pseudo_ele=''):
         if pseudo_ele:
-            pseudo_ele = f', "{pseudo_ele}"' if pseudo_ele.startswith(':') else f', "::{pseudo_ele}"'
+            pseudo_ele = f', "{pseudo_ele}"'
         return self._run_js(f'return window.getComputedStyle(this{pseudo_ele}).getPropertyValue("{style}");')
 
     def src(self, timeout=None, base64_to_bytes=True):
@@ -1297,11 +1297,19 @@ class Pseudo(object):
 
     @property
     def before(self):
-        return self._ele.style('content', 'before')
+        for i in ('::before', ':before', 'before'):
+            r = self._ele.style('content', i)
+            if r != 'content':
+                return r
+        return r
 
     @property
     def after(self):
-        return self._ele.style('content', 'after')
+        for i in ('::after', ':after', 'after'):
+            r = self._ele.style('content', i)
+            if r != 'content':
+                return r
+        return r
 
 
 def _check_ele(ele, loc_data):

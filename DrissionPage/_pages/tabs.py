@@ -82,7 +82,8 @@ class MixTab(SessionPage, ChromiumTab, BasePage):
         self._mode = 'd'
         self._has_driver = True
         self._has_session = True
-        super().__init__(session_or_options=browser._session_options if browser._session_options else SessionOptions())
+        super().__init__(session_or_options=browser._session_options or SessionOptions(
+            read_file=browser._session_options is None))
         super(SessionPage, self).__init__(browser=browser, tab_id=tab_id)
         self._type = 'MixTab'
 
