@@ -95,6 +95,7 @@ class ShadowRootStates(object):
 
 class BrowserStates(object):
     _browser: Chromium = ...
+    _incognito: Optional[bool] = ...
 
     def __init__(self, browser: Chromium):
         """
@@ -112,6 +113,10 @@ class BrowserStates(object):
 
     def is_existed(self) -> bool:
         """返回浏览器是否接管的"""
+        ...
+
+    def is_incognito(self):
+        """返回浏览器是否无痕模式"""
         ...
 
 

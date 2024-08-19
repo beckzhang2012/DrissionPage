@@ -24,6 +24,7 @@ from .._pages.chromium_base import Timeout
 from .._pages.tabs import ChromiumTab, MixTab
 from .._units.downloader import DownloadManager
 from .._units.setter import BrowserSetter
+from .._units.states import BrowserStates
 from .._units.waiter import BrowserWaiter
 from ..errors import BrowserConnectError, CDPError
 from ..errors import PageDisconnectedError
@@ -64,6 +65,7 @@ class Chromium(object):
 
         self._set = None
         self._wait = None
+        self._states = None
         self._timeouts = Timeout(**self._chromium_options.timeouts)
         self._load_mode = self._chromium_options.load_mode
         self._download_path = str(Path(self._chromium_options.download_path).absolute())
@@ -72,8 +74,8 @@ class Chromium(object):
         self.address = self._chromium_options.address
         self._driver = BrowserDriver(self.id, 'browser', self.address, self)
 
-        if (not self._chromium_options._ua_set and self._is_headless != self._chromium_options.is_headless) or (
-                self._is_exists and self._chromium_options._new_env):
+        if ((not self._chromium_options._ua_set and self._is_headless != self._chromium_options.is_headless)
+                or (self._is_exists and self._chromium_options._new_env)):
             self.quit(3, True)
             connect_browser(self._chromium_options)
             s = Session()
@@ -138,6 +140,12 @@ class Chromium(object):
         return self._set
 
     @property
+    def states(self):
+        if self._states is None:
+            self._states = BrowserStates(self)
+        return self._states
+
+    @property
     def wait(self):
         if self._wait is None:
             self._wait = BrowserWaiter(self)
@@ -183,12 +191,13 @@ class Chromium(object):
         if tab:
             kwargs['browserContextId'] = tab
 
-        try:
-            tab = self._run_cdp('Target.createTarget', **kwargs)['targetId']
-        except CDPError:
-            data = ('a', {'href': url or 'https://#', 'target': '_new' if new_window else '_blank'})
-            tab = self.get_mix_tab() if isinstance(obj, MixTab) else self.get_tab()
-            return tab.add_ele(data).click.for_new_tab(by_js=True)
+        if self.states.is_incognito():
+            return _new_tab_by_js(self, url, obj, new_window)
+        else:
+            try:
+                tab = self._run_cdp('Target.createTarget', **kwargs)['targetId']
+            except CDPError:
+                return _new_tab_by_js(self, url, obj, new_window)
 
         while tab not in self._drivers:
             sleep(.1)
@@ -198,13 +207,19 @@ class Chromium(object):
         return tab
 
     def get_tab(self, id_or_num=None, title=None, url=None, tab_type='page', as_id=False):
-        return self._get_tab(id_or_num=id_or_num, title=title, url=url, tab_type=tab_type, as_id=as_id)
+        t = self._get_tab(id_or_num=id_or_num, title=title, url=url, tab_type=tab_type, as_id=as_id)
+        if t._type == 'MixTab':
+            raise RuntimeError('该标签页已有MixTab版本，如需多对象公用请用Settings设置singleton_tab_obj为False。')
+        return t
 
     def get_tabs(self, title=None, url=None, tab_type='page', as_id=False):
         return self._get_tabs(title=title, url=url, tab_type=tab_type, as_id=as_id)
 
     def get_mix_tab(self, id_or_num=None, title=None, url=None, tab_type='page', as_id=False):
-        return self._get_tab(id_or_num=id_or_num, title=title, url=url, tab_type=tab_type, mix=True, as_id=as_id)
+        t = self._get_tab(id_or_num=id_or_num, title=title, url=url, tab_type=tab_type, mix=True, as_id=as_id)
+        if t._type != 'MixTab':
+            raise RuntimeError('该标签页已有非MixTab版本，如需多对象公用请用Settings设置singleton_tab_obj为False。')
+        return t
 
     def get_mix_tabs(self, title=None, url=None, tab_type='page', as_id=False):
         return self._get_tabs(title=title, url=url, tab_type=tab_type, mix=True, as_id=as_id)
@@ -297,6 +312,13 @@ class Chromium(object):
         self._run_cdp('Target.setDiscoverTargets', discover=True)
         self._driver.set_callback('Target.targetDestroyed', self._onTargetDestroyed)
         self._driver.set_callback('Target.targetCreated', self._onTargetCreated)
+
+    def clear_cache(self, cache=True, cookies=True):
+        if cache:
+            self.latest_tab.run_cdp('Network.clearBrowserCache')
+
+        if cookies:
+            self._run_cdp('Storage.clearCookies')
 
     def quit(self, timeout=5, force=False, del_data=False):
         try:
@@ -454,3 +476,13 @@ def run_browser(chromium_options):
     except:
         raise BrowserConnectError('\n浏览器连接失败，请确认浏览器是否启动。')
     return is_headless, browser_id, is_exists
+
+
+def _new_tab_by_js(browser:Chromium, url, obj, new_window):
+    tab = browser.get_mix_tab() if isinstance(obj, MixTab) else browser.get_tab()
+    url = f'"{url}"' if url else ''
+    new = 'target="_new"' if new_window else 'target="_blank"'
+    tid = browser.latest_tab.tab_id
+    tab.run_js(f'window.open({url}, {new})')
+    tid = browser.wait.new_tab(curr_tab=tid)
+    return browser.get_mix_tab(tid) if isinstance(obj, MixTab) else browser.get_tab(tid)

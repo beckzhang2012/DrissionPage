@@ -92,6 +92,7 @@ class ShadowRootStates(object):
 class BrowserStates(object):
     def __init__(self, browser):
         self._browser = browser
+        self._incognito = None
 
     def is_alive(self):
         return self._browser._driver.is_running
@@ -101,6 +102,11 @@ class BrowserStates(object):
 
     def is_existed(self):
         return self._browser._is_exists
+
+    def is_incognito(self):
+        if self._incognito is None:
+            self._incognito = str(self._browser._run_cdp('Browser.getHistograms')).count('Incognito') > 1
+        return self._incognito
 
 
 class PageStates(object):
