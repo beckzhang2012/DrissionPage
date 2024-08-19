@@ -178,34 +178,6 @@ class Chromium(object):
         return self._new_tab(MixTab, url=url, new_window=new_window,
                              background=background, new_context=new_context)
 
-    def _new_tab(self, obj, url=None, new_window=False, background=False, new_context=False):
-        tab = None
-        if new_context:
-            tab = self._run_cdp('Target.createBrowserContext')['browserContextId']
-
-        kwargs = {'url': ''}
-        if new_window:
-            kwargs['newWindow'] = True
-        if background:
-            kwargs['background'] = True
-        if tab:
-            kwargs['browserContextId'] = tab
-
-        if self.states.is_incognito():
-            return _new_tab_by_js(self, url, obj, new_window)
-        else:
-            try:
-                tab = self._run_cdp('Target.createTarget', **kwargs)['targetId']
-            except CDPError:
-                return _new_tab_by_js(self, url, obj, new_window)
-
-        while tab not in self._drivers:
-            sleep(.1)
-        tab = obj(self, tab)
-        if url:
-            tab.get(url)
-        return tab
-
     def get_tab(self, id_or_num=None, title=None, url=None, tab_type='page', as_id=False):
         t = self._get_tab(id_or_num=id_or_num, title=title, url=url, tab_type=tab_type, as_id=as_id)
         if t._type == 'MixTab':
@@ -223,50 +195,6 @@ class Chromium(object):
 
     def get_mix_tabs(self, title=None, url=None, tab_type='page', as_id=False):
         return self._get_tabs(title=title, url=url, tab_type=tab_type, mix=True, as_id=as_id)
-
-    def _get_tab(self, id_or_num=None, title=None, url=None, tab_type='page', mix=False, as_id=False):
-        if id_or_num is not None:
-            if isinstance(id_or_num, str):
-                id_or_num = id_or_num
-            elif isinstance(id_or_num, int):
-                id_or_num = self.tab_ids[id_or_num - 1 if id_or_num > 0 else id_or_num]
-            elif isinstance(id_or_num, ChromiumTab):
-                return id_or_num.tab_id if as_id else ChromiumTab(self, id_or_num.tab_id)
-
-        elif title == url is None and tab_type == 'page':
-            id_or_num = self.tab_ids[0]
-
-        else:
-            tabs = self._get_tabs(title=title, url=url, tab_type=tab_type, as_id=True)
-            if tabs:
-                id_or_num = tabs[0]
-            else:
-                return None
-
-        if as_id:
-            return id_or_num
-        with self._lock:
-            return MixTab(self, id_or_num) if mix else ChromiumTab(self, id_or_num)
-
-    def _get_tabs(self, title=None, url=None, tab_type='page', mix=False, as_id=False):
-        tabs = self._driver.get(f'http://{self.address}/json').json()  # 不要改用cdp
-
-        if isinstance(tab_type, str):
-            tab_type = {tab_type}
-        elif isinstance(tab_type, (list, tuple, set)):
-            tab_type = set(tab_type)
-        elif tab_type is not None:
-            raise TypeError('tab_type只能是set、list、tuple、str、None。')
-
-        tabs = [i for i in tabs if ((title is None or title in i['title']) and (url is None or url in i['url'])
-                                    and (tab_type is None or i['type'] in tab_type))]
-        if as_id:
-            return [tab['id'] for tab in tabs]
-        with self._lock:
-            if mix:
-                return [MixTab(self, tab['id']) for tab in tabs]
-            else:
-                return [ChromiumTab(self, tab['id']) for tab in tabs]
 
     def close_tabs(self, tabs_or_ids=None, others=False):
         all_tabs = set(self.tab_ids)
@@ -369,6 +297,78 @@ class Chromium(object):
         if del_data and not self._chromium_options.is_auto_port and self._chromium_options.user_data_path:
             path = Path(self._chromium_options.user_data_path)
             rmtree(path, True)
+
+    def _new_tab(self, obj, url=None, new_window=False, background=False, new_context=False):
+        tab = None
+        if new_context:
+            tab = self._run_cdp('Target.createBrowserContext')['browserContextId']
+
+        kwargs = {'url': ''}
+        if new_window:
+            kwargs['newWindow'] = True
+        if background:
+            kwargs['background'] = True
+        if tab:
+            kwargs['browserContextId'] = tab
+
+        if self.states.is_incognito():
+            return _new_tab_by_js(self, url, obj, new_window)
+        else:
+            try:
+                tab = self._run_cdp('Target.createTarget', **kwargs)['targetId']
+            except CDPError:
+                return _new_tab_by_js(self, url, obj, new_window)
+
+        while tab not in self._drivers:
+            sleep(.1)
+        tab = obj(self, tab)
+        if url:
+            tab.get(url)
+        return tab
+
+    def _get_tab(self, id_or_num=None, title=None, url=None, tab_type='page', mix=False, as_id=False):
+        if id_or_num is not None:
+            if isinstance(id_or_num, str):
+                id_or_num = id_or_num
+            elif isinstance(id_or_num, int):
+                id_or_num = self.tab_ids[id_or_num - 1 if id_or_num > 0 else id_or_num]
+            elif isinstance(id_or_num, ChromiumTab):
+                return id_or_num.tab_id if as_id else ChromiumTab(self, id_or_num.tab_id)
+
+        elif title == url is None and tab_type == 'page':
+            id_or_num = self.tab_ids[0]
+
+        else:
+            tabs = self._get_tabs(title=title, url=url, tab_type=tab_type, as_id=True)
+            if tabs:
+                id_or_num = tabs[0]
+            else:
+                return None
+
+        if as_id:
+            return id_or_num
+        with self._lock:
+            return MixTab(self, id_or_num) if mix else ChromiumTab(self, id_or_num)
+
+    def _get_tabs(self, title=None, url=None, tab_type='page', mix=False, as_id=False):
+        tabs = self._driver.get(f'http://{self.address}/json').json()  # 不要改用cdp
+
+        if isinstance(tab_type, str):
+            tab_type = {tab_type}
+        elif isinstance(tab_type, (list, tuple, set)):
+            tab_type = set(tab_type)
+        elif tab_type is not None:
+            raise TypeError('tab_type只能是set、list、tuple、str、None。')
+
+        tabs = [i for i in tabs if ((title is None or title in i['title']) and (url is None or url in i['url'])
+                                    and (tab_type is None or i['type'] in tab_type))]
+        if as_id:
+            return [tab['id'] for tab in tabs]
+        with self._lock:
+            if mix:
+                return [MixTab(self, tab['id']) for tab in tabs]
+            else:
+                return [ChromiumTab(self, tab['id']) for tab in tabs]
 
     def _run_cdp(self, cmd, **cmd_args):
         ignore = cmd_args.pop('_ignore', None)

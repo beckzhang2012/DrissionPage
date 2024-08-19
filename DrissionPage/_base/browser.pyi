@@ -160,27 +160,11 @@ class Chromium(object):
         """
         ...
 
-    def _new_tab(self,
-                 obj,
-                 url: str = None,
-                 new_window: bool = False,
-                 background: bool = False,
-                 new_context: bool = False) -> Union[ChromiumTab, MixTab]:
-        """新建一个标签页
-        :param obj: 要创建的Tab类型
-        :param url: 新标签页跳转到的网址
-        :param new_window: 是否在新窗口打开标签页
-        :param background: 是否不激活新标签页，如new_window为True则无效
-        :param new_context: 是否创建新的上下文
-        :return: 新标签页对象
-        """
-        ...
-
     def get_tab(self,
                 id_or_num: Union[str, int] = None,
                 title: str = None,
                 url: str = None,
-                tab_type: str = 'page',
+                tab_type: Union[str, list, tuple] = 'page',
                 as_id: bool = False) -> Union[ChromiumTab, str]:
         """获取一个标签页对象，id_or_num不为None时，后面几个参数无效
         :param id_or_num: 要获取的标签页id或序号，序号从1开始，可传入负数获取倒数第几个，不是视觉排列顺序，而是激活顺序
@@ -195,7 +179,7 @@ class Chromium(object):
     def get_tabs(self,
                  title: str = None,
                  url: str = None,
-                 tab_type: str = 'page',
+                 tab_type: Union[str, list, tuple] = 'page',
                  as_id: bool = False) -> List[ChromiumTab, str]:
         """查找符合条件的tab，返回它们组成的列表，title和url是与关系
         :param title: 要匹配title的文本
@@ -210,7 +194,7 @@ class Chromium(object):
                     id_or_num: Union[str, int] = None,
                     title: str = None,
                     url: str = None,
-                    tab_type: str = 'page',
+                    tab_type: Union[str, list, tuple] = 'page',
                     as_id: bool = False) -> Union[MixTab, str]:
         """获取一个标签页对象，id_or_num不为None时，后面几个参数无效
         :param id_or_num: 要获取的标签页id或序号，序号从1开始，可传入负数获取倒数第几个，不是视觉排列顺序，而是激活顺序，为None时获取最后的
@@ -225,47 +209,13 @@ class Chromium(object):
     def get_mix_tabs(self,
                      title: str = None,
                      url: str = None,
-                     tab_type: str = 'page',
+                     tab_type: Union[str, list, tuple] = 'page',
                      as_id: bool = False) -> List[MixTab, str]:
         """查找符合条件的tab，返回它们组成的列表，title和url是与关系
         :param title: 要匹配title的文本
         :param url: 要匹配url的文本
         :param tab_type: tab类型，可用列表输入多个
         :param as_id: 是否返回标签页id而不是标签页对象
-        :return: Tab对象列表
-        """
-        ...
-
-    def _get_tab(self,
-                 id_or_num: Union[str, int] = None,
-                 title: str = None,
-                 url: str = None,
-                 tab_type: str = 'page',
-                 mix: bool = False,
-                 as_id: bool = False) -> Union[ChromiumTab, str]:
-        """获取一个标签页对象，id_or_num不为None时，后面几个参数无效
-        :param id_or_num: 要获取的标签页id或序号，序号从1开始，可传入负数获取倒数第几个，不是视觉排列顺序，而是激活顺序
-        :param title: 要匹配title的文本，模糊匹配，为None则匹配所有
-        :param url: 要匹配url的文本，模糊匹配，为None则匹配所有
-        :param tab_type: tab类型，可用列表输入多个，如 'page', 'iframe' 等，为None则匹配所有
-        :param mix: 是否返回可切换模式的Tab对象
-        :param as_id: 是否返回标签页id而不是标签页对象，mix=False时无效
-        :return: Tab对象
-        """
-        ...
-
-    def _get_tabs(self,
-                  title: str = None,
-                  url: str = None,
-                  tab_type: str = 'page',
-                  mix: bool = False,
-                  as_id: bool = False) -> List[ChromiumTab, str]:
-        """查找符合条件的tab，返回它们组成的列表，title和url是与关系
-        :param title: 要匹配title的文本
-        :param url: 要匹配url的文本
-        :param tab_type: tab类型，可用列表输入多个
-        :param mix: 是否返回可切换模式的Tab对象
-        :param as_id: 是否返回标签页id而不是标签页对象，mix=False时无效
         :return: Tab对象列表
         """
         ...
@@ -306,6 +256,56 @@ class Chromium(object):
         :param force: 是否立刻强制终止进程
         :param del_data: 是否删除用户文件夹
         :return: None
+        """
+        ...
+
+    def _new_tab(self,
+                 obj,
+                 url: str = None,
+                 new_window: bool = False,
+                 background: bool = False,
+                 new_context: bool = False) -> Union[ChromiumTab, MixTab]:
+        """新建一个标签页
+        :param obj: 要创建的Tab类型
+        :param url: 新标签页跳转到的网址
+        :param new_window: 是否在新窗口打开标签页
+        :param background: 是否不激活新标签页，如new_window为True则无效
+        :param new_context: 是否创建新的上下文
+        :return: 新标签页对象
+        """
+        ...
+
+    def _get_tab(self,
+                 id_or_num: Union[str, int] = None,
+                 title: str = None,
+                 url: str = None,
+                 tab_type: Union[str, list, tuple] = 'page',
+                 mix: bool = False,
+                 as_id: bool = False) -> Union[ChromiumTab, str]:
+        """获取一个标签页对象，id_or_num不为None时，后面几个参数无效
+        :param id_or_num: 要获取的标签页id或序号，序号从1开始，可传入负数获取倒数第几个，不是视觉排列顺序，而是激活顺序
+        :param title: 要匹配title的文本，模糊匹配，为None则匹配所有
+        :param url: 要匹配url的文本，模糊匹配，为None则匹配所有
+        :param tab_type: tab类型，可用列表输入多个，如 'page', 'iframe' 等，为None则匹配所有
+        :param mix: 是否返回可切换模式的Tab对象
+        :param as_id: 是否返回标签页id而不是标签页对象，mix=False时无效
+        :return: Tab对象
+        """
+        ...
+
+    def _get_tabs(self,
+                  title: str = None,
+                  url: str = None,
+                  tab_type: Union[str, list, tuple] = 'page',
+                  mix: bool = False,
+                  as_id: bool = False) -> List[ChromiumTab, str]:
+        """查找符合条件的tab，返回它们组成的列表，title和url是与关系
+        :param title: 要匹配title的文本
+        :param url: 要匹配url的文本
+        :param tab_type: tab类型，可用列表输入多个
+        :param mix: 是否返回可切换模式的Tab对象
+        :param as_id: 是否返回标签页id而不是标签页对象，mix=False时无效
+        :return: Tab对象列表
         """
         ...
 
