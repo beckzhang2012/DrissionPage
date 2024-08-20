@@ -163,7 +163,7 @@ class Chromium(object):
 
     @property
     def latest_tab(self):
-        return self.get_tab(self.tab_ids[0], as_id=not Settings.singleton_tab_obj)
+        return self._get_tab(id_or_num=self.tab_ids[0], as_id=not Settings.singleton_tab_obj)
 
     def cookies(self, all_info=False):
         cks = self._run_cdp(f'Storage.getCookies')['cookies']
@@ -187,14 +187,14 @@ class Chromium(object):
     def get_tabs(self, title=None, url=None, tab_type='page', as_id=False):
         return self._get_tabs(title=title, url=url, tab_type=tab_type, as_id=as_id)
 
-    def get_mix_tab(self, id_or_num=None, title=None, url=None, tab_type='page', as_id=False):
-        t = self._get_tab(id_or_num=id_or_num, title=title, url=url, tab_type=tab_type, mix=True, as_id=as_id)
+    def get_mix_tab(self, id_or_num=None, title=None, url=None, tab_type='page'):
+        t = self._get_tab(id_or_num=id_or_num, title=title, url=url, tab_type=tab_type, mix=True, as_id=False)
         if t._type != 'MixTab':
             raise RuntimeError('该标签页已有非MixTab版本，如需多对象公用请用Settings设置singleton_tab_obj为False。')
         return t
 
-    def get_mix_tabs(self, title=None, url=None, tab_type='page', as_id=False):
-        return self._get_tabs(title=title, url=url, tab_type=tab_type, mix=True, as_id=as_id)
+    def get_mix_tabs(self, title=None, url=None, tab_type='page'):
+        return self._get_tabs(title=title, url=url, tab_type=tab_type, mix=True, as_id=False)
 
     def close_tabs(self, tabs_or_ids=None, others=False):
         all_tabs = set(self.tab_ids)
@@ -328,12 +328,12 @@ class Chromium(object):
 
     def _get_tab(self, id_or_num=None, title=None, url=None, tab_type='page', mix=False, as_id=False):
         if id_or_num is not None:
-            if isinstance(id_or_num, str):
-                id_or_num = id_or_num
-            elif isinstance(id_or_num, int):
+            if isinstance(id_or_num, int):
                 id_or_num = self.tab_ids[id_or_num - 1 if id_or_num > 0 else id_or_num]
             elif isinstance(id_or_num, ChromiumTab):
                 return id_or_num.tab_id if as_id else ChromiumTab(self, id_or_num.tab_id)
+            elif id_or_num not in [i['id'] for i in self._driver.get(f'http://{self.address}/json').json()]:
+                raise ValueError(f'没有找到标签页{id_or_num}，所有标签页：{self.tab_ids}')
 
         elif title == url is None and tab_type == 'page':
             id_or_num = self.tab_ids[0]

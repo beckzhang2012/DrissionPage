@@ -194,8 +194,7 @@ class Chromium(object):
                     id_or_num: Union[str, int] = None,
                     title: str = None,
                     url: str = None,
-                    tab_type: Union[str, list, tuple] = 'page',
-                    as_id: bool = False) -> Union[MixTab, str]:
+                    tab_type: Union[str, list, tuple] = 'page') -> MixTab:
         """获取一个标签页对象，id_or_num不为None时，后面几个参数无效
         :param id_or_num: 要获取的标签页id或序号，序号从1开始，可传入负数获取倒数第几个，不是视觉排列顺序，而是激活顺序，为None时获取最后的
         :param title: 要匹配title的文本，模糊匹配，为None则匹配所有
@@ -209,8 +208,7 @@ class Chromium(object):
     def get_mix_tabs(self,
                      title: str = None,
                      url: str = None,
-                     tab_type: Union[str, list, tuple] = 'page',
-                     as_id: bool = False) -> List[MixTab, str]:
+                     tab_type: Union[str, list, tuple] = 'page') -> List[MixTab]:
         """查找符合条件的tab，返回它们组成的列表，title和url是与关系
         :param title: 要匹配title的文本
         :param url: 要匹配url的文本
