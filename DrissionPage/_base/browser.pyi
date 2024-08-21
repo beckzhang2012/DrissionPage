@@ -111,12 +111,12 @@ class Chromium(object):
 
     @property
     def tabs_count(self) -> int:
-        """返回标签页数量"""
+        """返回标签页数量，只统计page、webview类型"""
         ...
 
     @property
     def tab_ids(self) -> List[str]:
-        """返回所有标签页id组成的列表"""
+        """返回所有标签页id组成的列表，只统计page、webview类型"""
         ...
 
     @property
@@ -138,10 +138,10 @@ class Chromium(object):
                 background: bool = False,
                 new_context: bool = False) -> ChromiumTab:
         """新建一个标签页
-        :param url: 新标签页跳转到的网址
-        :param new_window: 是否在新窗口打开标签页
-        :param background: 是否不激活新标签页，如new_window为True则无效
-        :param new_context: 是否创建新的上下文
+        :param url: 新标签页跳转到的网址，为None时新建空标签页
+        :param new_window: 是否在新窗口打开标签页，隐身模式下无效
+        :param background: 是否不激活新标签页，隐身模式和访客模式及new_window为True时无效
+        :param new_context: 是否创建独立环境，隐身模式和访客模式下无效
         :return: 新标签页对象
         """
         ...
@@ -152,10 +152,10 @@ class Chromium(object):
                     background: bool = False,
                     new_context: bool = False) -> MixTab:
         """新建一个标签页
-        :param url: 新标签页跳转到的网址
-        :param new_window: 是否在新窗口打开标签页
-        :param background: 是否不激活新标签页，如new_window为True则无效
-        :param new_context: 是否创建新的上下文
+        :param url: 新标签页跳转到的网址，为None时新建空标签页
+        :param new_window: 是否在新窗口打开标签页，隐身模式下无效
+        :param background: 是否不激活新标签页，隐身模式和访客模式及new_window为True时无效
+        :param new_context: 是否创建独立环境，隐身模式和访客模式下无效
         :return: 新标签页对象
         """
         ...
@@ -200,7 +200,6 @@ class Chromium(object):
         :param title: 要匹配title的文本，模糊匹配，为None则匹配所有
         :param url: 要匹配url的文本，模糊匹配，为None则匹配所有
         :param tab_type: tab类型，可用列表输入多个，如 'page', 'iframe' 等，为None则匹配所有
-        :param as_id: 是否返回标签页id而不是标签页对象
         :return: Tab对象
         """
         ...
@@ -213,24 +212,23 @@ class Chromium(object):
         :param title: 要匹配title的文本
         :param url: 要匹配url的文本
         :param tab_type: tab类型，可用列表输入多个
-        :param as_id: 是否返回标签页id而不是标签页对象
         :return: Tab对象列表
         """
         ...
 
     def close_tabs(self,
                    tabs_or_ids: Union[str, ChromiumTab, List[Union[str, ChromiumTab]],
-                   Tuple[Union[str, ChromiumTab]]] = None,
+                   Tuple[Union[str, ChromiumTab]]],
                    others: bool = False) -> None:
-        """关闭传入的标签页，默认关闭当前页。可传入多个
-        :param tabs_or_ids: 要关闭的标签页对象或id，可传入列表或元组，为None时关闭最后操作的
+        """关闭传入的标签页，可传入多个
+        :param tabs_or_ids: 指定的标签页对象或id，可用列表或元组传入多个
         :param others: 是否关闭指定标签页之外的
         :return: None
         """
         ...
 
     def activate_tab(self, id_ind_tab: Union[int, str, ChromiumTab]) -> None:
-        """使标签页变为活动状态
+        """使一个标签页显示到前端
         :param id_ind_tab: 标签页id（str）、Tab对象或标签页序号（int），序号从1开始
         :return: None
         """
