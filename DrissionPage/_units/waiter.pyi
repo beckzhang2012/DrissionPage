@@ -50,17 +50,17 @@ class BrowserWaiter(OriginWaiter):
 
     def new_tab(self,
                 timeout: float = None,
-                curr_tab: Union[str, ChromiumTab] = None,
+                curr_tab: Union[str, ChromiumTab, MixTab] = None,
                 raise_err: bool = None) -> Union[str, bool]:
         """等待新标签页出现
-        :param timeout: 超时时间（秒），为None则使用页面对象timeout属性
+        :param timeout: 超时时间（秒），为None则使用对象timeout属性
         :param curr_tab: 指定当前最新的tab对象或tab id，用于判断新tab出现，为None自动获取
         :param raise_err: 等待失败时是否报错，为None时根据Settings设置
         :return: 等到新标签页返回其id，否则返回False
         """
         ...
 
-    def download_begin(self, timeout: float = None, cancel_it: bool = False) -> DownloadMission:
+    def download_begin(self, timeout: float = None, cancel_it: bool = False) -> Union[DownloadMission, False]:
         """等待浏览器下载开始，可将其拦截
         :param timeout: 超时时间（秒），None使用页面对象超时时间
         :param cancel_it: 是否取消该任务

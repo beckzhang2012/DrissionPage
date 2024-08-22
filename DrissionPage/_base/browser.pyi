@@ -6,7 +6,7 @@
 @License  : BSD 3-Clause.
 """
 from threading import Lock
-from typing import List, Optional, Set, Dict, Union, Tuple
+from typing import List, Optional, Set, Dict, Union, Tuple, Literal
 
 from .driver import BrowserDriver, Driver
 from .._configs.chromium_options import ChromiumOptions
@@ -44,6 +44,7 @@ class Chromium(object):
     _timeouts: Timeout = ...
     _load_mode: str = ...
     _download_path: str = ...
+    _auto_handle_alert: Optional[bool] = ...
     _is_exists: bool = ...
     _is_headless: bool = ...
 
@@ -85,8 +86,8 @@ class Chromium(object):
         ...
 
     @property
-    def load_mode(self) -> str:
-        """返回加载模式"""
+    def load_mode(self) -> Literal['none', 'normal', 'eager']:
+        """返回页面加载模式，包括 'none', 'normal', 'eager' 三种"""
         ...
 
     @property

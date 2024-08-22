@@ -83,6 +83,7 @@ class ChromiumFrame(ChromiumBase):
             self.retry_times = self._target_page.retry_times
             self.retry_interval = self._target_page.retry_interval
             self._download_path = self._target_page.download_path
+            self._auto_handle_alert = self._target_page._auto_handle_alert
         self._load_mode = self._target_page._load_mode if not self._is_diff_domain else 'normal'
 
     def _driver_init(self, target_id, is_init=True):

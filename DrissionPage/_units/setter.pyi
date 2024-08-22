@@ -53,7 +53,7 @@ class BaseSetter(object):
         ...
 
     def retry_interval(self, interval: float) -> None:
-        """设置连接失败重连间隔
+        """设置连接失败重连间隔（秒）
         :param interval: 重试间隔
         :return: None
         """
@@ -71,7 +71,11 @@ class SessionPageSetter(BaseSetter):
     _owner: SessionPage = ...
     _cookies_setter: Optional[SessionCookiesSetter] = ...
 
-    def __init__(self, owner: SessionPage): ...
+    def __init__(self, owner: SessionPage):
+        """
+        :param owner: SessionPage对象
+        """
+        ...
 
     @property
     def cookies(self) -> SessionCookiesSetter:
@@ -196,11 +200,18 @@ class SessionPageSetter(BaseSetter):
 
 
 class BrowserBaseSetter(BaseSetter):
+    """Browser和ChromiumBase设置"""
     _cookies_setter: Optional[CookiesSetter] = ...
+
+    def __init__(self, owner: ChromiumBase):
+        """
+        :param owner: ChromiumBase对象
+        """
+        ...
 
     @property
     def load_mode(self) -> LoadMode:
-        """返回用于设置页面加载策略的对象"""
+        """返回用于设置页面加载模式的对象"""
         ...
 
     def timeouts(self,
@@ -220,6 +231,12 @@ class BrowserSetter(BrowserBaseSetter):
     _owner: Chromium = ...
     _cookies_setter: BrowserCookiesSetter = ...
 
+    def __init__(self, owner: Chromium):
+        """
+        :param owner: Chromium对象
+        """
+        ...
+
     @property
     def cookies(self) -> BrowserCookiesSetter:
         """返回用于设置cookies的对象"""
@@ -227,15 +244,15 @@ class BrowserSetter(BrowserBaseSetter):
 
     def auto_handle_alert(self,
                           on_off: bool = True,
-                          accept: bool = True):
-        """设置是否启用自动处理弹窗
-        :param on_off: bool表示开或关
+                          accept: bool = True) -> None:
+        """设置本浏览器是否启用自动处理弹窗
+        :param on_off: bool表示开或关，传入None表示使用Settings设置
         :param accept: bool表示确定还是取消
         :return: None
         """
         ...
 
-    def download_path(self, path: Union[Path, str, None]):
+    def download_path(self, path: Union[Path, str, None]) -> None:
         """设置下载路径
         :param path: 下载路径
         :return: None
@@ -244,7 +261,7 @@ class BrowserSetter(BrowserBaseSetter):
 
     def download_file_name(self,
                            name: str = None,
-                           suffix: str = None):
+                           suffix: str = None) -> None:
         """设置下一个被下载文件的名称
         :param name: 文件名，可不含后缀，会自动使用远程文件后缀
         :param suffix: 后缀名，显式设置后缀名，不使用远程文件后缀
@@ -252,7 +269,7 @@ class BrowserSetter(BrowserBaseSetter):
         """
         ...
 
-    def when_download_file_exists(self, mode: FILE_EXISTS):
+    def when_download_file_exists(self, mode: FILE_EXISTS) -> None:
         """设置当存在同名文件时的处理方式
         :param mode: 可在 'rename', 'overwrite', 'skip', 'r', 'o', 's'中选择
         :return: None
@@ -335,7 +352,7 @@ class ChromiumBaseSetter(BrowserBaseSetter):
 class TabSetter(ChromiumBaseSetter):
     _owner: ChromiumTab = ...
 
-    def __init__(self, owner: Union[ChromiumTab, MixTab, MixPage, ChromiumPage]):
+    def __init__(self, owner: ChromiumTab):
         """
         :param owner: 标签页对象
         """
@@ -384,18 +401,6 @@ class ChromiumPageSetter(TabSetter):
         """
         ...
 
-    def auto_handle_alert(self,
-                          on_off: bool = True,
-                          accept: bool = True,
-                          all_tabs: bool = False) -> None:
-        """设置是否启用自动处理弹窗
-        :param on_off: bool表示开或关
-        :param accept: bool表示确定还是取消
-        :param all_tabs: 是否为全局设置
-        :return: None
-        """
-        ...
-
 
 class MixPageSetter(ChromiumPageSetter):
     _owner: MixPage = ...
@@ -409,7 +414,9 @@ class MixPageSetter(ChromiumPageSetter):
         ...
 
     @property
-    def cookies(self) -> MixPageCookiesSetter: ...
+    def cookies(self) -> MixPageCookiesSetter:
+        """返回用于设置cookies的对象"""
+        ...
 
 
 class MixTabSetter(TabSetter):
@@ -518,6 +525,7 @@ class ChromiumFrameSetter(ChromiumBaseSetter):
 
 
 class LoadMode(object):
+    """用于设置页面加载策略的类"""
     _owner: Union[Chromium, ChromiumBase] = ...
 
     def __init__(self, owner: Union[Chromium, ChromiumBase]):
@@ -571,6 +579,7 @@ class PageScrollSetter(object):
 
 
 class WindowSetter(object):
+    """用于设置窗口大小的类"""
     _owner: ChromiumBase = ...
     _window_id: str = ...
 

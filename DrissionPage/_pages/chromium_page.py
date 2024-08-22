@@ -49,6 +49,7 @@ class ChromiumPage(ChromiumBase):
         self._download_path = self.browser.download_path
         self.retry_times = self.browser.retry_times
         self.retry_interval = self.browser.retry_interval
+        self._auto_handle_alert = self.browser._auto_handle_alert
 
     @property
     def set(self):

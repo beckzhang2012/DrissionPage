@@ -48,6 +48,7 @@ class ChromiumTab(ChromiumBase):
         self.retry_interval = self.browser.retry_interval
         self._load_mode = self.browser._load_mode
         self._download_path = self.browser.download_path
+        self._auto_handle_alert = self.browser._auto_handle_alert
 
     def close(self, others=False):
         self.browser.close_tabs(self.tab_id, others=others)

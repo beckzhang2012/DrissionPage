@@ -115,7 +115,7 @@ class BrowserStates(object):
         """返回浏览器是否接管的"""
         ...
 
-    def is_incognito(self):
+    def is_incognito(self) -> bool:
         """返回浏览器是否无痕模式"""
         ...
 

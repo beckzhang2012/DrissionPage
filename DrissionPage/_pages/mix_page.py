@@ -52,7 +52,7 @@ class MixPage(SessionPage, ChromiumPage, BasePage):
 
     @property
     def latest_tab(self):
-        return self.browser.get_mix_tab(self.tab_ids[0], as_id=not Settings.singleton_tab_obj)
+        return self.browser._get_tab(id_or_num=self.tab_ids[0], mix=True, as_id=not Settings.singleton_tab_obj)
 
     @property
     def set(self):

@@ -11,7 +11,6 @@ from time import sleep
 from requests.structures import CaseInsensitiveDict
 
 from .cookies_setter import SessionCookiesSetter, CookiesSetter, MixPageCookiesSetter, BrowserCookiesSetter
-from .._functions.settings import Settings
 from .._functions.tools import show_or_hide_browser
 from .._functions.web import format_headers
 from ..errors import ElementLostError, JavaScriptError
@@ -39,9 +38,6 @@ class BaseSetter(object):
 
 class SessionPageSetter(BaseSetter):
     def __init__(self, owner):
-        """
-        :param owner: SessionPage对象
-        """
         super().__init__(owner)
         self._cookies_setter = None
 
@@ -106,12 +102,7 @@ class SessionPageSetter(BaseSetter):
 
 
 class BrowserBaseSetter(BaseSetter):
-    """Browser和ChromiumBase设置"""
-
     def __init__(self, owner):
-        """
-        :param owner: ChromiumBase对象
-        """
         super().__init__(owner)
         self._cookies_setter = None
 
@@ -139,7 +130,7 @@ class BrowserSetter(BrowserBaseSetter):
         return self._cookies_setter
 
     def auto_handle_alert(self, on_off=True, accept=True):
-        Settings.auto_handle_alert = accept if on_off else None
+        self._owner._auto_handle_alert = None if on_off is None else accept if on_off else 'close'
 
     def download_path(self, path):
         super().download_path(path)
@@ -213,7 +204,7 @@ class ChromiumBaseSetter(BrowserBaseSetter):
         self._owner._upload_list = [str(Path(i).absolute()) for i in files]
 
     def auto_handle_alert(self, on_off=True, accept=True):
-        self._owner._alert.auto = accept if on_off else None
+        self._owner._alert.auto = None if on_off is None else accept if on_off else 'close'
 
     def blocked_urls(self, urls):
         if not urls:
@@ -258,38 +249,21 @@ class TabSetter(ChromiumBaseSetter):
 class ChromiumPageSetter(TabSetter):
 
     def NoneElement_value(self, value=None, on_off=True):
-        """设置空元素是否返回设定值
-        :param value: 返回的设定值
-        :param on_off: 是否启用
-        :return: None
-        """
         super().NoneElement_value(value, on_off)
         self._owner.browser._none_ele_return_value = on_off
         self._owner.browser._none_ele_value = value
 
     def retry_times(self, times):
-        """设置连接失败重连次数"""
         super().retry_times(times)
         self._owner.browser.retry_times = times
 
     def retry_interval(self, interval):
-        """设置连接失败重连间隔"""
         super().retry_interval(interval)
         self._owner.browser.retry_interval = interval
 
     def download_path(self, path):
-        """设置下载路径
-        :param path: 下载路径
-        :return: None
-        """
         super().download_path(path)
         self._owner.browser._download_path = self._owner._download_path
-
-    def auto_handle_alert(self, on_off=True, accept=True, all_tabs=False):
-        if all_tabs:
-            Settings.auto_handle_alert = on_off
-        else:
-            self._owner._alert.auto = accept if on_off else None
 
 
 class MixPageSetter(ChromiumPageSetter):
@@ -300,7 +274,6 @@ class MixPageSetter(ChromiumPageSetter):
 
     @property
     def cookies(self):
-        """返回用于设置cookies的对象"""
         if self._cookies_setter is None:
             self._cookies_setter = MixPageCookiesSetter(self._owner)
         return self._cookies_setter
@@ -390,8 +363,6 @@ class ChromiumFrameSetter(ChromiumBaseSetter):
 
 
 class LoadMode(object):
-    """用于设置页面加载策略的类"""
-
     def __init__(self, owner):
         self._owner = owner
 
@@ -430,8 +401,6 @@ class PageScrollSetter(object):
 
 
 class WindowSetter(object):
-    """用于设置窗口大小的类"""
-
     def __init__(self, owner):
         self._owner = owner
         self._window_id = self._get_info()['windowId']

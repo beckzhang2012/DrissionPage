@@ -58,7 +58,7 @@ class ChromiumBase(BasePage):
         self._console = None
         self._upload_list = None
         self._doc_got = False  # 用于在LoadEventFired和FrameStoppedLoading间标记是否已获取doc
-        self._download_path = None
+        self._auto_handle_alert = None
         self._load_end_time = 0
         self._init_jss = []
         self._type = 'ChromiumBase'
@@ -107,7 +107,7 @@ class ChromiumBase(BasePage):
         self._is_loading = True
         self._driver = self.browser._get_driver(target_id, self)
 
-        self._alert = Alert()
+        self._alert = Alert(self._auto_handle_alert)
         self._driver.set_callback('Page.javascriptDialogOpening', self._on_alert_open, immediate=True)
         self._driver.set_callback('Page.javascriptDialogClosed', self._on_alert_close)
 
@@ -703,7 +703,8 @@ class ChromiumBase(BasePage):
         self._has_alert = True
 
         if self._alert.auto is not None:
-            self._handle_alert(self._alert.auto)
+            if self._alert.auto != 'close':
+                self._handle_alert(self._alert.auto)
         elif Settings.auto_handle_alert is not None:
             self._handle_alert(Settings.auto_handle_alert)
         elif self._alert.handle_next is not None:
@@ -882,7 +883,7 @@ class Timeout(object):
 class Alert(object):
     """用于保存alert信息的类"""
 
-    def __init__(self):
+    def __init__(self, auto=None):
         self.activated = False
         self.text = None
         self.type = None
@@ -891,7 +892,7 @@ class Alert(object):
         self.response_text = None
         self.handle_next = None
         self.next_text = None
-        self.auto = None
+        self.auto = auto
 
 
 def close_privacy_dialog(page, tid):

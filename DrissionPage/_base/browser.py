@@ -69,6 +69,7 @@ class Chromium(object):
         self._timeouts = Timeout(**self._chromium_options.timeouts)
         self._load_mode = self._chromium_options.load_mode
         self._download_path = str(Path(self._chromium_options.download_path).absolute())
+        self._auto_handle_alert = None
         self.retry_times = self._chromium_options.retry_times
         self.retry_interval = self._chromium_options.retry_interval
         self.address = self._chromium_options.address
@@ -86,6 +87,7 @@ class Chromium(object):
             self._driver = BrowserDriver(self.id, 'browser', self.address, self)
             ws.close()
             s.close()
+            self._is_exists = False
             self._frames = {}
             self._drivers = {}
             self._all_drivers = {}
