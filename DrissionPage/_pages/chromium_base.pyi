@@ -9,10 +9,11 @@ from pathlib import Path
 from typing import Union, Tuple, List, Any, Optional, Literal
 
 from .chromium_page import ChromiumPage
+from .chromium_tab import ChromiumTab
 from .mix_page import MixPage
-from .tabs import ChromiumTab, MixTab
+from .mix_tab import MixTab
 from .._base.base import BasePage
-from .._base.browser import Chromium
+from .._base.chromium import Chromium
 from .._base.driver import Driver
 from .._elements.chromium_element import ChromiumElement
 from .._elements.session_element import SessionElement

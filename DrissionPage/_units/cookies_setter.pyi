@@ -8,11 +8,11 @@
 from http.cookiejar import Cookie, CookieJar
 from typing import Union
 
-from .._base.browser import Chromium
+from .._base.chromium import Chromium
 from .._pages.chromium_base import ChromiumBase
-from .._pages.tabs import MixTab
-from .._pages.session_page import SessionPage
 from .._pages.mix_page import MixPage
+from .._pages.mix_tab import MixTab
+from .._pages.session_page import SessionPage
 
 
 class BrowserCookiesSetter(object):

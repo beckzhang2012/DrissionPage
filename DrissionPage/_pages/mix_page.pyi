@@ -11,8 +11,8 @@ from requests import Session, Response
 
 from .chromium_frame import ChromiumFrame
 from .chromium_page import ChromiumPage
+from .mix_tab import MixTab
 from .session_page import SessionPage
-from .tabs import MixTab
 from .._base.base import BasePage
 from .._configs.chromium_options import ChromiumOptions
 from .._configs.session_options import SessionOptions

@@ -8,13 +8,14 @@
 from typing import Union, Tuple, List, Any
 
 from .downloader import DownloadMission
-from .._base.browser import Chromium
+from .._base.chromium import Chromium
 from .._elements.chromium_element import ChromiumElement
 from .._pages.chromium_base import ChromiumBase
 from .._pages.chromium_frame import ChromiumFrame
 from .._pages.chromium_page import ChromiumPage
+from .._pages.chromium_tab import ChromiumTab
 from .._pages.mix_page import MixPage
-from .._pages.tabs import ChromiumTab, MixTab
+from .._pages.mix_tab import MixTab
 
 
 class OriginWaiter(object):

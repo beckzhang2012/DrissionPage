@@ -11,7 +11,7 @@ from typing import Union
 from requests import Session
 from requests.cookies import RequestsCookieJar
 
-from .._base.browser import Chromium
+from .._base.chromium import Chromium
 from .._pages.chromium_base import ChromiumBase
 
 

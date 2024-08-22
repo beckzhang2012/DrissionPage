@@ -204,7 +204,7 @@ class Actions:
 
     def key_down(self, key: Union[KEYS, str]) -> Actions:
         """按下键盘上的按键，
-        :param key: 使用Keys获取的按键，或'DEL'形式按键名称
+        :param key: 使用Keys获取的按键，或 'DEL' 形式按键名称
         :return: self
         """
         ...

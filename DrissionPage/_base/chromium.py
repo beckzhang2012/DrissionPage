@@ -21,7 +21,8 @@ from .._functions.settings import Settings
 from .._functions.tools import PortFinder
 from .._functions.tools import raise_error
 from .._pages.chromium_base import Timeout
-from .._pages.tabs import ChromiumTab, MixTab
+from .._pages.chromium_tab import ChromiumTab
+from .._pages.mix_tab import MixTab
 from .._units.downloader import DownloadManager
 from .._units.setter import BrowserSetter
 from .._units.states import BrowserStates

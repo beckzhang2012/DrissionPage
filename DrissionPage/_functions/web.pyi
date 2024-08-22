@@ -12,7 +12,7 @@ from .._base.base import DrissionElement, BaseParser
 from .._elements.chromium_element import ChromiumElement
 from .._pages.chromium_base import ChromiumBase
 from .._pages.chromium_page import ChromiumPage
-from .._pages.tabs import ChromiumTab
+from .._pages.chromium_tab import ChromiumTab
 
 
 def get_ele_txt(e: DrissionElement) -> str:

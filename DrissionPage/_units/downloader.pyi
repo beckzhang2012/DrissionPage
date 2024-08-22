@@ -7,7 +7,7 @@
 """
 from typing import Dict, Optional, Union, Literal
 
-from .._base.browser import Chromium
+from .._base.chromium import Chromium
 from .._pages.chromium_base import ChromiumBase
 
 FILE_EXISTS = Literal['skip', 'rename', 'overwrite', 's', 'r', 'o']

@@ -5,15 +5,15 @@
 @Copyright: (c) 2024 by g1879, Inc. All Rights Reserved.
 @License  : BSD 3-Clause.
 """
-
 from typing import Tuple, Union
 
 from .._elements.chromium_element import ChromiumElement
 from .._pages.chromium_base import ChromiumBase
 from .._pages.chromium_frame import ChromiumFrame
 from .._pages.chromium_page import ChromiumPage
-from .._pages.tabs import ChromiumTab, MixTab
+from .._pages.chromium_tab import ChromiumTab
 from .._pages.mix_page import MixPage
+from .._pages.mix_tab import MixTab
 
 
 class ElementRect(object):

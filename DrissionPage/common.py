@@ -5,7 +5,7 @@
 @Copyright: (c) 2024 by g1879, Inc. All Rights Reserved.
 @License  : BSD 3-Clause.
 """
-from ._base.browser import Chromium
+from ._base.chromium import Chromium
 from ._elements.session_element import make_session_ele
 from ._functions.by import By
 from ._functions.elements import get_eles

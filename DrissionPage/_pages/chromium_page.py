@@ -7,7 +7,7 @@
 """
 from time import sleep
 
-from .._base.browser import Chromium
+from .._base.chromium import Chromium
 from .._functions.web import save_page
 from .._pages.chromium_base import ChromiumBase
 from .._units.setter import ChromiumPageSetter

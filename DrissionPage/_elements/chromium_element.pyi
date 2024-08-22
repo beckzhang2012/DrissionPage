@@ -14,7 +14,7 @@ from .._functions.elements import SessionElementsList, ChromiumElementsList
 from .._pages.chromium_base import ChromiumBase
 from .._pages.chromium_frame import ChromiumFrame
 from .._pages.chromium_page import ChromiumPage
-from .._pages.tabs import ChromiumTab
+from .._pages.chromium_tab import ChromiumTab
 from .._pages.mix_page import MixPage
 from .._units.clicker import Clicker
 from .._units.rect import ElementRect
