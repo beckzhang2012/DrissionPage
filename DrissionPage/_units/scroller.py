@@ -12,12 +12,12 @@ class Scroller(object):
     """用于滚动的对象"""
 
     def __init__(self, owner):
-        """
-        :param owner: 元素对象
-        """
         self._owner = owner
         self._t1 = self._t2 = 'this'
         self._wait_complete = False
+
+    def __call__(self, pixel=300):
+        return self.down(pixel)
 
     def _run_js(self, js):
         js = js.format(self._t1, self._t2, self._t2)

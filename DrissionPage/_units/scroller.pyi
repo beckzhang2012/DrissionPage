@@ -22,7 +22,18 @@ class Scroller(object):
     _t2: str = ...
     _wait_complete: bool = ...
 
-    def __init__(self, owner: Union[ChromiumBase, ChromiumElement]): ...
+    def __init__(self, owner: Union[ChromiumBase, ChromiumElement]):
+        """
+        :param owner: 元素对象或页面对象
+        """
+        ...
+
+    def __call__(self, pixel: int = 300) -> None:
+        """向下滚动若干像素，水平位置不变
+        :param pixel: 滚动的像素
+        :return: None
+        """
+        ...
 
     def to_top(self) -> None:
         """滚动到顶端，水平位置不变"""

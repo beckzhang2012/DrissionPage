@@ -63,7 +63,7 @@ class BrowserWaiter(OriginWaiter):
         self._owner._dl_mgr.set_flag('browser', None)
         return r
 
-    def all_downloads_done(self, timeout=None, cancel_if_timeout=True):
+    def downloads_done(self, timeout=None, cancel_if_timeout=True):
         if not self._owner._dl_mgr._running:
             raise RuntimeError('此功能需显式设置下载路径（使用set.download_path()方法、配置对象或ini文件均可）。')
         if not timeout:
@@ -270,12 +270,21 @@ class TabWaiter(BaseWaiter):
             else:
                 return self._owner
 
-    def alert_closed(self):
-        while not self._owner.states.has_alert:
-            sleep(.2)
-        while self._owner.states.has_alert:
-            sleep(.2)
-        return self._owner
+    def alert_closed(self, timeout=None):
+        if timeout is None:
+            while not self._owner.states.has_alert:
+                sleep(.2)
+            while self._owner.states.has_alert:
+                sleep(.2)
+
+        else:
+            end_time = perf_counter() + timeout
+            while not self._owner.states.has_alert and perf_counter() < end_time:
+                sleep(.2)
+            while self._owner.states.has_alert and perf_counter() < end_time:
+                sleep(.2)
+
+        return False if self._owner.states.has_alert else self._owner
 
 
 class ChromiumPageWaiter(TabWaiter):
@@ -283,7 +292,7 @@ class ChromiumPageWaiter(TabWaiter):
         return self._owner.browser.wait.new_tab(timeout=timeout, raise_err=raise_err)
 
     def all_downloads_done(self, timeout=None, cancel_if_timeout=True):
-        return self._owner.browser.wait.all_downloads_done(timeout=timeout, cancel_if_timeout=cancel_if_timeout)
+        return self._owner.browser.wait.downloads_done(timeout=timeout, cancel_if_timeout=cancel_if_timeout)
 
 
 class ElementWaiter(OriginWaiter):

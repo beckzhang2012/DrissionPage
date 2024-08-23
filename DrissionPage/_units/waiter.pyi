@@ -69,7 +69,7 @@ class BrowserWaiter(OriginWaiter):
         """
         ...
 
-    def all_downloads_done(self, timeout: float = None, cancel_if_timeout: bool = True) -> bool:
+    def downloads_done(self, timeout: float = None, cancel_if_timeout: bool = True) -> bool:
         """等待所有浏览器下载任务结束
         :param timeout: 超时时间（秒），为None时无限等待
         :param cancel_if_timeout: 超时时是否取消剩余任务
@@ -247,8 +247,11 @@ class TabWaiter(BaseWaiter):
         """
         ...
 
-    def alert_closed(self) -> ChromiumTab:
-        """等待弹出框关闭"""
+    def alert_closed(self, timeout: float = None) -> ChromiumTab:
+        """等待弹出框关闭
+        :param timeout: 超时时间，为None无限等待
+        :return: 标签页对象自己
+        """
         ...
 
     def url_change(self,
@@ -309,8 +312,11 @@ class MixTabWaiter(BaseWaiter):
         """
         ...
 
-    def alert_closed(self) -> MixTab:
-        """等待弹出框关闭"""
+    def alert_closed(self, timeout: float = None) -> MixTab:
+        """等待弹出框关闭
+        :param timeout: 超时时间，为None无限等待
+        :return: 标签页对象自己
+        """
         ...
 
     def url_change(self,
@@ -662,5 +668,93 @@ class FrameWaiter(BaseWaiter, ElementWaiter):
         :param timeout: 超时时间（秒），为None使用页面设置
         :param raise_err: 等待失败时是否报错，为None时根据Settings设置
         :return: 等待成功返回页面对象，否则返回False
+        """
+        ...
+
+    def deleted(self, timeout: float = None, raise_err: bool = None) -> Union[ChromiumFrame, False]:
+        """等待元素从dom删除
+        :param timeout: 超时时间（秒），为None使用元素所在页面timeout属性
+        :param raise_err: 等待失败时是否报错，为None时根据Settings设置
+        :return: 成功返回元素对象，失败返回False
+        """
+        ...
+
+    def displayed(self, timeout: float = None, raise_err: bool = None) -> Union[ChromiumFrame, False]:
+        """等待元素从dom显示
+        :param timeout: 超时时间（秒），为None使用元素所在页面timeout属性
+        :param raise_err: 等待失败时是否报错，为None时根据Settings设置
+        :return: 成功返回元素对象，失败返回False
+        """
+        ...
+
+    def hidden(self, timeout: float = None, raise_err: bool = None) -> Union[ChromiumFrame, False]:
+        """等待元素从dom隐藏
+        :param timeout: 超时时间（秒），为None使用元素所在页面timeout属性
+        :param raise_err: 等待失败时是否报错，为None时根据Settings设置
+        :return: 成功返回元素对象，失败返回False
+        """
+        ...
+
+    def covered(self, timeout: float = None, raise_err: bool = None) -> Union[False, int]:
+        """等待当前元素被遮盖
+        :param timeout: 超时时间（秒），为None使用元素所在页面timeout属性
+        :param raise_err: 等待失败时是否报错，为None时根据Settings设置
+        :return: 成功返回覆盖元素id，返回False
+        """
+        ...
+
+    def not_covered(self, timeout: float = None, raise_err: bool = None) -> Union[ChromiumFrame, False]:
+        """等待当前元素不被遮盖
+        :param timeout: 超时时间（秒），为None使用元素所在页面timeout属性
+        :param raise_err: 等待失败时是否报错，为None时根据Settings设置
+        :return: 成功返回元素对象，失败返回False
+        """
+        ...
+
+    def enabled(self, timeout: float = None, raise_err: bool = None) -> Union[ChromiumFrame, False]:
+        """等待当前元素变成可用
+        :param timeout: 超时时间（秒），为None使用元素所在页面timeout属性
+        :param raise_err: 等待失败时是否报错，为None时根据Settings设置
+        :return: 成功返回元素对象，失败返回False
+        """
+        ...
+
+    def disabled(self, timeout: float = None, raise_err: bool = None) -> Union[ChromiumFrame, False]:
+        """等待当前元素变成不可用
+        :param timeout: 超时时间（秒），为None使用元素所在页面timeout属性
+        :param raise_err: 等待失败时是否报错，为None时根据Settings设置
+        :return: 成功返回元素对象，失败返回False
+        """
+        ...
+
+    def disabled_or_deleted(self, timeout: float = None, raise_err: bool = None) -> bool:
+        """等待当前元素变成不可用或从DOM移除
+        :param timeout: 超时时间（秒），为None使用元素所在页面timeout属性
+        :param raise_err: 等待失败时是否报错，为None时根据Settings设置
+        :return: 成功返回元素对象，失败返回False
+        """
+        ...
+
+    def clickable(self,
+                  wait_moved: bool = True,
+                  timeout: float = None,
+                  raise_err: bool = None) -> Union[ChromiumFrame, False]:
+        """等待当前元素可被点击
+        :param wait_moved: 是否等待元素运动结束
+        :param timeout: 超时时间（秒），为None使用元素所在页面timeout属性
+        :param raise_err: 等待失败时是否报错，为None时根据Settings设置
+        :return: 成功返回元素对象，失败返回False
+        """
+        ...
+
+    def stop_moving(self,
+                    timeout: float = None,
+                    gap: float = .1,
+                    raise_err: bool = None) -> Union[ChromiumFrame, False]:
+        """等待当前元素停止运动
+        :param timeout: 超时时间（秒），为None使用元素所在页面timeout属性
+        :param gap: 检测间隔时间
+        :param raise_err: 等待失败时是否报错，为None时根据Settings设置
+        :return: 成功返回元素对象，失败返回False
         """
         ...
