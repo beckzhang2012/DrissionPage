@@ -20,7 +20,12 @@ class SessionElementsList(list):
 
     def __init__(self,
                  owner: SessionPage = None,
-                 *args): ...
+                 *args):
+        """
+        :param owner: 产生元素列表的页面
+        :param args:
+        """
+        ...
 
     @property
     def get(self) -> Getter:
@@ -45,7 +50,12 @@ class ChromiumElementsList(SessionElementsList):
 
     def __init__(self,
                  owner: ChromiumBase = None,
-                 *args): ...
+                 *args):
+        """
+        :param owner: 产生元素列表的页面
+        :param args:
+        """
+        ...
 
     @property
     def filter(self) -> ChromiumFilter:
@@ -64,7 +74,8 @@ class ChromiumElementsList(SessionElementsList):
                enabled: Optional[bool] = None,
                clickable: Optional[bool] = None,
                have_rect: Optional[bool] = None,
-               have_text: Optional[bool] = None) -> ChromiumFilter:
+               have_text: Optional[bool] = None,
+               tag: str = None) -> ChromiumFilter:
         """或关系筛选元素
         :param displayed: 是否显示，bool，None为忽略该项
         :param checked: 是否被选中，bool，None为忽略该项
@@ -73,6 +84,7 @@ class ChromiumElementsList(SessionElementsList):
         :param clickable: 是否可点击，bool，None为忽略该项
         :param have_rect: 是否拥有大小和位置，bool，None为忽略该项
         :param have_text: 是否含有文本，bool，None为忽略该项
+        :param tag: 指定的元素类型
         :return: 筛选结果
         """
         ...
@@ -85,7 +97,8 @@ class ChromiumElementsList(SessionElementsList):
                    enabled: Optional[bool] = None,
                    clickable: Optional[bool] = None,
                    have_rect: Optional[bool] = None,
-                   have_text: Optional[bool] = None) -> ChromiumElement:
+                   have_text: Optional[bool] = None,
+                   tag: str = None) -> ChromiumElement:
         """或关系筛选元素，获取一个结果
         :param index: 元素序号，从1开始
         :param displayed: 是否显示，bool，None为忽略该项
@@ -95,6 +108,7 @@ class ChromiumElementsList(SessionElementsList):
         :param clickable: 是否可点击，bool，None为忽略该项
         :param have_rect: 是否拥有大小和位置，bool，None为忽略该项
         :param have_text: 是否含有文本，bool，None为忽略该项
+        :param tag: 指定的元素类型
         :return: 筛选结果
         """
         ...
@@ -116,6 +130,14 @@ class SessionFilterOne(object):
         """返回结果中第几个元素
         :param index: 元素序号，从1开始
         :return: 对象自身
+        """
+        ...
+
+    def tag(self, name: str, equal: bool = True) -> SessionElement:
+        """筛选某种元素
+        :param name: 标签页名称
+        :param equal: True表示匹配这种元素，False表示匹配非这种元素
+        :return: 筛选结果
         """
         ...
 
@@ -166,6 +188,14 @@ class SessionFilter(SessionFilterOne):
         """返回用于获取元素属性的对象"""
         ...
 
+    def tag(self, name: str, equal: bool = True) -> SessionFilter:
+        """筛选某种元素
+        :param name: 标签页名称
+        :param equal: True表示匹配这种元素，False表示匹配非这种元素
+        :return: 筛选结果
+        """
+        ...
+
     def attr(self, name: str, value: str, equal: bool = True) -> SessionFilter:
         """以是否拥有某个attribute值为条件筛选元素
         :param name: 属性名称
@@ -211,6 +241,35 @@ class ChromiumFilterOne(SessionFilterOne):
         """返回结果中第几个元素
         :param index: 元素序号，从1开始
         :return: 对象自身
+        """
+        ...
+
+    def tag(self, name: str, equal: bool = True) -> SessionElement:
+        """筛选某种元素
+        :param name: 标签页名称
+        :param equal: True表示匹配这种元素，False表示匹配非这种元素
+        :return: 筛选结果
+        """
+        ...
+
+    def attr(self, name: str, value: str, equal: bool = True) -> ChromiumElement:
+        """以是否拥有某个attribute值为条件筛选元素
+        :param name: 属性名称
+        :param value: 属性值
+        :param equal: True表示匹配name值为value值的元素，False表示匹配name值不为value值的
+        :return: 筛选结果
+        """
+        ...
+
+    def text(self,
+             text: str,
+             fuzzy: bool = True,
+             contain: bool = True) -> ChromiumElement:
+        """以是否含有指定文本为条件筛选元素
+        :param text: 用于匹配的文本
+        :param fuzzy: 是否模糊匹配
+        :param contain: 是否包含该字符串，False表示不包含
+        :return: 筛选结果
         """
         ...
 
@@ -276,27 +335,6 @@ class ChromiumFilterOne(SessionFilterOne):
         """
         ...
 
-    def attr(self, name: str, value: str, equal: bool = True) -> ChromiumElement:
-        """以是否拥有某个attribute值为条件筛选元素
-        :param name: 属性名称
-        :param value: 属性值
-        :param equal: True表示匹配name值为value值的元素，False表示匹配name值不为value值的
-        :return: 筛选结果
-        """
-        ...
-
-    def text(self,
-             text: str,
-             fuzzy: bool = True,
-             contain: bool = True) -> ChromiumElement:
-        """以是否含有指定文本为条件筛选元素
-        :param text: 用于匹配的文本
-        :param fuzzy: 是否模糊匹配
-        :param contain: 是否包含该字符串，False表示不包含
-        :return: 筛选结果
-        """
-        ...
-
     def _get_attr(self,
                   name: str,
                   value: str,
@@ -331,6 +369,32 @@ class ChromiumFilter(ChromiumFilterOne):
     @property
     def get(self) -> Getter:
         """返回用于获取元素属性的对象"""
+        ...
+
+    def tag(self, name: str, equal: bool = True) -> ChromiumFilter:
+        """筛选某种元素
+        :param name: 标签页名称
+        :param equal: True表示匹配这种元素，False表示匹配非这种元素
+        :return: 筛选结果
+        """
+        ...
+
+    def attr(self, name: str, value: str, equal: bool = True) -> ChromiumFilter:
+        """以是否拥有某个attribute值为条件筛选元素
+        :param name: 属性名称
+        :param value: 属性值
+        :param equal: True表示匹配name值为value值的元素，False表示匹配name值不为value值的
+        :return: 筛选结果
+        """
+        ...
+
+    def text(self, text: str, fuzzy: bool = True, contain: bool = True) -> ChromiumFilter:
+        """以是否含有指定文本为条件筛选元素
+        :param text: 用于匹配的文本
+        :param fuzzy: 是否模糊匹配
+        :param contain: 是否包含该字符串，False表示不包含
+        :return: 筛选结果
+        """
         ...
 
     def displayed(self, equal: bool = True) -> ChromiumFilter:
@@ -395,15 +459,6 @@ class ChromiumFilter(ChromiumFilterOne):
         """
         ...
 
-    def attr(self, name: str, value: str, equal: bool = True) -> ChromiumFilter:
-        """以是否拥有某个attribute值为条件筛选元素
-        :param name: 属性名称
-        :param value: 属性值
-        :param equal: True表示匹配name值为value值的元素，False表示匹配name值不为value值的
-        :return: 筛选结果
-        """
-        ...
-
     def search_one(self,
                    index: int = 1,
                    displayed: Optional[bool] = None,
@@ -412,7 +467,8 @@ class ChromiumFilter(ChromiumFilterOne):
                    enabled: Optional[bool] = None,
                    clickable: Optional[bool] = None,
                    have_rect: Optional[bool] = None,
-                   have_text: Optional[bool] = None) -> ChromiumElement:
+                   have_text: Optional[bool] = None,
+                   tag: str = None) -> ChromiumElement:
         """或关系筛选元素，获取一个结果
         :param index: 元素序号，从1开始
         :param displayed: 是否显示，bool，None为忽略该项
@@ -422,6 +478,7 @@ class ChromiumFilter(ChromiumFilterOne):
         :param clickable: 是否可点击，bool，None为忽略该项
         :param have_rect: 是否拥有大小和位置，bool，None为忽略该项
         :param have_text: 是否含有文本，bool，None为忽略该项
+        :param tag: 指定的元素类型
         :return: 筛选结果
         """
         ...
@@ -433,7 +490,8 @@ class ChromiumFilter(ChromiumFilterOne):
                enabled: Optional[bool] = None,
                clickable: Optional[bool] = None,
                have_rect: Optional[bool] = None,
-               have_text: Optional[bool] = None) -> ChromiumFilter:
+               have_text: Optional[bool] = None,
+               tag: str = None) -> ChromiumFilter:
         """或关系筛选元素
         :param displayed: 是否显示，bool，None为忽略该项
         :param checked: 是否被选中，bool，None为忽略该项
@@ -442,15 +500,7 @@ class ChromiumFilter(ChromiumFilterOne):
         :param clickable: 是否可点击，bool，None为忽略该项
         :param have_rect: 是否拥有大小和位置，bool，None为忽略该项
         :param have_text: 是否含有文本，bool，None为忽略该项
-        :return: 筛选结果
-        """
-        ...
-
-    def text(self, text: str, fuzzy: bool = True, contain: bool = True) -> ChromiumFilter:
-        """以是否含有指定文本为条件筛选元素
-        :param text: 用于匹配的文本
-        :param fuzzy: 是否模糊匹配
-        :param contain: 是否包含该字符串，False表示不包含
+        :param tag: 指定的元素类型
         :return: 筛选结果
         """
         ...

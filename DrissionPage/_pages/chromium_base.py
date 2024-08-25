@@ -476,7 +476,7 @@ class ChromiumBase(BasePage):
                         raise PageDisconnectedError
 
             if perf_counter() >= end_time:
-                return NoneElement(self) if index is not None else ChromiumElementsList()
+                return NoneElement(self) if index is not None else ChromiumElementsList(owner=self)
 
             sleep(.1)
             timeout = end_time - perf_counter()
@@ -601,7 +601,7 @@ class ChromiumBase(BasePage):
     def get_frames(self, locator=None, timeout=None):
         locator = locator or 'xpath://*[name()="iframe" or name()="frame"]'
         frames = self._ele(locator, timeout=timeout, index=None, raise_err=False)
-        return [i for i in frames if i._type == 'ChromiumFrame']
+        return ChromiumElementsList(self, frames)
 
     def session_storage(self, item=None):
         js = f'sessionStorage.getItem("{item}")' if item else 'sessionStorage'

@@ -910,7 +910,7 @@ class ShadowRoot(BaseElement):
 
         if result:
             return result
-        return NoneElement(self.owner) if index is not None else ChromiumElementsList()
+        return NoneElement(self.owner) if index is not None else ChromiumElementsList(self.owner)
 
     def _get_node_id(self, obj_id):
         return self.owner._run_cdp('DOM.requestNode', objectId=obj_id)['nodeId']

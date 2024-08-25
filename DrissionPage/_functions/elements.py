@@ -40,24 +40,14 @@ class ChromiumElementsList(SessionElementsList):
         return ChromiumFilterOne(self)
 
     def search(self, displayed=None, checked=None, selected=None, enabled=None, clickable=None,
-               have_rect=None, have_text=None):
-        """或关系筛选元素
-        :param displayed: 是否显示，bool，None为忽略该项
-        :param checked: 是否被选中，bool，None为忽略该项
-        :param selected: 是否被选择，bool，None为忽略该项
-        :param enabled: 是否可用，bool，None为忽略该项
-        :param clickable: 是否可点击，bool，None为忽略该项
-        :param have_rect: 是否拥有大小和位置，bool，None为忽略该项
-        :param have_text: 是否含有文本，bool，None为忽略该项
-        :return: 筛选结果
-        """
+               have_rect=None, have_text=None, tag=None):
         return _search(self, displayed=displayed, checked=checked, selected=selected, enabled=enabled,
-                       clickable=clickable, have_rect=have_rect, have_text=have_text)
+                       clickable=clickable, have_rect=have_rect, have_text=have_text, tag=tag)
 
     def search_one(self, index=1, displayed=None, checked=None, selected=None, enabled=None, clickable=None,
-                   have_rect=None, have_text=None):
+                   have_rect=None, have_text=None, tag=None):
         return _search_one(self, index=index, displayed=displayed, checked=checked, selected=selected,
-                           enabled=enabled, clickable=clickable, have_rect=have_rect, have_text=have_text)
+                           enabled=enabled, clickable=clickable, have_rect=have_rect, have_text=have_text, tag=tag)
 
 
 class SessionFilterOne(object):
@@ -68,6 +58,23 @@ class SessionFilterOne(object):
     def __call__(self, index=1):
         self._index = index
         return self
+
+    def tag(self, name, equal=True):
+        num = 0
+        name = name.lower()
+        if equal:
+            for i in self._list:
+                if not isinstance(i, str) and i.tag == name:
+                    num += 1
+                    if self._index == num:
+                        return i
+        else:
+            for i in self._list:
+                if not isinstance(i, str) and i.tag != name:
+                    num += 1
+                    if self._index == num:
+                        return i
+        return NoneElement(self._list._owner, 'tag()', args={'name': name, 'equal': equal, 'index': self._index})
 
     def attr(self, name, value, equal=True):
         return self._get_attr(name, value, 'attr', equal=equal)
@@ -127,14 +134,18 @@ class SessionFilter(SessionFilterOne):
     def get(self):
         return self._list.get
 
+    def tag(self, name, equal=True):
+        self._list = _tag_all(self._list, SessionElementsList(owner=self._list._owner), name=name, equal=equal)
+        return self
+
     def text(self, text, fuzzy=True, contain=True):
         self._list = _text_all(self._list, SessionElementsList(owner=self._list._owner),
                                text=text, fuzzy=fuzzy, contain=contain)
         return self
 
     def _get_attr(self, name, value, method, equal=True):
-        self._list = _get_attr_all(self._list, SessionElementsList(owner=self._list._owner),
-                                   name=name, value=value, method=method, equal=equal)
+        self._list = _attr_all(self._list, SessionElementsList(owner=self._list._owner),
+                               name=name, value=value, method=method, equal=equal)
         return self
 
 
@@ -200,14 +211,18 @@ class ChromiumFilter(ChromiumFilterOne):
         return self._list.get
 
     def search_one(self, index=1, displayed=None, checked=None, selected=None, enabled=None, clickable=None,
-                   have_rect=None, have_text=None):
+                   have_rect=None, have_text=None, tag=None):
         return _search_one(self._list, index=index, displayed=displayed, checked=checked, selected=selected,
-                           enabled=enabled, clickable=clickable, have_rect=have_rect, have_text=have_text)
+                           enabled=enabled, clickable=clickable, have_rect=have_rect, have_text=have_text, tag=tag)
 
     def search(self, displayed=None, checked=None, selected=None, enabled=None, clickable=None,
-               have_rect=None, have_text=None):
+               have_rect=None, have_text=None, tag=None):
         return _search(self._list, displayed=displayed, checked=checked, selected=selected, enabled=enabled,
-                       clickable=clickable, have_rect=have_rect, have_text=have_text)
+                       clickable=clickable, have_rect=have_rect, have_text=have_text, tag=tag)
+
+    def tag(self, name, equal=True):
+        self._list = _tag_all(self._list, ChromiumElementsList(owner=self._list._owner), name=name, equal=equal)
+        return self
 
     def text(self, text, fuzzy=True, contain=True):
         self._list = _text_all(self._list, ChromiumElementsList(owner=self._list._owner),
@@ -215,8 +230,8 @@ class ChromiumFilter(ChromiumFilterOne):
         return self
 
     def _get_attr(self, name, value, method, equal=True):
-        self._list = _get_attr_all(self._list, ChromiumElementsList(owner=self._list._owner),
-                                   name=name, value=value, method=method, equal=equal)
+        self._list = _attr_all(self._list, ChromiumElementsList(owner=self._list._owner),
+                               name=name, value=value, method=method, equal=equal)
         return self
 
     def _any_state(self, name, equal=True):
@@ -302,7 +317,7 @@ def get_frame(owner, loc_ind_ele, timeout=None):
     return r
 
 
-def _get_attr_all(src_list, aim_list, name, value, method, equal=True):
+def _attr_all(src_list, aim_list, name, value, method, equal=True):
     if equal:
         for i in src_list:
             if not isinstance(i, str) and getattr(i, method)(name) == value:
@@ -310,6 +325,19 @@ def _get_attr_all(src_list, aim_list, name, value, method, equal=True):
     else:
         for i in src_list:
             if not isinstance(i, str) and getattr(i, method)(name) != value:
+                aim_list.append(i)
+    return aim_list
+
+
+def _tag_all(src_list, aim_list, name, equal=True):
+    name = name.lower()
+    if equal:
+        for i in src_list:
+            if not isinstance(i, str) and i.tag == name:
+                aim_list.append(i)
+    else:
+        for i in src_list:
+            if not isinstance(i, str) and i.tag != name:
                 aim_list.append(i)
     return aim_list
 
@@ -335,7 +363,7 @@ def _text_all(src_list, aim_list, text, fuzzy=True, contain=True):
 
 
 def _search(_list, displayed=None, checked=None, selected=None, enabled=None, clickable=None,
-            have_rect=None, have_text=None):
+            have_rect=None, have_text=None, tag=None):
     """或关系筛选元素
     :param displayed: 是否显示，bool，None为忽略该项
     :param checked: 是否被选中，bool，None为忽略该项
@@ -344,6 +372,7 @@ def _search(_list, displayed=None, checked=None, selected=None, enabled=None, cl
     :param clickable: 是否可点击，bool，None为忽略该项
     :param have_rect: 是否拥有大小和位置，bool，None为忽略该项
     :param have_text: 是否含有文本，bool，None为忽略该项
+    :param tag: 元素类型
     :return: 筛选结果
     """
     r = ChromiumElementsList(owner=_list._owner)
@@ -362,13 +391,14 @@ def _search(_list, displayed=None, checked=None, selected=None, enabled=None, cl
                 or (have_rect is not None and (have_rect is True and i.states.has_rect)
                     or (have_rect is False and not i.states.has_rect))
                 or (have_text is not None and (have_text is True and i.raw_text)
-                    or (have_text is False and not i.raw_text))):
+                    or (have_text is False and not i.raw_text))
+                or (tag is not None and i.tag == tag.lower())):
             r.append(i)
     return ChromiumFilter(r)
 
 
 def _search_one(_list, index=1, displayed=None, checked=None, selected=None, enabled=None, clickable=None,
-                have_rect=None, have_text=None):
+                have_rect=None, have_text=None, tag=None):
     """或关系筛选元素，获取一个结果
     :param index: 元素序号，从1开始
     :param displayed: 是否显示，bool，None为忽略该项
@@ -378,6 +408,7 @@ def _search_one(_list, index=1, displayed=None, checked=None, selected=None, ena
     :param clickable: 是否可点击，bool，None为忽略该项
     :param have_rect: 是否拥有大小和位置，bool，None为忽略该项
     :param have_text: 是否含有文本，bool，None为忽略该项
+    :param tag: 元素类型
     :return: 筛选结果
     """
     num = 0
@@ -396,12 +427,13 @@ def _search_one(_list, index=1, displayed=None, checked=None, selected=None, ena
                 or (have_rect is not None and (have_rect is True and i.states.has_rect)
                     or (have_rect is False and not i.states.has_rect))
                 or (have_text is not None and (have_text is True and i.raw_text)
-                    or (have_text is False and not i.raw_text))):
+                    or (have_text is False and not i.raw_text))
+                or (tag is not None and i.tag == tag.lower())):
             num += 1
             if num == index:
                 return i
 
-    return NoneElement(_list._owner, method='filter()', args={'displayed': displayed,
-                                                             'checked': checked, 'selected': selected,
-                                                             'enabled': enabled, 'clickable': clickable,
-                                                             'have_rect': have_rect, 'have_text': have_text})
+    return NoneElement(_list._owner, method='filter()', args={'displayed': displayed, 'checked': checked,
+                                                              'selected': selected, 'enabled': enabled,
+                                                              'clickable': clickable, 'have_rect': have_rect,
+                                                              'have_text': have_text, 'tag': tag})

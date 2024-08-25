@@ -6,7 +6,7 @@
 @License  : BSD 3-Clause.
 """
 from pathlib import Path
-from typing import Union, Tuple, List, Any, Optional, Literal
+from typing import Union, Tuple, Any, Optional, Literal
 
 from .chromium_page import ChromiumPage
 from .chromium_tab import ChromiumTab
@@ -489,7 +489,9 @@ class ChromiumBase(BasePage):
         """
         ...
 
-    def get_frames(self, locator: Union[str, tuple] = None, timeout: float = None) -> List[ChromiumFrame]:
+    def get_frames(self,
+                   locator: Union[str, tuple] = None,
+                   timeout: float = None) -> ChromiumElementsList:
         """获取所有符合条件的frame对象
         :param locator: 定位符，为None时返回所有
         :param timeout: 查找超时时间（秒）
