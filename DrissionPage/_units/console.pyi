@@ -1,13 +1,13 @@
 # -*- coding:utf-8 -*-
 from queue import Queue
-from typing import Optional, Iterable, List
+from typing import Optional, Iterable, List, Union
 
 from .._pages.chromium_base import ChromiumBase
 
 
 class Console(object):
     listening: bool = ...
-    owner: ChromiumBase = ...
+    _owner: ChromiumBase = ...
     _caught: Optional[Queue] = ...
 
     def __init__(self, owner: ChromiumBase) -> None:
@@ -31,6 +31,13 @@ class Console(object):
 
     def clear(self) -> None:
         """清空已获取但未返回的信息"""
+        ...
+
+    def wait(self, timeout: float = None) -> Union[ConsoleData, False]:
+        """等待一条信息
+        :param timeout: 超时时间（秒）
+        :return: ConsoleData对象
+        """
         ...
 
     def steps(self, timeout: Optional[float] = None) -> Iterable[ConsoleData]:

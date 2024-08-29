@@ -8,6 +8,7 @@
 from time import sleep
 
 from .._base.chromium import Chromium
+from .._functions.settings import Settings
 from .._functions.web import save_page
 from .._pages.chromium_base import ChromiumBase
 from .._units.setter import ChromiumPageSetter
@@ -77,7 +78,7 @@ class ChromiumPage(ChromiumBase):
 
     @property
     def latest_tab(self):
-        return self.browser.latest_tab
+        return self.browser._get_tab(id_or_num=self.tab_ids[0], as_id=not Settings.singleton_tab_obj)
 
     @property
     def process_id(self):
@@ -95,13 +96,15 @@ class ChromiumPage(ChromiumBase):
         return save_page(self, path, name, as_pdf, kwargs)
 
     def get_tab(self, id_or_num=None, title=None, url=None, tab_type='page', as_id=False):
-        return self.browser.get_tab(id_or_num=id_or_num, title=title, url=url, tab_type=tab_type, as_id=as_id)
+        return self.browser._get_tab(id_or_num=id_or_num, title=title, url=url,
+                                     tab_type=tab_type, mix=False, as_id=as_id)
 
     def get_tabs(self, title=None, url=None, tab_type='page', as_id=False):
-        return self.browser.get_tabs(title=title, url=url, tab_type=tab_type, as_id=as_id)
+        return self.browser._get_tabs(title=title, url=url, tab_type=tab_type, mix=False, as_id=as_id)
 
     def new_tab(self, url=None, new_window=False, background=False, new_context=False):
-        return self.browser.new_tab(url=url, new_window=new_window, background=background, new_context=new_context)
+        return self.browser._new_tab(False, url=url, new_window=new_window,
+                                     background=background, new_context=new_context)
 
     def activate_tab(self, id_ind_tab):
         self.browser.activate_tab(id_ind_tab)

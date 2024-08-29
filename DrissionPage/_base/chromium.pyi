@@ -122,7 +122,7 @@ class Chromium(object):
         ...
 
     @property
-    def latest_tab(self) -> Union[ChromiumTab, MixTab, str]:
+    def latest_tab(self) -> Union[MixTab, str]:
         """返回最新的标签页，最新标签页指最后创建或最后被激活的
         当Settings.singleton_tab_obj==True时返回Tab对象，否则返回tab id"""
         ...
@@ -138,21 +138,7 @@ class Chromium(object):
                 url: str = None,
                 new_window: bool = False,
                 background: bool = False,
-                new_context: bool = False) -> ChromiumTab:
-        """新建一个标签页
-        :param url: 新标签页跳转到的网址，为None时新建空标签页
-        :param new_window: 是否在新窗口打开标签页，隐身模式下无效
-        :param background: 是否不激活新标签页，隐身模式和访客模式及new_window为True时无效
-        :param new_context: 是否创建独立环境，隐身模式和访客模式下无效
-        :return: 新标签页对象
-        """
-        ...
-
-    def new_mix_tab(self,
-                    url: str = None,
-                    new_window: bool = False,
-                    background: bool = False,
-                    new_context: bool = False) -> MixTab:
+                new_context: bool = False) -> MixTab:
         """新建一个标签页
         :param url: 新标签页跳转到的网址，为None时新建空标签页
         :param new_window: 是否在新窗口打开标签页，隐身模式下无效
@@ -167,7 +153,7 @@ class Chromium(object):
                 title: str = None,
                 url: str = None,
                 tab_type: Union[str, list, tuple] = 'page',
-                as_id: bool = False) -> Union[ChromiumTab, str]:
+                as_id: bool = False) -> Union[MixTab, str]:
         """获取一个标签页对象，id_or_num不为None时，后面几个参数无效
         :param id_or_num: 要获取的标签页id或序号，序号从1开始，可传入负数获取倒数第几个，不是视觉排列顺序，而是激活顺序
         :param title: 要匹配title的文本，模糊匹配，为None则匹配所有
@@ -182,38 +168,12 @@ class Chromium(object):
                  title: str = None,
                  url: str = None,
                  tab_type: Union[str, list, tuple] = 'page',
-                 as_id: bool = False) -> List[ChromiumTab, str]:
+                 as_id: bool = False) -> List[MixTab, str]:
         """查找符合条件的tab，返回它们组成的列表，title和url是与关系
         :param title: 要匹配title的文本
         :param url: 要匹配url的文本
         :param tab_type: tab类型，可用列表输入多个
         :param as_id: 是否返回标签页id而不是标签页对象
-        :return: Tab对象列表
-        """
-        ...
-
-    def get_mix_tab(self,
-                    id_or_num: Union[str, int] = None,
-                    title: str = None,
-                    url: str = None,
-                    tab_type: Union[str, list, tuple] = 'page') -> MixTab:
-        """获取一个标签页对象，id_or_num不为None时，后面几个参数无效
-        :param id_or_num: 要获取的标签页id或序号，序号从1开始，可传入负数获取倒数第几个，不是视觉排列顺序，而是激活顺序，为None时获取最后的
-        :param title: 要匹配title的文本，模糊匹配，为None则匹配所有
-        :param url: 要匹配url的文本，模糊匹配，为None则匹配所有
-        :param tab_type: tab类型，可用列表输入多个，如 'page', 'iframe' 等，为None则匹配所有
-        :return: Tab对象
-        """
-        ...
-
-    def get_mix_tabs(self,
-                     title: str = None,
-                     url: str = None,
-                     tab_type: Union[str, list, tuple] = 'page') -> List[MixTab]:
-        """查找符合条件的tab，返回它们组成的列表，title和url是与关系
-        :param title: 要匹配title的文本
-        :param url: 要匹配url的文本
-        :param tab_type: tab类型，可用列表输入多个
         :return: Tab对象列表
         """
         ...
@@ -258,7 +218,7 @@ class Chromium(object):
         ...
 
     def _new_tab(self,
-                 obj,
+                 mix: bool = True,
                  url: str = None,
                  new_window: bool = False,
                  background: bool = False,
@@ -278,7 +238,7 @@ class Chromium(object):
                  title: str = None,
                  url: str = None,
                  tab_type: Union[str, list, tuple] = 'page',
-                 mix: bool = False,
+                 mix: bool = True,
                  as_id: bool = False) -> Union[ChromiumTab, str]:
         """获取一个标签页对象，id_or_num不为None时，后面几个参数无效
         :param id_or_num: 要获取的标签页id或序号，序号从1开始，可传入负数获取倒数第几个，不是视觉排列顺序，而是激活顺序
@@ -295,7 +255,7 @@ class Chromium(object):
                   title: str = None,
                   url: str = None,
                   tab_type: Union[str, list, tuple] = 'page',
-                  mix: bool = False,
+                  mix: bool = True,
                   as_id: bool = False) -> List[ChromiumTab, str]:
         """查找符合条件的tab，返回它们组成的列表，title和url是与关系
         :param title: 要匹配title的文本

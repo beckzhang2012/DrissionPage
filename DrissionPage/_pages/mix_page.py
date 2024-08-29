@@ -30,9 +30,10 @@ class MixPage(SessionPage, ChromiumPage, BasePage):
         if hasattr(self, '_created'):
             return
 
-        self._mode = mode.lower()
-        if self._mode not in ('s', 'd'):
+        mode = mode.lower()
+        if mode not in ('s', 'd'):
             raise ValueError('mode参数只能是s或d。')
+        self._d_mode = mode == 'd'
         self._has_driver = True
         self._has_session = True
 
@@ -42,13 +43,12 @@ class MixPage(SessionPage, ChromiumPage, BasePage):
             chromium_options.set_timeouts(base=self._timeout).set_paths(download_path=self.download_path)
         super(SessionPage, self).__init__(addr_or_opts=chromium_options, timeout=timeout)
         self._type = 'MixPage'
-        self.change_mode(self._mode, go=False, copy_cookies=False)
+        self.change_mode(mode, go=False, copy_cookies=False)
 
     def __call__(self, locator, index=1, timeout=None):
-        if self._mode == 'd':
+        if self._d_mode:
             return super(SessionPage, self).__call__(locator, index=index, timeout=timeout)
-        elif self._mode == 's':
-            return super().__call__(locator, index=index)
+        return super().__call__(locator, index=index)
 
     @property
     def latest_tab(self):
@@ -62,10 +62,7 @@ class MixPage(SessionPage, ChromiumPage, BasePage):
 
     @property
     def url(self):
-        if self._mode == 'd':
-            return self._browser_url
-        elif self._mode == 's':
-            return self._session_url
+        return self._browser_url if self._d_mode else self._session_url
 
     @property
     def _browser_url(self):
@@ -73,31 +70,23 @@ class MixPage(SessionPage, ChromiumPage, BasePage):
 
     @property
     def title(self):
-        if self._mode == 's':
-            return super().title
-        elif self._mode == 'd':
-            return super(SessionPage, self).title
+        return super(SessionPage, self).title if self._d_mode else super().title
 
     @property
     def raw_data(self):
-        if self._mode == 's':
-            return super().raw_data
-        elif self._mode == 'd':
+        if self._d_mode:
             return super(SessionPage, self).html if self._has_driver else ''
+        return super().raw_data
 
     @property
     def html(self):
-        if self._mode == 's':
-            return super().html
-        elif self._mode == 'd':
+        if self._d_mode:
             return super(SessionPage, self).html if self._has_driver else ''
+        return super().html
 
     @property
     def json(self):
-        if self._mode == 's':
-            return super().json
-        elif self._mode == 'd':
-            return super(SessionPage, self).json
+        return super(SessionPage, self).json if self._d_mode else super().json
 
     @property
     def response(self):
@@ -105,14 +94,11 @@ class MixPage(SessionPage, ChromiumPage, BasePage):
 
     @property
     def mode(self):
-        return self._mode
+        return 'd' if self._d_mode else 's'
 
     @property
     def user_agent(self):
-        if self._mode == 's':
-            return super().user_agent
-        elif self._mode == 'd':
-            return super(SessionPage, self).user_agent
+        return super(SessionPage, self).user_agent if self._d_mode else super().user_agent
 
     @property
     def session(self):
@@ -126,15 +112,15 @@ class MixPage(SessionPage, ChromiumPage, BasePage):
 
     @property
     def timeout(self):
-        return self._timeout if self._mode == 's' else self.timeouts.base
+        return self.timeouts.base if self._d_mode else self._timeout
 
     def get(self, url, show_errmsg=False, retry=None, interval=None, timeout=None, **kwargs):
-        if self._mode == 'd':
+        if self._d_mode:
             return super(SessionPage, self).get(url, show_errmsg, retry, interval, timeout)
-        elif self._mode == 's':
-            if timeout is None:
-                timeout = self.timeouts.page_load if self._has_driver else self.timeout
-            return super().get(url, show_errmsg, retry, interval, timeout, **kwargs)
+
+        if timeout is None:
+            timeout = self.timeouts.page_load if self._has_driver else self.timeout
+        return super().get(url, show_errmsg, retry, interval, timeout, **kwargs)
 
     def post(self, url, show_errmsg=False, retry=None, interval=None, **kwargs):
         if self.mode == 'd':
@@ -144,61 +130,51 @@ class MixPage(SessionPage, ChromiumPage, BasePage):
         return super().post(url, show_errmsg, retry, interval, **kwargs)
 
     def ele(self, locator, index=1, timeout=None):
-        if self._mode == 's':
-            return super().ele(locator, index=index)
-        elif self._mode == 'd':
-            return super(SessionPage, self).ele(locator, index=index, timeout=timeout)
+        return super(SessionPage, self).ele(locator, index=index, timeout=timeout) if self._d_mode \
+            else super().ele(locator, index=index)
 
     def eles(self, locator, timeout=None):
-        if self._mode == 's':
-            return super().eles(locator)
-        elif self._mode == 'd':
-            return super(SessionPage, self).eles(locator, timeout=timeout)
+        return super(SessionPage, self).eles(locator, timeout=timeout) if self._d_mode else super().eles(locator)
 
     def s_ele(self, locator=None, index=1):
-        if self._mode == 's':
-            return super().s_ele(locator, index=index)
-        elif self._mode == 'd':
-            return super(SessionPage, self).s_ele(locator, index=index)
+        return super(SessionPage, self).s_ele(locator,
+                                              index=index) if self._d_mode else super().s_ele(locator, index=index)
 
     def s_eles(self, locator):
-        if self._mode == 's':
-            return super().s_eles(locator)
-        elif self._mode == 'd':
-            return super(SessionPage, self).s_eles(locator)
+        return super(SessionPage, self).s_eles(locator) if self._d_mode else super().s_eles(locator)
 
     def change_mode(self, mode=None, go=True, copy_cookies=True):
-        if mode is not None and mode.lower() == self._mode:
+        if mode:
+            mode = mode.lower()
+        if mode is not None and ((mode == 'd' and self._d_mode) or (mode == 's' and not self._d_mode)):
             return
 
-        self._mode = 's' if self._mode == 'd' else 'd'
+        self._d_mode = not self._d_mode
 
         # s模式转d模式
-        if self._mode == 'd':
+        if self._d_mode:
             if self._driver is None:
                 self._connect_browser(self._chromium_options)
 
             self._url = None if not self._has_driver else super(SessionPage, self).url
             self._has_driver = True
-
             if self._session_url:
                 if copy_cookies:
                     self.cookies_to_browser()
-
                 if go:
                     self.get(self._session_url)
 
+            return
+
         # d模式转s模式
-        elif self._mode == 's':
-            self._has_session = True
-            self._url = self._session_url
+        self._has_session = True
+        self._url = self._session_url
 
-            if self._has_driver:
-                if copy_cookies:
-                    self.cookies_to_session()
-
-                if go and not self.get(super(SessionPage, self).url):
-                    raise ConnectionError('s模式访问失败，请设置go=False，自行构造连接参数进行访问。')
+        if self._has_driver:
+            if copy_cookies:
+                self.cookies_to_session()
+            if go and not self.get(super(SessionPage, self).url):
+                raise ConnectionError('s模式访问失败，请设置go=False，自行构造连接参数进行访问。')
 
     def cookies_to_session(self, copy_user_agent=True):
         if not self._has_session:
@@ -216,10 +192,8 @@ class MixPage(SessionPage, ChromiumPage, BasePage):
         set_tab_cookies(self, super().cookies())
 
     def cookies(self, all_domains=False, all_info=False):
-        if self._mode == 's':
-            return super().cookies(all_domains, all_info)
-        elif self._mode == 'd':
-            return super(SessionPage, self).cookies(all_domains, all_info)
+        return super(SessionPage, self).cookies(all_domains, all_info) if self._d_mode \
+            else super().cookies(all_domains, all_info)
 
     def get_tab(self, id_or_num=None, title=None, url=None, tab_type='page', as_id=False):
         return self.browser._get_tab(id_or_num=id_or_num, title=title, url=url,
@@ -261,10 +235,9 @@ class MixPage(SessionPage, ChromiumPage, BasePage):
                 self._response.close()
 
     def _find_elements(self, locator, timeout=None, index=1, relative=False, raise_err=None):
-        if self._mode == 's':
-            return super()._find_elements(locator, index=index)
-        elif self._mode == 'd':
+        if self._d_mode:
             return super(SessionPage, self)._find_elements(locator, timeout=timeout, index=index, relative=relative)
+        return super()._find_elements(locator, index=index)
 
     def quit(self, timeout=5, force=True, del_data=False):
         if self._has_session:

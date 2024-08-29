@@ -13,4 +13,4 @@ from ._pages.mix_page import MixPage
 from ._pages.mix_page import MixPage as WebPage
 from ._pages.session_page import SessionPage
 
-__version__ = '4.1.0.0b20'
+__version__ = '4.1.0.0b21'

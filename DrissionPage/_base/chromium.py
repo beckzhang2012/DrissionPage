@@ -174,29 +174,15 @@ class Chromium(object):
         return CookiesList(r)
 
     def new_tab(self, url=None, new_window=False, background=False, new_context=False):
-        return self._new_tab(ChromiumTab, url=url, new_window=new_window,
-                             background=background, new_context=new_context)
+        return self._new_tab(True, url=url, new_window=new_window, background=background, new_context=new_context)
 
-    def new_mix_tab(self, url=None, new_window=False, background=False, new_context=False):
-        return self._new_tab(MixTab, url=url, new_window=new_window,
-                             background=background, new_context=new_context)
-
-    def get_tab(self, id_or_num=None, title=None, url=None, tab_type='page', as_id=False):
-        t = self._get_tab(id_or_num=id_or_num, title=title, url=url, tab_type=tab_type, as_id=as_id)
-        if t._type == 'MixTab':
-            raise RuntimeError('该标签页已有MixTab版本，如需多对象公用请用Settings设置singleton_tab_obj为False。')
-        return t
-
-    def get_tabs(self, title=None, url=None, tab_type='page', as_id=False):
-        return self._get_tabs(title=title, url=url, tab_type=tab_type, as_id=as_id)
-
-    def get_mix_tab(self, id_or_num=None, title=None, url=None, tab_type='page'):
+    def get_tab(self, id_or_num=None, title=None, url=None, tab_type='page'):
         t = self._get_tab(id_or_num=id_or_num, title=title, url=url, tab_type=tab_type, mix=True, as_id=False)
         if t._type != 'MixTab':
             raise RuntimeError('该标签页已有非MixTab版本，如需多对象公用请用Settings设置singleton_tab_obj为False。')
         return t
 
-    def get_mix_tabs(self, title=None, url=None, tab_type='page'):
+    def get_tabs(self, title=None, url=None, tab_type='page'):
         return self._get_tabs(title=title, url=url, tab_type=tab_type, mix=True, as_id=False)
 
     def close_tabs(self, tabs_or_ids=None, others=False):
@@ -301,7 +287,8 @@ class Chromium(object):
             path = Path(self._chromium_options.user_data_path)
             rmtree(path, True)
 
-    def _new_tab(self, obj, url=None, new_window=False, background=False, new_context=False):
+    def _new_tab(self, mix=True, url=None, new_window=False, background=False, new_context=False):
+        obj = MixTab if mix else ChromiumTab
         tab = None
         if new_context:
             tab = self._run_cdp('Target.createBrowserContext')['browserContextId']
@@ -329,7 +316,7 @@ class Chromium(object):
             tab.get(url)
         return tab
 
-    def _get_tab(self, id_or_num=None, title=None, url=None, tab_type='page', mix=False, as_id=False):
+    def _get_tab(self, id_or_num=None, title=None, url=None, tab_type='page', mix=True, as_id=False):
         if id_or_num is not None:
             if isinstance(id_or_num, int):
                 id_or_num = self.tab_ids[id_or_num - 1 if id_or_num > 0 else id_or_num]
@@ -353,7 +340,7 @@ class Chromium(object):
         with self._lock:
             return MixTab(self, id_or_num) if mix else ChromiumTab(self, id_or_num)
 
-    def _get_tabs(self, title=None, url=None, tab_type='page', mix=False, as_id=False):
+    def _get_tabs(self, title=None, url=None, tab_type='page', mix=True, as_id=False):
         tabs = self._driver.get(f'http://{self.address}/json').json()  # 不要改用cdp
 
         if isinstance(tab_type, str):
