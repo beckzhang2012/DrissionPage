@@ -103,8 +103,7 @@ class Clicker(object):
             tid = self._ele.tab.browser.wait.new_tab(curr_tab=curr_tid)
             if not tid:
                 raise RuntimeError('没有出现新标签页。')
-            return (self._ele.tab.browser.get_mix_tab(tid) if self._ele.tab._type == 'MixTab'
-                    else self._ele.tab.browser.get_tab(tid))
+            return self._ele.tab.browser._get_tab(tid, mix=self._ele.tab._type == 'MixTab')
 
     def at(self, offset_x=None, offset_y=None, button='left', count=1):
         self._ele.owner.scroll.to_see(self._ele)
@@ -141,8 +140,7 @@ class Clicker(object):
         tid = self._ele.tab.browser.wait.new_tab(timeout=timeout, curr_tab=curr_tid)
         if not tid:
             raise RuntimeError('没有出现新标签页。')
-        return (self._ele.tab.browser.get_mix_tab(tid) if self._ele.tab._type == 'MixTab'
-                else self._ele.tab.browser.get_tab(tid))
+        return self._ele.tab.browser._get_tab(tid, mix=self._ele.tab._type == 'MixTab')
 
     def for_url_change(self, text=None, exclude=False, by_js=False, timeout=None):
         if text is None:

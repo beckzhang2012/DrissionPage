@@ -61,6 +61,7 @@ class ChromiumBase(BasePage):
         self._auto_handle_alert = None
         self._load_end_time = 0
         self._init_jss = []
+        self._disconnect_flag = False
         self._type = 'ChromiumBase'
         if not hasattr(self, '_listener'):
             self._listener = None
@@ -330,11 +331,11 @@ class ChromiumBase(BasePage):
 
     @property
     def tab_id(self):
-        return self._target_id
+        return self.driver.id
 
     @property
     def _target_id(self):
-        return self.driver.id if self.driver.is_running else ''
+        return self.driver.id
 
     @property
     def active_ele(self):
@@ -650,8 +651,10 @@ class ChromiumBase(BasePage):
 
     def disconnect(self):
         if self._driver:
+            self._disconnect_flag = True
             self._driver.stop()
             self.browser._all_drivers.get(self._driver.id, set()).discard(self._driver)
+            self._disconnect_flag = False
 
     def reconnect(self, wait=0):
         t_id = self._target_id

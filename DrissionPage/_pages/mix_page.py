@@ -153,8 +153,9 @@ class MixPage(SessionPage, ChromiumPage, BasePage):
 
         # s模式转d模式
         if self._d_mode:
-            if self._driver is None:
-                self._connect_browser(self._chromium_options)
+            if self._driver is None or not self._driver.is_running:
+                self._driver_init(self.tab_id)
+                self._get_document()
 
             self._url = None if not self._has_driver else super(SessionPage, self).url
             self._has_driver = True
@@ -170,7 +171,7 @@ class MixPage(SessionPage, ChromiumPage, BasePage):
         self._has_session = True
         self._url = self._session_url
 
-        if self._has_driver:
+        if self._has_driver and self._driver.is_running:
             if copy_cookies:
                 self.cookies_to_session()
             if go and not self.get(super(SessionPage, self).url):
@@ -203,7 +204,7 @@ class MixPage(SessionPage, ChromiumPage, BasePage):
         return self.browser._get_tabs(title=title, url=url, tab_type=tab_type, mix=True, as_id=as_id)
 
     def new_tab(self, url=None, new_window=False, background=False, new_context=False):
-        return self.browser.new_mix_tab(url=url, new_window=new_window, background=background, new_context=new_context)
+        return self.browser._new_tab(url=url, new_window=new_window, background=background, new_context=new_context)
 
     def close_driver(self):
         if self._has_driver:

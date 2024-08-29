@@ -22,7 +22,7 @@ from .._units.setter import SessionPageSetter
 class SessionPage(BasePage):
     _headers: Optional[CaseInsensitiveDict] = ...
     _session: Optional[Session] = ...
-    _session_options: SessionOptions = ...
+    _session_options: Optional[SessionOptions] = ...
     _url: str = ...
     _response: Optional[Response] = ...
     _url_available: bool = ...
@@ -115,7 +115,7 @@ class SessionPage(BasePage):
 
     @property
     def encoding(self) -> str:
-        """返回设置的编码"""
+        """返回设置的编码，s模式专用"""
         ...
 
     @property
@@ -165,7 +165,7 @@ class SessionPage(BasePage):
         :param hooks: 回调方法
         :param stream: 是否使用流式传输
         :param verify: 是否验证 SSL 证书
-        :param cert: SSL客户端证书文件的路径(.pem格式)，或(‘cert’, ‘key’)元组
+        :param cert: SSL客户端证书文件的路径(.pem格式)，或('cert', 'key')元组
         :return: s模式时返回url是否可用，d模式时返回获取到的Response对象
         """
         ...
@@ -207,7 +207,7 @@ class SessionPage(BasePage):
         :param hooks: 回调方法
         :param stream: 是否使用流式传输
         :param verify: 是否验证 SSL 证书
-        :param cert: SSL客户端证书文件的路径(.pem格式)，或(‘cert’, ‘key’)元组
+        :param cert: SSL客户端证书文件的路径(.pem格式)，或('cert', 'key')元组
         :return: s模式时返回url是否可用，d模式时返回获取到的Response对象
         """
         ...

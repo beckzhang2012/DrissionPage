@@ -19,12 +19,13 @@ class MixTab(SessionPage, ChromiumTab, BasePage):
     def __init__(self, browser, tab_id):
         if Settings.singleton_tab_obj and hasattr(self, '_created'):
             return
-
         self._d_mode = True
-        self._has_driver = True
-        self._has_session = True
-        super().__init__(session_or_options=browser._session_options or SessionOptions(
-            read_file=browser._session_options is None))
+        self._session_options = None
+        self._headers = None
+        self._response = None
+        self._session = None
+        self._encoding = None
+        self._timeout = 10
         super(SessionPage, self).__init__(browser=browser, tab_id=tab_id)
         self._type = 'MixTab'
 
@@ -52,15 +53,11 @@ class MixTab(SessionPage, ChromiumTab, BasePage):
 
     @property
     def raw_data(self):
-        if self._d_mode:
-            return super(SessionPage, self).html if self._has_driver else ''
-        return super().raw_data
+        return super(SessionPage, self).html if self._d_mode else super().raw_data
 
     @property
     def html(self):
-        if self._d_mode:
-            return super(SessionPage, self).html if self._has_driver else ''
-        return super().html
+        return super(SessionPage, self).html if self._d_mode else super().html
 
     @property
     def json(self):
@@ -99,15 +96,16 @@ class MixTab(SessionPage, ChromiumTab, BasePage):
             return super(SessionPage, self).get(url, show_errmsg, retry, interval, timeout)
 
         if timeout is None:
-            timeout = self.timeouts.page_load if self._has_driver else self.timeout
+            timeout = self.timeouts.page_load
         return super().get(url, show_errmsg, retry, interval, timeout, **kwargs)
 
-    def post(self, url, show_errmsg=False, retry=None, interval=None, **kwargs):
+    def post(self, url, show_errmsg=False, retry=None, interval=None, timeout=None, **kwargs):
         if self.mode == 'd':
             self.cookies_to_session()
-            super().post(url, show_errmsg, retry, interval, **kwargs)
-            return self.response
-        return super().post(url, show_errmsg, retry, interval, **kwargs)
+        if timeout is None:
+            kwargs['timeout'] = self.timeouts.page_load
+        super().post(url, show_errmsg, retry, interval, **kwargs)
+        return self.response
 
     def ele(self, locator, index=1, timeout=None):
         return super(SessionPage, self).ele(locator, index=index, timeout=timeout) if self._d_mode \
@@ -133,13 +131,11 @@ class MixTab(SessionPage, ChromiumTab, BasePage):
 
         # s模式转d模式
         if self._d_mode:
-            if self._driver is None:  # todo: 优化这里的逻辑
-                tabs = self.browser.tab_ids
-                tid = self.tab_id if self.tab_id in tabs else tabs[0]
-                self._connect_browser(tid)
+            if self._driver is None or not self._driver.is_running:
+                self._driver_init(self.tab_id)
+                self._get_document()
 
-            self._url = None if not self._has_driver else super(SessionPage, self).url
-            self._has_driver = True
+            self._url = super(SessionPage, self).url
             if self._session_url:
                 if copy_cookies:
                     self.cookies_to_browser()
@@ -149,9 +145,13 @@ class MixTab(SessionPage, ChromiumTab, BasePage):
             return
 
         # d模式转s模式
-        self._has_session = True
+        if self._session is None:
+            self._s_set_start_options(
+                self.browser._session_options or SessionOptions(read_file=self.browser._session_options is None))
+            self._create_session()
+
         self._url = self._session_url
-        if self._has_driver:
+        if self._driver:
             if copy_cookies:
                 self.cookies_to_session()
 
@@ -161,7 +161,7 @@ class MixTab(SessionPage, ChromiumTab, BasePage):
                     self.get(url)
 
     def cookies_to_session(self, copy_user_agent=True):
-        if not self._has_session:
+        if not self._session:
             return
 
         if copy_user_agent:
@@ -171,7 +171,7 @@ class MixTab(SessionPage, ChromiumTab, BasePage):
         set_session_cookies(self.session, super(SessionPage, self).cookies())
 
     def cookies_to_browser(self):
-        if not self._has_driver:
+        if self._driver is None or not self._driver.is_running:
             return
         set_tab_cookies(self, super().cookies())
 
@@ -179,11 +179,12 @@ class MixTab(SessionPage, ChromiumTab, BasePage):
         return super(SessionPage, self).cookies(all_domains, all_info) if self._d_mode \
             else super().cookies(all_domains, all_info)
 
-    def close(self, others=False):
+    def close(self, others=False, session=False):
         self.browser.close_tabs(self.tab_id, others=others)
-        self._session.close()
-        if self._response is not None:
-            self._response.close()
+        if session and self._session:
+            self._session.close()
+            if self._response is not None:
+                self._response.close()
 
     def _find_elements(self, locator, timeout=None, index=1, relative=False, raise_err=None):
         return super(SessionPage, self)._find_elements(locator, timeout=timeout, index=index, relative=relative) \

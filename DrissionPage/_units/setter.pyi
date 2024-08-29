@@ -164,7 +164,7 @@ class SessionPageSetter(BaseSetter):
         ...
 
     def cert(self, cert: Union[str, Tuple[str, str], None]) -> None:
-        """SSL客户端证书文件的路径(.pem格式)，或(‘cert’, ‘key’)元组
+        """SSL客户端证书文件的路径(.pem格式)，或('cert', 'key')元组
         :param cert: 证书路径或元组
         :return: None
         """

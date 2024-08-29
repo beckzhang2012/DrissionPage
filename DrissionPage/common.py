@@ -49,5 +49,5 @@ def from_playwright(page_or_browser):
             port = con_info.laddr.port
             break
     else:
-        raise RuntimeError('获取失败。')
+        raise RuntimeError('获取失败，请用管理员权限运行。')
     return Chromium(f'127.0.0.1:{port}')

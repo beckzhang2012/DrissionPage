@@ -67,4 +67,5 @@ class ChromiumTab(ChromiumBase):
         return f'<ChromiumTab browser_id={self.browser.id} tab_id={self.tab_id}>'
 
     def _on_disconnect(self):
-        ChromiumTab._TABS.pop(self.tab_id, None)
+        if not self._disconnect_flag:
+            ChromiumTab._TABS.pop(self.tab_id, None)

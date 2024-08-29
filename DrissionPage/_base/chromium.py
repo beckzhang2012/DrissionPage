@@ -74,6 +74,7 @@ class Chromium(object):
         self.retry_times = self._chromium_options.retry_times
         self.retry_interval = self._chromium_options.retry_interval
         self.address = self._chromium_options.address
+        self._disconnect_flag = False
         self._driver = BrowserDriver(self.id, 'browser', self.address, self)
 
         if ((not self._chromium_options._ua_set and self._is_headless != self._chromium_options.is_headless)
@@ -223,12 +224,14 @@ class Chromium(object):
         self._run_cdp('Target.activateTarget', targetId=id_ind_tab)
 
     def reconnect(self):
+        self._disconnect_flag = True
         self._driver.stop()
         BrowserDriver.BROWSERS.pop(self.id)
         self._driver = BrowserDriver(self.id, 'browser', self.address, self)
         self._run_cdp('Target.setDiscoverTargets', discover=True)
         self._driver.set_callback('Target.targetDestroyed', self._onTargetDestroyed)
         self._driver.set_callback('Target.targetCreated', self._onTargetCreated)
+        self._disconnect_flag = False
 
     def clear_cache(self, cache=True, cookies=True):
         if cache:
@@ -396,19 +399,20 @@ class Chromium(object):
         self._all_drivers.pop(tab_id, None)
 
     def _on_disconnect(self):
-        Chromium._BROWSERS.pop(self.id, None)
-        if self._chromium_options.is_auto_port and self._chromium_options.user_data_path:
-            path = Path(self._chromium_options.user_data_path)
-            end_time = perf_counter() + 7
-            while perf_counter() < end_time:
-                if not path.exists():
-                    break
-                try:
-                    rmtree(path)
-                    break
-                except (PermissionError, FileNotFoundError, OSError):
-                    pass
-                sleep(.03)
+        if not self._disconnect_flag:
+            Chromium._BROWSERS.pop(self.id, None)
+            if self._chromium_options.is_auto_port and self._chromium_options.user_data_path:
+                path = Path(self._chromium_options.user_data_path)
+                end_time = perf_counter() + 7
+                while perf_counter() < end_time:
+                    if not path.exists():
+                        break
+                    try:
+                        rmtree(path)
+                        break
+                    except (PermissionError, FileNotFoundError, OSError):
+                        pass
+                    sleep(.03)
 
 
 def handle_options(addr_or_opts):
@@ -468,11 +472,12 @@ def run_browser(chromium_options):
     return is_headless, browser_id, is_exists
 
 
-def _new_tab_by_js(browser:Chromium, url, obj, new_window):
-    tab = browser.get_mix_tab() if isinstance(obj, MixTab) else browser.get_tab()
+def _new_tab_by_js(browser: Chromium, url, obj, new_window):
+    mix = isinstance(obj, MixTab)
+    tab = browser._get_tab(mix=mix)
     url = f'"{url}"' if url else ''
     new = 'target="_new"' if new_window else 'target="_blank"'
     tid = browser.latest_tab.tab_id
     tab.run_js(f'window.open({url}, {new})')
     tid = browser.wait.new_tab(curr_tab=tid)
-    return browser.get_mix_tab(tid) if isinstance(obj, MixTab) else browser.get_tab(tid)
+    return browser._get_tab(tid, mix=mix)

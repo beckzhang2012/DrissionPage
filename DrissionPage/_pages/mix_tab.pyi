@@ -5,6 +5,7 @@
 @Copyright: (c) 2024 by g1879, Inc. All Rights Reserved.
 @License  : BSD 3-Clause.
 """
+from http.cookiejar import CookieJar
 from typing import Union, Tuple, Any, Optional, Literal
 
 from requests import Session, Response
@@ -24,8 +25,6 @@ from .._units.waiter import MixTabWaiter
 class MixTab(SessionPage, ChromiumTab):
     _tab: MixTab = ...
     _d_mode: bool = ...
-    _has_driver: bool = ...
-    _has_session: bool = ...
     _set: MixTabSetter = ...
 
     def __init__(self, browser: Chromium, tab_id: str):
@@ -121,22 +120,22 @@ class MixTab(SessionPage, ChromiumTab):
     def get(self,
             url: str,
             show_errmsg: bool = False,
-            retry: int | None = None,
-            interval: float | None = None,
-            timeout: float | None = None,
-            params: dict | None = ...,
-            data: Union[dict, str, None] = ...,
-            json: Union[dict, str, None] = ...,
-            headers: dict | None = ...,
-            cookies: Any | None = ...,
-            files: Any | None = ...,
-            auth: Any | None = ...,
-            allow_redirects: bool = ...,
-            proxies: dict | None = ...,
-            hooks: Any | None = ...,
-            stream: Any | None = ...,
-            verify: Any | None = ...,
-            cert: Any | None = ...) -> Union[bool, None]:
+            retry: Optional[int] = None,
+            interval: Optional[float] = None,
+            timeout: Optional[float] = None,
+            params: Optional[dict] = None,
+            data: Union[dict, str, None] = None,
+            json: Union[dict, str, None] = None,
+            headers: Optional[dict] = None,
+            cookies: Union[CookieJar, dict] = None,
+            files: Optional[Any] = None,
+            auth: Optional[Any] = None,
+            allow_redirects: bool = True,
+            proxies: Optional[dict] = None,
+            hooks: Optional[Any] = None,
+            stream: bool = None,
+            verify: Union[bool, str] = None,
+            cert: [str, Tuple[str, str]] = None) -> Union[bool, None]:
         """跳转到一个url
         :param url: 目标url
         :param show_errmsg: 是否显示和抛出异常
@@ -155,7 +154,7 @@ class MixTab(SessionPage, ChromiumTab):
         :param hooks: 回调方法
         :param stream: 是否使用流式传输
         :param verify: 是否验证 SSL 证书
-        :param cert: SSL客户端证书文件的路径(.pem格式)，或(‘cert’, ‘key’)元组
+        :param cert: SSL客户端证书文件的路径(.pem格式)，或('cert', 'key')元组
         :return: s模式时返回url是否可用，d模式时返回获取到的Response对象
         """
         ...
@@ -163,22 +162,22 @@ class MixTab(SessionPage, ChromiumTab):
     def post(self,
              url: str,
              show_errmsg: bool = False,
-             retry: int | None = None,
-             interval: float | None = None,
-             timeout: float | None = ...,
-             params: dict | None = ...,
+             retry: Optional[int] = None,
+             interval: Optional[float] = None,
+             timeout: Optional[float] = None,
+             params: Optional[dict] = None,
              data: Union[dict, str, None] = None,
-             json: Union[dict, str, None] = ...,
-             headers: dict | None = ...,
-             cookies: Any | None = ...,
-             files: Any | None = ...,
-             auth: Any | None = ...,
-             allow_redirects: bool = ...,
-             proxies: dict | None = ...,
-             hooks: Any | None = ...,
-             stream: Any | None = ...,
-             verify: Any | None = ...,
-             cert: Any | None = ...) -> Union[bool, Response]:
+             json: Union[dict, str, None] = None,
+             headers: Optional[dict] = None,
+             cookies: Union[CookieJar, dict] = None,
+             files: Optional[Any] = None,
+             auth: Optional[Any] = None,
+             allow_redirects: bool = True,
+             proxies: Optional[dict] = None,
+             hooks: Optional[Any] = None,
+             stream: bool = None,
+             verify: Union[bool, str] = None,
+             cert: [str, Tuple[str, str]] = None) -> Response:
         """用post方式跳转到url
         :param url: 目标url
         :param show_errmsg: 是否显示和抛出异常
@@ -197,8 +196,8 @@ class MixTab(SessionPage, ChromiumTab):
         :param hooks: 回调方法
         :param stream: 是否使用流式传输
         :param verify: 是否验证 SSL 证书
-        :param cert: SSL客户端证书文件的路径(.pem格式)，或(‘cert’, ‘key’)元组
-        :return: s模式时返回url是否可用，d模式时返回获取到的Response对象
+        :param cert: SSL客户端证书文件的路径(.pem格式)，或('cert', 'key')元组
+        :return: 获取到的Response对象
         """
         ...
 
