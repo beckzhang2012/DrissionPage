@@ -11,7 +11,7 @@ from typing import Union, Tuple, Literal, Any, Optional
 from requests.adapters import HTTPAdapter
 from requests.auth import HTTPBasicAuth
 
-from .cookies_setter import SessionCookiesSetter, CookiesSetter, MixPageCookiesSetter, BrowserCookiesSetter
+from .cookies_setter import SessionCookiesSetter, CookiesSetter, WebPageCookiesSetter, BrowserCookiesSetter
 from .scroller import PageScroller
 from .._base.base import BasePage
 from .._base.chromium import Chromium
@@ -20,9 +20,9 @@ from .._pages.chromium_base import ChromiumBase
 from .._pages.chromium_frame import ChromiumFrame
 from .._pages.chromium_page import ChromiumPage
 from .._pages.chromium_tab import ChromiumTab
-from .._pages.mix_page import MixPage
 from .._pages.mix_tab import MixTab
 from .._pages.session_page import SessionPage
+from .._pages.web_page import WebPage
 
 FILE_EXISTS = Literal['skip', 'rename', 'overwrite', 's', 'r', 'o']
 
@@ -403,19 +403,19 @@ class ChromiumPageSetter(TabSetter):
         ...
 
 
-class MixPageSetter(ChromiumPageSetter):
-    _owner: MixPage = ...
+class WebPageSetter(ChromiumPageSetter):
+    _owner: WebPage = ...
     _session_setter: SessionPageSetter = ...
     _chromium_setter: ChromiumPageSetter = ...
 
-    def __init__(self, owner: MixPage):
+    def __init__(self, owner: WebPage):
         """
-        :param owner: MixPage对象
+        :param owner: WebPage对象
         """
         ...
 
     @property
-    def cookies(self) -> MixPageCookiesSetter:
+    def cookies(self) -> WebPageCookiesSetter:
         """返回用于设置cookies的对象"""
         ...
 
@@ -432,7 +432,7 @@ class MixTabSetter(TabSetter):
         ...
 
     @property
-    def cookies(self) -> MixPageCookiesSetter:
+    def cookies(self) -> WebPageCookiesSetter:
         """返回用于设置cookies的对象"""
         ...
 
@@ -535,7 +535,7 @@ class LoadMode(object):
         """
         ...
 
-    def __call__(self, value: str) -> None:
+    def __call__(self, value: Literal['normal', 'eager', 'none']) -> None:
         """设置加载策略
         :param value: 可选 'normal', 'eager', 'none'
         :return: None

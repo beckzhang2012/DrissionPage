@@ -10,8 +10,8 @@ from typing import Union, Tuple, Any, Optional, Literal
 
 from .chromium_page import ChromiumPage
 from .chromium_tab import ChromiumTab
-from .mix_page import MixPage
 from .mix_tab import MixTab
+from .web_page import WebPage
 from .._base.base import BasePage
 from .._base.chromium import Chromium
 from .._base.driver import Driver
@@ -34,7 +34,7 @@ PIC_TYPE = Literal['jpg', 'jpeg', 'png', 'webp', True]
 
 
 class ChromiumBase(BasePage):
-    _tab: Union[ChromiumTab, MixTab, ChromiumFrame, ChromiumPage, MixPage] = ...
+    _tab: Union[ChromiumTab, MixTab, ChromiumFrame, ChromiumPage, WebPage] = ...
     _browser: Chromium = ...
     _driver: Optional[Driver] = ...
     _frame_id: str = ...

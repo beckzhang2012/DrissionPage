@@ -10,9 +10,9 @@ from typing import Union
 
 from .._base.chromium import Chromium
 from .._pages.chromium_base import ChromiumBase
-from .._pages.mix_page import MixPage
 from .._pages.mix_tab import MixTab
 from .._pages.session_page import SessionPage
+from .._pages.web_page import WebPage
 
 
 class BrowserCookiesSetter(object):
@@ -99,12 +99,12 @@ class SessionCookiesSetter(object):
         ...
 
 
-class MixPageCookiesSetter(CookiesSetter, SessionCookiesSetter):
-    _owner: Union[MixPage, MixTab] = ...
+class WebPageCookiesSetter(CookiesSetter, SessionCookiesSetter):
+    _owner: Union[WebPage, MixTab] = ...
 
-    def __init__(self, owner: Union[MixPage, MixTab]):
+    def __init__(self, owner: Union[WebPage, MixTab]):
         """
-        :param owner: MixPage, MixTab对象
+        :param owner: WebPage, MixTab对象
         """
         ...
 

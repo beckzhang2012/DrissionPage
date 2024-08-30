@@ -11,10 +11,10 @@ from .._base.base import BasePage
 from .._configs.chromium_options import ChromiumOptions
 from .._functions.cookies import set_session_cookies, set_tab_cookies
 from .._functions.settings import Settings
-from .._units.setter import MixPageSetter
+from .._units.setter import WebPageSetter
 
 
-class MixPage(SessionPage, ChromiumPage, BasePage):
+class WebPage(SessionPage, ChromiumPage, BasePage):
     """整合浏览器和request的页面类"""
 
     def __new__(cls, mode='d', timeout=None, chromium_options=None, session_or_options=None):
@@ -42,7 +42,7 @@ class MixPage(SessionPage, ChromiumPage, BasePage):
             chromium_options = ChromiumOptions(read_file=chromium_options)
             chromium_options.set_timeouts(base=self._timeout).set_paths(download_path=self.download_path)
         super(SessionPage, self).__init__(addr_or_opts=chromium_options, timeout=timeout)
-        self._type = 'MixPage'
+        self._type = 'WebPage'
         self.change_mode(mode, go=False, copy_cookies=False)
 
     def __call__(self, locator, index=1, timeout=None):
@@ -57,7 +57,7 @@ class MixPage(SessionPage, ChromiumPage, BasePage):
     @property
     def set(self):
         if self._set is None:
-            self._set = MixPageSetter(self)
+            self._set = WebPageSetter(self)
         return self._set
 
     @property
@@ -252,4 +252,4 @@ class MixPage(SessionPage, ChromiumPage, BasePage):
             self._has_driver = None
 
     def __repr__(self):
-        return f'<MixPage browser_id={self.browser.id} tab_id={self.tab_id}>'
+        return f'<WebPage browser_id={self.browser.id} tab_id={self.tab_id}>'

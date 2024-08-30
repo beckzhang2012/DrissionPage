@@ -12,8 +12,8 @@ from .._pages.chromium_base import ChromiumBase
 from .._pages.chromium_frame import ChromiumFrame
 from .._pages.chromium_page import ChromiumPage
 from .._pages.chromium_tab import ChromiumTab
-from .._pages.mix_page import MixPage
 from .._pages.mix_tab import MixTab
+from .._pages.web_page import WebPage
 
 
 class ElementRect(object):
@@ -110,7 +110,7 @@ class TabRect(object):
         """
         :param owner: Page对象和Tab对象
         """
-        self._owner: Union[ChromiumPage, ChromiumTab, MixPage, MixTab] = ...
+        self._owner: Union[ChromiumPage, ChromiumTab, WebPage, MixTab] = ...
 
     @property
     def window_state(self) -> str:

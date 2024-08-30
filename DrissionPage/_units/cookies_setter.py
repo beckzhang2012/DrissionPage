@@ -56,7 +56,7 @@ class SessionCookiesSetter(object):
         self._owner.session.cookies.clear()
 
 
-class MixPageCookiesSetter(CookiesSetter, SessionCookiesSetter):
+class WebPageCookiesSetter(CookiesSetter, SessionCookiesSetter):
 
     def __call__(self, cookies):
         if self._owner.mode == 'd' and self._owner._has_driver:

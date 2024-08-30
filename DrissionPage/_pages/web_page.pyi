@@ -20,13 +20,13 @@ from .._configs.session_options import SessionOptions
 from .._elements.chromium_element import ChromiumElement
 from .._elements.session_element import SessionElement
 from .._functions.elements import SessionElementsList, ChromiumElementsList
-from .._units.setter import MixPageSetter
-from .._units.waiter import MixPageWaiter
+from .._units.setter import WebPageSetter
+from .._units.waiter import WebPageWaiter
 
 
-class MixPage(SessionPage, ChromiumPage, BasePage):
+class WebPage(SessionPage, ChromiumPage, BasePage):
     _d_mode: bool = ...
-    _set: MixPageSetter = ...
+    _set: WebPageSetter = ...
     _has_driver: Optional[bool] = ...
     _has_session: Optional[bool] = ...
     _session_options: Union[SessionOptions, None] = ...
@@ -58,18 +58,18 @@ class MixPage(SessionPage, ChromiumPage, BasePage):
         ...
 
     @property
-    def latest_tab(self) -> Union[MixTab, MixPage, str]:
+    def latest_tab(self) -> Union[MixTab, WebPage, str]:
         """返回最新的标签页，最新标签页指最后创建或最后被激活的
         当Settings.singleton_tab_obj==True时返回Tab对象，否则返回tab id"""
         ...
 
     @property
-    def set(self) -> MixPageSetter:
+    def set(self) -> WebPageSetter:
         """返回用于设置的对象"""
         ...
 
     @property
-    def wait(self) -> MixPageWaiter:
+    def wait(self) -> WebPageWaiter:
         """返回用于等待的对象"""
         ...
 

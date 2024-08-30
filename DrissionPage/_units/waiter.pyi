@@ -14,8 +14,8 @@ from .._pages.chromium_base import ChromiumBase
 from .._pages.chromium_frame import ChromiumFrame
 from .._pages.chromium_page import ChromiumPage
 from .._pages.chromium_tab import ChromiumTab
-from .._pages.mix_page import MixPage
 from .._pages.mix_tab import MixTab
+from .._pages.web_page import WebPage
 
 
 class OriginWaiter(object):
@@ -349,7 +349,7 @@ class MixTabWaiter(BaseWaiter):
 
 
 class ChromiumPageWaiter(TabWaiter):
-    _owner: Union[ChromiumPage, MixPage] = ...
+    _owner: Union[ChromiumPage, WebPage] = ...
 
     def __init__(self, owner: ChromiumPage):
         """
@@ -416,10 +416,10 @@ class ChromiumPageWaiter(TabWaiter):
         ...
 
 
-class MixPageWaiter(TabWaiter):
-    _owner: Union[ChromiumPage, MixPage] = ...
+class WebPageWaiter(TabWaiter):
+    _owner: Union[ChromiumPage, WebPage] = ...
 
-    def __init__(self, owner: MixPage):
+    def __init__(self, owner: WebPage):
         """
         :param owner: Page对象
         """
@@ -427,7 +427,7 @@ class MixPageWaiter(TabWaiter):
 
     def __call__(self,
                  second: float,
-                 scope: float = None) -> MixPage:
+                 scope: float = None) -> WebPage:
         """等待若干秒，如传入两个参数，等待时间为这两个数间的一个随机数
         :param second: 秒数
         :param scope: 随机数范围
@@ -459,7 +459,7 @@ class MixPageWaiter(TabWaiter):
                    text: str,
                    exclude: bool = False,
                    timeout: float = None,
-                   raise_err: bool = None) -> Union[False, MixPage]:
+                   raise_err: bool = None) -> Union[False, WebPage]:
         """等待url变成包含或不包含指定文本
         :param text: 用于识别的文本
         :param exclude: 是否排除，为True时当url不包含text指定文本时返回True
@@ -473,7 +473,7 @@ class MixPageWaiter(TabWaiter):
                      text: str,
                      exclude: bool = False,
                      timeout: float = None,
-                     raise_err: bool = None) -> Union[False, MixPage]:
+                     raise_err: bool = None) -> Union[False, WebPage]:
         """等待title变成包含或不包含指定文本
         :param text: 用于识别的文本
         :param exclude: 是否排除，为True时当title不包含text指定文本时返回True

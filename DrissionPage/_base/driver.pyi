@@ -12,7 +12,7 @@ from typing import Union, Callable, Dict, Optional
 from requests import Response
 from websocket import WebSocket
 
-from .browser import Chromium
+from .._base.chromium import Chromium
 
 
 class Driver(object):

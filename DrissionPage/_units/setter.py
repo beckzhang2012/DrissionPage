@@ -10,7 +10,7 @@ from time import sleep
 
 from requests.structures import CaseInsensitiveDict
 
-from .cookies_setter import SessionCookiesSetter, CookiesSetter, MixPageCookiesSetter, BrowserCookiesSetter
+from .cookies_setter import SessionCookiesSetter, CookiesSetter, WebPageCookiesSetter, BrowserCookiesSetter
 from .._functions.tools import show_or_hide_browser
 from .._functions.web import format_headers
 from ..errors import ElementLostError, JavaScriptError
@@ -235,8 +235,8 @@ class TabSetter(ChromiumBaseSetter):
         self._owner.browser._dl_mgr.set_rename(self._owner.tab_id, name, suffix)
 
     def when_download_file_exists(self, mode):
-        types = {'rename': 'rename', 'overwrite': 'overwrite', 'skip': 'skip', 'r': 'rename', 'o': 'overwrite',
-                 's': 'skip'}
+        types = {'rename': 'rename', 'overwrite': 'overwrite', 'skip': 'skip',
+                 'r': 'rename', 'o': 'overwrite', 's': 'skip'}
         mode = types.get(mode, mode)
         if mode not in types:
             raise ValueError(f'''mode参数只能是 '{"', '".join(types.keys())}' 之一，现在是：{mode}''')
@@ -266,7 +266,7 @@ class ChromiumPageSetter(TabSetter):
         self._owner.browser._download_path = self._owner._download_path
 
 
-class MixPageSetter(ChromiumPageSetter):
+class WebPageSetter(ChromiumPageSetter):
     def __init__(self, owner):
         super().__init__(owner)
         self._session_setter = SessionPageSetter(self._owner)
@@ -275,7 +275,7 @@ class MixPageSetter(ChromiumPageSetter):
     @property
     def cookies(self):
         if self._cookies_setter is None:
-            self._cookies_setter = MixPageCookiesSetter(self._owner)
+            self._cookies_setter = WebPageCookiesSetter(self._owner)
         return self._cookies_setter
 
     def headers(self, headers):
@@ -300,19 +300,19 @@ class MixTabSetter(TabSetter):
     @property
     def cookies(self):
         if self._cookies_setter is None:
-            self._cookies_setter = MixPageCookiesSetter(self._owner)
+            self._cookies_setter = WebPageCookiesSetter(self._owner)
         return self._cookies_setter
 
     def headers(self, headers):
-        if self._owner._has_session:
+        if self._owner._session:
             self._session_setter.headers(headers)
-        if self._owner._has_driver:
+        if self._owner._driver and self._owner._driver.is_running:
             self._chromium_setter.headers(headers)
 
     def user_agent(self, ua, platform=None):
-        if self._owner._has_session:
+        if self._owner._session:
             self._session_setter.user_agent(ua)
-        if self._owner._has_driver:
+        if self._owner._driver and self._owner._driver.is_running:
             self._chromium_setter.user_agent(ua, platform)
 
     def timeouts(self, base=None, page_load=None, script=None):
@@ -370,7 +370,7 @@ class LoadMode(object):
         if value.lower() not in ('normal', 'eager', 'none'):
             raise ValueError("只能选择 'normal', 'eager', 'none'。")
         self._owner._load_mode = value
-        if self._owner._type in ('ChromiumPage', 'MixPage'):
+        if self._owner._type in ('ChromiumPage', 'WebPage'):
             self._owner.browser._load_mode = value
 
     def normal(self):

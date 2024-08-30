@@ -15,7 +15,7 @@ from .._pages.chromium_base import ChromiumBase
 from .._pages.chromium_frame import ChromiumFrame
 from .._pages.chromium_page import ChromiumPage
 from .._pages.chromium_tab import ChromiumTab
-from .._pages.mix_page import MixPage
+from .._pages.web_page import WebPage
 from .._units.clicker import Clicker
 from .._units.rect import ElementRect
 from .._units.scroller import ElementScroller
@@ -30,7 +30,7 @@ PIC_TYPE = Literal['jpg', 'jpeg', 'png', 'webp', True]
 class ChromiumElement(DrissionElement):
     _tag: Optional[str] = ...
     owner: ChromiumBase = ...
-    page: Union[ChromiumPage, MixPage] = ...
+    page: Union[ChromiumPage, WebPage] = ...
     tab: Union[ChromiumPage, ChromiumTab] = ...
     _node_id: int = ...
     _obj_id: str = ...
@@ -898,7 +898,7 @@ def find_by_css(ele: ChromiumElement,
     ...
 
 
-def make_chromium_eles(page: Union[ChromiumBase, ChromiumPage, MixPage, ChromiumTab, ChromiumFrame],
+def make_chromium_eles(page: Union[ChromiumBase, ChromiumPage, WebPage, ChromiumTab, ChromiumFrame],
                        _ids: Union[tuple, list, str, int],
                        index: Optional[int] = 1,
                        is_obj_id: bool = True,

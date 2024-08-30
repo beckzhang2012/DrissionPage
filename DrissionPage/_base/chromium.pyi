@@ -225,7 +225,7 @@ class Chromium(object):
                  background: bool = False,
                  new_context: bool = False) -> Union[ChromiumTab, MixTab]:
         """新建一个标签页
-        :param obj: 要创建的Tab类型
+        :param mix: 是否创建MixTab
         :param url: 新标签页跳转到的网址
         :param new_window: 是否在新窗口打开标签页
         :param background: 是否不激活新标签页，如new_window为True则无效

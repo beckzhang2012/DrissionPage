@@ -12,8 +12,8 @@ from .._pages.chromium_base import ChromiumBase
 from .._pages.chromium_frame import ChromiumFrame
 from .._pages.chromium_page import ChromiumPage
 from .._pages.chromium_tab import ChromiumTab
-from .._pages.mix_page import MixPage
 from .._pages.mix_tab import MixTab
+from .._pages.web_page import WebPage
 
 
 class Scroller(object):
@@ -186,7 +186,7 @@ class PageScroller(Scroller):
 
     def to_see(self,
                loc_or_ele: Union[str, tuple, ChromiumElement],
-               center: Union[bool, None] = None) -> Union[ChromiumTab, MixTab, ChromiumPage, MixPage]:
+               center: Union[bool, None] = None) -> Union[ChromiumTab, MixTab, ChromiumPage, WebPage]:
         """滚动页面直到元素可见
         :param loc_or_ele: 元素的定位信息，可以是loc元组，或查询字符串
         :param center: 是否尽量滚动到页面正中，为None时如果被遮挡，则滚动到页面正中
@@ -194,27 +194,27 @@ class PageScroller(Scroller):
         """
         ...
 
-    def to_top(self) -> Union[ChromiumTab, MixTab, ChromiumPage, MixPage]:
+    def to_top(self) -> Union[ChromiumTab, MixTab, ChromiumPage, WebPage]:
         """滚动到顶端，水平位置不变"""
         ...
 
-    def to_bottom(self) -> Union[ChromiumTab, MixTab, ChromiumPage, MixPage]:
+    def to_bottom(self) -> Union[ChromiumTab, MixTab, ChromiumPage, WebPage]:
         """滚动到底端，水平位置不变"""
         ...
 
-    def to_half(self) -> Union[ChromiumTab, MixTab, ChromiumPage, MixPage]:
+    def to_half(self) -> Union[ChromiumTab, MixTab, ChromiumPage, WebPage]:
         """滚动到垂直中间位置，水平位置不变"""
         ...
 
-    def to_rightmost(self) -> Union[ChromiumTab, MixTab, ChromiumPage, MixPage]:
+    def to_rightmost(self) -> Union[ChromiumTab, MixTab, ChromiumPage, WebPage]:
         """滚动到最右边，垂直位置不变"""
         ...
 
-    def to_leftmost(self) -> Union[ChromiumTab, MixTab, ChromiumPage, MixPage]:
+    def to_leftmost(self) -> Union[ChromiumTab, MixTab, ChromiumPage, WebPage]:
         """滚动到最左边，垂直位置不变"""
         ...
 
-    def to_location(self, x: int, y: int) -> Union[ChromiumTab, MixTab, ChromiumPage, MixPage]:
+    def to_location(self, x: int, y: int) -> Union[ChromiumTab, MixTab, ChromiumPage, WebPage]:
         """滚动到指定位置
         :param x: 水平距离
         :param y: 垂直距离
@@ -222,28 +222,28 @@ class PageScroller(Scroller):
         """
         ...
 
-    def up(self, pixel: int = 300) -> Union[ChromiumTab, MixTab, ChromiumPage, MixPage]:
+    def up(self, pixel: int = 300) -> Union[ChromiumTab, MixTab, ChromiumPage, WebPage]:
         """向上滚动若干像素，水平位置不变
         :param pixel: 滚动的像素
         :return: None
         """
         ...
 
-    def down(self, pixel: int = 300) -> Union[ChromiumTab, MixTab, ChromiumPage, MixPage]:
+    def down(self, pixel: int = 300) -> Union[ChromiumTab, MixTab, ChromiumPage, WebPage]:
         """向下滚动若干像素，水平位置不变
         :param pixel: 滚动的像素
         :return: None
         """
         ...
 
-    def left(self, pixel: int = 300) -> Union[ChromiumTab, MixTab, ChromiumPage, MixPage]:
+    def left(self, pixel: int = 300) -> Union[ChromiumTab, MixTab, ChromiumPage, WebPage]:
         """向左滚动若干像素，垂直位置不变
         :param pixel: 滚动的像素
         :return: None
         """
         ...
 
-    def right(self, pixel: int = 300) -> Union[ChromiumTab, MixTab, ChromiumPage, MixPage]:
+    def right(self, pixel: int = 300) -> Union[ChromiumTab, MixTab, ChromiumPage, WebPage]:
         """向右滚动若干像素，垂直位置不变
         :param pixel: 滚动的像素
         :return: None

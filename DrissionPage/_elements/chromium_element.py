@@ -27,8 +27,8 @@ from .._units.selector import SelectElement
 from .._units.setter import ChromiumElementSetter
 from .._units.states import ElementStates, ShadowRootStates
 from .._units.waiter import ElementWaiter
-from ..errors import ContextLostError, ElementLostError, JavaScriptError, CDPError, NoResourceError, AlertExistsError, \
-    NoRectError
+from ..errors import (ContextLostError, ElementLostError, JavaScriptError, CDPError, NoResourceError,
+                      AlertExistsError, NoRectError)
 
 __FRAME_ELEMENT__ = ('iframe', 'frame')
 
