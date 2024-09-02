@@ -15,7 +15,7 @@ setup(
     long_description_content_type="text/markdown",
     license="BSD",
     keywords="DrissionPage",
-    url="https://gitee.com/g1879/DrissionPage",
+    url="https://DrissionPage.cn",
     include_package_data=True,
     packages=find_packages(),
     zip_safe=False,

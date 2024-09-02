@@ -9,7 +9,7 @@ from time import sleep, perf_counter
 
 from .._functions.locator import get_loc
 from .._functions.settings import Settings
-from ..errors import WaitTimeoutError, NoRectError
+from ..errors import WaitTimeoutError, NoRectError, ContextLostError
 
 
 class OriginWaiter(object):
@@ -205,9 +205,9 @@ class BaseWaiter(OriginWaiter):
 
         def do():
             if arg == 'url':
-                v = self._owner.url
+                v = self._owner._run_cdp('Target.getTargetInfo', targetId=self._owner._target_id)['targetInfo']['url']
             elif arg == 'title':
-                v = self._owner.title
+                v = self._owner._run_cdp('Target.getTargetInfo', targetId=self._owner._target_id)['targetInfo']['title']
             else:
                 raise ValueError
             if (not exclude and text in v) or (exclude and text not in v):
