@@ -58,8 +58,6 @@ class ChromiumElement(DrissionElement):
         """
         ...
 
-    def __repr__(self) -> str: ...
-
     def __call__(self,
                  locator: Union[Tuple[str, str], str],
                  index: int = 1,
@@ -70,6 +68,8 @@ class ChromiumElement(DrissionElement):
         :return: ChromiumElement对象或属性、文本
         """
         ...
+
+    def __repr__(self) -> str: ...
 
     def __eq__(self, other: ChromiumElement) -> bool: ...
 
@@ -616,8 +616,6 @@ class ShadowRoot(BaseElement):
         """
         ...
 
-    def __repr__(self) -> str: ...
-
     def __call__(self,
                  locator: Union[Tuple[str, str], str],
                  index: int = 1,
@@ -630,6 +628,8 @@ class ShadowRoot(BaseElement):
         :return: 元素对象或属性、文本
         """
         ...
+
+    def __repr__(self) -> str: ...
 
     def __eq__(self, other: ShadowRoot) -> bool: ...
 

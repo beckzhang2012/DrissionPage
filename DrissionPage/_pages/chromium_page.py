@@ -16,7 +16,6 @@ from .._units.waiter import ChromiumPageWaiter
 
 
 class ChromiumPage(ChromiumBase):
-    """用于管理浏览器的类"""
     _PAGES = {}
 
     def __new__(cls, addr_or_opts=None, tab_id=None, timeout=None):
@@ -42,6 +41,9 @@ class ChromiumPage(ChromiumBase):
         self._type = 'ChromiumPage'
         self.set.timeouts(base=timeout)
         self._tab = self
+
+    def __repr__(self):
+        return f'<ChromiumPage browser_id={self.browser.id} tab_id={self.tab_id}>'
 
     def _d_set_runtime_settings(self):
         """设置运行时用到的属性"""
@@ -120,6 +122,3 @@ class ChromiumPage(ChromiumBase):
 
     def _on_disconnect(self):
         ChromiumPage._PAGES.pop(self._browser.id, None)
-
-    def __repr__(self):
-        return f'<ChromiumPage browser_id={self.browser.id} tab_id={self.tab_id}>'

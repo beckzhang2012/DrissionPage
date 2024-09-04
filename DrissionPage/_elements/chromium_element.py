@@ -69,12 +69,12 @@ class ChromiumElement(DrissionElement):
         else:
             raise ElementLostError
 
+    def __call__(self, locator, index=1, timeout=None):
+        return self.ele(locator, index=index, timeout=timeout)
+
     def __repr__(self):
         attrs = [f"{k}='{v}'" for k, v in self.attrs.items()]
         return f'<ChromiumElement {self.tag} {" ".join(attrs)}>'
-
-    def __call__(self, locator, index=1, timeout=None):
-        return self.ele(locator, index=index, timeout=timeout)
 
     def __eq__(self, other):
         return self._backend_id == getattr(other, '_backend_id', None)
@@ -421,7 +421,7 @@ class ChromiumElement(DrissionElement):
 
     def s_ele(self, locator=None, index=1, timeout=None):
         return (make_session_ele(self, locator, index=index, method='s_ele()')
-                if self.ele(locator, index=index, timeout=timeout)
+                if locator is None or self.ele(locator, index=index, timeout=timeout)
                 else NoneElement(self.owner, method='s_ele()', args={'locator': locator, 'index': index}))
 
     def s_eles(self, locator=None, timeout=None):
@@ -701,11 +701,11 @@ class ShadowRoot(BaseElement):
         self._states = None
         self._type = 'ShadowRoot'
 
-    def __repr__(self):
-        return f'<ShadowRoot in {self.parent_ele}>'
-
     def __call__(self, locator, index=1, timeout=None):
         return self.ele(locator, index=index, timeout=timeout)
+
+    def __repr__(self):
+        return f'<ShadowRoot in {self.parent_ele}>'
 
     def __eq__(self, other):
         return self._backend_id == getattr(other, '_backend_id', None)
@@ -844,7 +844,7 @@ class ShadowRoot(BaseElement):
 
     def s_ele(self, locator=None, index=1, timeout=None):
         return (make_session_ele(self, locator, index=index, method='s_ele()')
-                if self.ele(locator, index=index, timeout=timeout)
+                if locator is None or self.ele(locator, index=index, timeout=timeout)
                 else NoneElement(self.owner, method='s_ele()', args={'locator': locator, 'index': index}))
 
     def s_eles(self, locator, timeout=None):

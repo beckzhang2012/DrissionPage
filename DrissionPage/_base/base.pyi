@@ -9,7 +9,10 @@ from abc import abstractmethod
 from typing import Union, Tuple, List, Any, Optional
 
 from DownloadKit import DownloadKit
+from requests import Session
+from requests.structures import CaseInsensitiveDict
 
+from .._configs.session_options import SessionOptions
 from .._elements.none_element import NoneElement
 from .._elements.session_element import SessionElement
 from .._functions.elements import SessionElementsList
@@ -339,6 +342,9 @@ class BasePage(BaseParser):
     _none_ele_return_value: bool = ...
     _none_ele_value: Any = ...
     _page: Union[ChromiumPage, SessionPage, WebPage] = ...
+    _session: Optional[Session] = ...
+    _headers: Optional[CaseInsensitiveDict] = ...
+    _session_options: Optional[SessionOptions] = ...
 
     def __init__(self): ...
 
@@ -369,6 +375,17 @@ class BasePage(BaseParser):
         :param interval: 重试间隔
         :return: 重试次数、间隔、是否文件组成的tuple
         """
+        ...
+
+    def _set_session_options(self, session_or_options: Union[Session, SessionOptions] = None) -> None:
+        """启动配置
+        :param session_or_options: Session、SessionOptions对象
+        :return: None
+        """
+        ...
+
+    def _create_session(self) -> None:
+        """创建内建Session对象"""
         ...
 
     # ----------------以下属性或方法由后代实现----------------

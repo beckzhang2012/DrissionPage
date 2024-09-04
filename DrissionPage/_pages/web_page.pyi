@@ -25,6 +25,7 @@ from .._units.waiter import WebPageWaiter
 
 
 class WebPage(SessionPage, ChromiumPage, BasePage):
+    """整合浏览器和request的页面类"""
     _d_mode: bool = ...
     _set: WebPageSetter = ...
     _has_driver: Optional[bool] = ...
@@ -352,7 +353,8 @@ class WebPage(SessionPage, ChromiumPage, BasePage):
                        timeout: float = None,
                        index: Optional[int] = 1,
                        relative: bool = False,
-                       raise_err: bool = None) -> Union[ChromiumElement, SessionElement, ChromiumFrame, SessionElementsList, ChromiumElementsList]:
+                       raise_err: bool = None) -> Union[
+        ChromiumElement, SessionElement, ChromiumFrame, SessionElementsList, ChromiumElementsList]:
         """返回页面中符合条件的元素、属性或节点文本，默认返回第一个
         :param locator: 元素的定位信息，可以是元素对象，loc元组，或查询字符串
         :param timeout: 查找元素超时时间（秒），d模式专用

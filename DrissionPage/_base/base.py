@@ -6,12 +6,15 @@
 @License  : BSD 3-Clause.
 """
 from abc import abstractmethod
+from copy import copy
 from pathlib import Path
 from re import sub
 from urllib.parse import quote
 
 from DownloadKit import DownloadKit
+from requests import Session
 
+from .._configs.session_options import SessionOptions
 from .._elements.none_element import NoneElement
 from .._functions.elements import get_frame
 from .._functions.locator import get_loc
@@ -247,6 +250,9 @@ class BasePage(BaseParser):
         self._download_path = None
         self._none_ele_return_value = False
         self._none_ele_value = None
+        self._session = None
+        self._headers = None
+        self._session_options = None
         self._type = 'BasePage'
 
     @property
@@ -265,6 +271,8 @@ class BasePage(BaseParser):
     @property
     def download(self):
         if self._DownloadKit is None:
+            if not self._session:
+                self._create_session()
             self._DownloadKit = DownloadKit(driver=self, goal_path=self.download_path)
         return self._DownloadKit
 
@@ -280,6 +288,24 @@ class BasePage(BaseParser):
         retry = retry if retry is not None else self.retry_times
         interval = interval if interval is not None else self.retry_interval
         return retry, interval, is_file
+
+    def _set_session_options(self, session_or_options=None):
+        if not session_or_options:
+            self._session_options = SessionOptions(session_or_options)
+
+        elif isinstance(session_or_options, SessionOptions):
+            self._session_options = session_or_options
+
+        elif isinstance(session_or_options, Session):
+            self._session_options = SessionOptions()
+            self._session = copy(session_or_options)
+            self._headers = self._session.headers
+            self._session.headers = None
+
+    def _create_session(self):
+        if not self._session_options:
+            self._set_session_options()
+        self._session, self._headers = self._session_options.make_session()
 
     # ----------------以下属性或方法由后代实现----------------
     @property

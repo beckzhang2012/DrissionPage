@@ -5,7 +5,6 @@
 @Copyright: (c) 2024 by g1879, Inc. All Rights Reserved.
 @License  : BSD 3-Clause.
 """
-
 from .chromium_tab import ChromiumTab
 from .._base.base import BasePage
 from .._configs.session_options import SessionOptions
@@ -32,6 +31,9 @@ class MixTab(SessionPage, ChromiumTab, BasePage):
     def __call__(self, locator, index=1, timeout=None):
         return super(SessionPage, self).__call__(locator, index=index, timeout=timeout) if self._d_mode \
             else super().__call__(locator, index=index)
+
+    def __repr__(self):
+        return f'<MixTab browser_id={self.browser.id} tab_id={self.tab_id}>'
 
     @property
     def set(self):
@@ -74,12 +76,6 @@ class MixTab(SessionPage, ChromiumTab, BasePage):
     @property
     def user_agent(self):
         return super(SessionPage, self).user_agent if self._d_mode else super().user_agent
-
-    @property
-    def session(self):
-        if self._session is None:
-            self._create_session()
-        return self._session
 
     @property
     def _session_url(self):
@@ -146,7 +142,7 @@ class MixTab(SessionPage, ChromiumTab, BasePage):
 
         # d模式转s模式
         if self._session is None:
-            self._s_set_start_options(
+            self._set_session_options(
                 self.browser._session_options or SessionOptions(read_file=self.browser._session_options is None))
             self._create_session()
 
@@ -190,5 +186,8 @@ class MixTab(SessionPage, ChromiumTab, BasePage):
         return super(SessionPage, self)._find_elements(locator, timeout=timeout, index=index, relative=relative) \
             if self._d_mode else super()._find_elements(locator, index=index)
 
-    def __repr__(self):
-        return f'<MixTab browser_id={self.browser.id} tab_id={self.tab_id}>'
+    def _set_session_options(self, session_or_options=None):
+        if session_or_options is None:
+            session_or_options = self.browser._session_options or SessionOptions(
+                read_file=self.browser._session_options is None)
+        super()._set_session_options(session_or_options)

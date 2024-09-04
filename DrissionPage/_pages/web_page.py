@@ -9,14 +9,13 @@ from .chromium_page import ChromiumPage
 from .session_page import SessionPage
 from .._base.base import BasePage
 from .._configs.chromium_options import ChromiumOptions
+from .._configs.session_options import SessionOptions
 from .._functions.cookies import set_session_cookies, set_tab_cookies
 from .._functions.settings import Settings
 from .._units.setter import WebPageSetter
 
 
 class WebPage(SessionPage, ChromiumPage, BasePage):
-    """整合浏览器和request的页面类"""
-
     def __new__(cls, mode='d', timeout=None, chromium_options=None, session_or_options=None):
         """初始化函数
         :param mode: 'd' 或 's'，即driver模式和session模式
@@ -49,6 +48,9 @@ class WebPage(SessionPage, ChromiumPage, BasePage):
         if self._d_mode:
             return super(SessionPage, self).__call__(locator, index=index, timeout=timeout)
         return super().__call__(locator, index=index)
+
+    def __repr__(self):
+        return f'<WebPage browser_id={self.browser.id} tab_id={self.tab_id}>'
 
     @property
     def latest_tab(self):
@@ -251,5 +253,8 @@ class WebPage(SessionPage, ChromiumPage, BasePage):
             self._driver = None
             self._has_driver = None
 
-    def __repr__(self):
-        return f'<WebPage browser_id={self.browser.id} tab_id={self.tab_id}>'
+    def _set_session_options(self, session_or_options=None):
+        if session_or_options is None:
+            session_or_options = self.browser._session_options or SessionOptions(
+                read_file=self.browser._session_options is None)
+        super()._set_session_options(session_or_options)

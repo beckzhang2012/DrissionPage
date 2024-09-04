@@ -30,6 +30,9 @@ class NoneElement(object):
         else:
             return self
 
+    def __repr__(self):
+        return f'<NoneElement method={self.method}, {", ".join([f"{k}={v}" for k, v in self.args.items()])}>'
+
     def __getattr__(self, item):
         if not self._none_ele_return_value:
             raise ElementNotFoundError(None, self.method, self.args)
@@ -48,6 +51,3 @@ class NoneElement(object):
 
     def __bool__(self):
         return False
-
-    def __repr__(self):
-        return f'<NoneElement method={self.method}, {", ".join([f"{k}={v}" for k, v in self.args.items()])}>'

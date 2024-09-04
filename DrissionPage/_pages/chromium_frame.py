@@ -70,12 +70,12 @@ class ChromiumFrame(ChromiumBase):
     def __call__(self, locator, index=1, timeout=None):
         return self.ele(locator, index=index, timeout=timeout)
 
-    def __eq__(self, other):
-        return self._frame_id == getattr(other, '_frame_id', None)
-
     def __repr__(self):
         attrs = [f"{k}='{v}'" for k, v in self._frame_ele.attrs.items()]
         return f'<ChromiumFrame {self.frame_ele.tag} {" ".join(attrs)}>'
+
+    def __eq__(self, other):
+        return self._frame_id == getattr(other, '_frame_id', None)
 
     def _d_set_runtime_settings(self):
         if not hasattr(self, '_timeouts'):

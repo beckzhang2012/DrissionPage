@@ -5,18 +5,16 @@
 @Copyright: (c) 2024 by g1879, Inc. All Rights Reserved.
 @License  : BSD 3-Clause.
 """
-from copy import copy
 from pathlib import Path
 from re import search, DOTALL
 from time import sleep
 from urllib.parse import urlparse
 
-from requests import Session, Response
+from requests import Response
 from requests.structures import CaseInsensitiveDict
 from tldextract import extract
 
 from .._base.base import BasePage
-from .._configs.session_options import SessionOptions
 from .._elements.session_element import SessionElement, make_session_ele
 from .._functions.cookies import cookie_to_dict, CookiesList
 from .._functions.web import format_headers
@@ -24,44 +22,27 @@ from .._units.setter import SessionPageSetter
 
 
 class SessionPage(BasePage):
-    """SessionPage封装了页面操作的常用功能，使用requests来获取、解析网页"""
-
     def __init__(self, session_or_options=None):
-        super(SessionPage, SessionPage).__init__(self)
-        self._headers = None
+        super().__init__()
         self._response = None
-        self._session = None
         self._set = None
         self._encoding = None
         self._type = 'SessionPage'
         self._page = self
         self._timeout = 10
-        self._s_set_start_options(session_or_options)
+        self._set_session_options(session_or_options)
         self._s_set_runtime_settings()
-        self._create_session()
+        if not self._session:
+            self._create_session()
 
-    def _s_set_start_options(self, session_or_options):
-        if not session_or_options:
-            self._session_options = SessionOptions(session_or_options)
-
-        elif isinstance(session_or_options, SessionOptions):
-            self._session_options = session_or_options
-
-        elif isinstance(session_or_options, Session):
-            self._session_options = SessionOptions()
-            self._session = copy(session_or_options)
-            self._headers = self._session.headers
-            self._session.headers = None
+    def __repr__(self):
+        return f'<SessionPage url={self.url}>'
 
     def _s_set_runtime_settings(self):
         self._timeout = self._session_options.timeout
         self._download_path = str(Path(self._session_options.download_path or '.').absolute())
         self.retry_times = self._session_options.retry_times
         self.retry_interval = self._session_options.retry_interval
-
-    def _create_session(self):
-        if not self._session:
-            self._session, self._headers = self._session_options.make_session()
 
     def __call__(self, locator, index=1, timeout=None):
         return self.ele(locator, index=index)
@@ -276,9 +257,6 @@ class SessionPage(BasePage):
                 return (r, f'状态码：{r.status_code}') if r.content else (None, '返回内容为空')
             else:
                 return None, '连接失败' if err is None else err
-
-    def __repr__(self):
-        return f'<SessionPage url={self.url}>'
 
 
 def check_headers(kwargs, headers, arg):

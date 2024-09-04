@@ -8,6 +8,8 @@
 from pathlib import Path
 from typing import Union, Tuple, Any, Optional, Literal
 
+from requests import Session
+
 from .chromium_page import ChromiumPage
 from .chromium_tab import ChromiumTab
 from .mix_tab import MixTab
@@ -34,6 +36,7 @@ PIC_TYPE = Literal['jpg', 'jpeg', 'png', 'webp', True]
 
 
 class ChromiumBase(BasePage):
+    """标签页、Frame、Page基类"""
     _tab: Union[ChromiumTab, MixTab, ChromiumFrame, ChromiumPage, WebPage] = ...
     _browser: Chromium = ...
     _driver: Optional[Driver] = ...
@@ -261,6 +264,11 @@ class ChromiumBase(BasePage):
     @property
     def upload_list(self) -> list:
         """返回等待上传文件列表"""
+        ...
+
+    @property
+    def session(self)->Session:
+        """返回用于转换模式或download的Session对象"""
         ...
 
     @property
@@ -632,6 +640,7 @@ class ChromiumBase(BasePage):
 
 
 class Timeout(object):
+    """用于保存d模式timeout信息的类"""
     base: float = ...
     page_load: float = ...
     script: float = ...
@@ -651,6 +660,7 @@ class Timeout(object):
 
 
 class Alert(object):
+    """用于保存alert信息的类"""
     activated: Optional[bool] = ...
     text: Optional[str] = ...
     type: Optional[str] = ...

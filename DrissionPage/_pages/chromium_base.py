@@ -39,8 +39,6 @@ __ERROR__ = 'error'
 
 
 class ChromiumBase(BasePage):
-    """标签页、Frame、Page基类"""
-
     def __init__(self, browser, target_id=None):
         super().__init__()
         self._browser = browser
@@ -352,6 +350,12 @@ class ChromiumBase(BasePage):
     @property
     def upload_list(self):
         return self._upload_list
+
+    @property
+    def session(self):
+        if self._session is None:
+            self._create_session()
+        return self._session
 
     @property
     def _js_ready_state(self):
@@ -868,8 +872,6 @@ class ChromiumBase(BasePage):
 
 
 class Timeout(object):
-    """用于保存d模式timeout信息的类"""
-
     def __init__(self, base=None, page_load=None, script=None):
         self.base = 10 if base is None else base
         self.page_load = 30 if page_load is None else page_load
@@ -884,8 +886,6 @@ class Timeout(object):
 
 
 class Alert(object):
-    """用于保存alert信息的类"""
-
     def __init__(self, auto=None):
         self.activated = False
         self.text = None

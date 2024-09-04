@@ -37,6 +37,9 @@ class ChromiumTab(ChromiumBase):
         self._tab = self
         self._type = 'ChromiumTab'
 
+    def __repr__(self):
+        return f'<ChromiumTab browser_id={self.browser.id} tab_id={self.tab_id}>'
+
     def _d_set_runtime_settings(self):
         self._timeouts = copy(self.browser.timeouts)
         self.retry_times = self.browser.retry_times
@@ -62,9 +65,6 @@ class ChromiumTab(ChromiumBase):
 
     def save(self, path=None, name=None, as_pdf=False, **kwargs):
         return save_page(self, path, name, as_pdf, kwargs)
-
-    def __repr__(self):
-        return f'<ChromiumTab browser_id={self.browser.id} tab_id={self.tab_id}>'
 
     def _on_disconnect(self):
         if not self._disconnect_flag:

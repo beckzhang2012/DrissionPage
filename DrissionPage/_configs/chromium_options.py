@@ -76,6 +76,9 @@ class ChromiumOptions(object):
 
         return
 
+    def __repr__(self):
+        return f'<ChromiumOptions at {id(self)}>'
+
     @property
     def download_path(self):
         return self._download_path
@@ -422,6 +425,3 @@ class ChromiumOptions(object):
 
     def save_to_default(self):
         return self.save('default')
-
-    def __repr__(self):
-        return f'<ChromiumOptions at {id(self)}>'

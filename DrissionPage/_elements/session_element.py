@@ -29,10 +29,6 @@ class SessionElement(DrissionElement):
         self._inner_ele = ele
         self._type = 'SessionElement'
 
-    @property
-    def inner_ele(self):
-        return self._inner_ele
-
     def __repr__(self):
         attrs = [f"{k}='{v}'" for k, v in self.attrs.items()]
         return f'<SessionElement {self.tag} {" ".join(attrs)}>'
@@ -42,6 +38,10 @@ class SessionElement(DrissionElement):
 
     def __eq__(self, other):
         return self.xpath == getattr(other, 'xpath', None)
+
+    @property
+    def inner_ele(self):
+        return self._inner_ele
 
     @property
     def tag(self):
@@ -128,7 +128,7 @@ class SessionElement(DrissionElement):
             return self.inner_html
 
         else:
-            return self.inner_ele.get(name)
+            return self.inner_ele.get(name.lower())
 
     def ele(self, locator, index=1, timeout=None):
         return self._ele(locator, index=index, method='ele()')

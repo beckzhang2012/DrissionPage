@@ -20,8 +20,7 @@ from .._units.setter import SessionPageSetter
 
 
 class SessionPage(BasePage):
-    _headers: Optional[CaseInsensitiveDict] = ...
-    _session: Optional[Session] = ...
+    """SessionPage封装了页面操作的常用功能，使用requests来获取、解析网页"""
     _session_options: Optional[SessionOptions] = ...
     _url: str = ...
     _response: Optional[Response] = ...
@@ -40,19 +39,8 @@ class SessionPage(BasePage):
         """
         ...
 
-    def _s_set_start_options(self, session_or_options: Union[Session, SessionOptions]) -> None:
-        """启动配置
-        :param session_or_options: Session、SessionOptions对象
-        :return: None
-        """
-        ...
-
     def _s_set_runtime_settings(self) -> None:
         """设置运行时用到的属性"""
-        ...
-
-    def _create_session(self) -> None:
-        """创建内建Session对象"""
         ...
 
     def __call__(self,

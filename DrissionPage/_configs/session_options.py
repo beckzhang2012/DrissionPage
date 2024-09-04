@@ -85,6 +85,9 @@ class SessionOptions(object):
         self._retry_times = others.get('retry_times', 3)
         self._retry_interval = others.get('retry_interval', 2)
 
+    def __repr__(self):
+        return f'<SessionOptions at {id(self)}>'
+
     # ===========须独立处理的项开始============
     @property
     def download_path(self):
@@ -346,9 +349,6 @@ class SessionOptions(object):
         if session.adapters:
             self._adapters = [(k, i) for k, i in session.adapters.items()]
         return self
-
-    def __repr__(self):
-        return f'<SessionOptions at {id(self)}>'
 
 
 def session_options_to_dict(options):
