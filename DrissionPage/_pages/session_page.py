@@ -146,7 +146,7 @@ class SessionPage(BasePage):
     def s_eles(self, locator):
         return self._ele(locator, index=None)
 
-    def _find_elements(self, locator, timeout=None, index=1, relative=True, raise_err=None):
+    def _find_elements(self, locator, timeout, index=1, relative=True, raise_err=None):
         return locator if isinstance(locator, SessionElement) else make_session_ele(self, locator, index=index)
 
     def cookies(self, all_domains=False, all_info=False):

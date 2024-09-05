@@ -279,7 +279,7 @@ class MixTab(SessionPage, ChromiumTab):
 
     def _find_elements(self,
                        locator: Union[Tuple[str, str], str, ChromiumElement, SessionElement, ChromiumFrame],
-                       timeout: float = None,
+                       timeout: float,
                        index: Optional[int] = 1,
                        relative: bool = False,
                        raise_err: bool = None) \

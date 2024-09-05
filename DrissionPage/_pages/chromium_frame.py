@@ -438,7 +438,7 @@ class ChromiumFrame(ChromiumBase):
         self.tab.remove_ele(new_ele)
         return r
 
-    def _find_elements(self, locator, timeout=None, index=1, relative=False, raise_err=None):
+    def _find_elements(self, locator, timeout, index=1, relative=False, raise_err=None):
         if isinstance(locator, ChromiumElement):
             return locator
         self.wait.doc_loaded()

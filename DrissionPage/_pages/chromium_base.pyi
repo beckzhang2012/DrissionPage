@@ -423,7 +423,7 @@ class ChromiumBase(BasePage):
 
     def _find_elements(self,
                        locator: Union[Tuple[str, str], str, ChromiumElement, ChromiumFrame],
-                       timeout: float = None,
+                       timeout: float,
                        index: Optional[int] = 1,
                        relative: bool = False,
                        raise_err: bool = None) -> Union[ChromiumElement, ChromiumFrame, ChromiumElementsList]:

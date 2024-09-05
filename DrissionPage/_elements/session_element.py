@@ -142,7 +142,7 @@ class SessionElement(DrissionElement):
     def s_eles(self, locator):
         return self._ele(locator, index=None)
 
-    def _find_elements(self, locator, timeout=None, index=1, relative=False, raise_err=None):
+    def _find_elements(self, locator, timeout, index=1, relative=False, raise_err=None):
         return make_session_ele(self, locator, index=index)
 
     def _get_ele_path(self, mode):

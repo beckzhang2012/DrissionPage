@@ -21,7 +21,7 @@ class NoneElement(object):
             self._none_ele_value = None
             self._none_ele_return_value = False
         self.method = method
-        self.args = args
+        self.args = {} if args is None else args
         self._get = None
 
     def __call__(self, *args, **kwargs):
@@ -36,8 +36,8 @@ class NoneElement(object):
     def __getattr__(self, item):
         if not self._none_ele_return_value:
             raise ElementNotFoundError(None, self.method, self.args)
-        elif item in ('ele', 's_ele', 'parent', 'child', 'next', 'prev', 'before',
-                      'after', 'get_frame', 'shadow_root', 'sr'):
+        elif item in ('ele', 's_ele', 'parent', 'child', 'next', 'prev', 'before', 'east', 'north', 'south', 'west',
+                      'offset', 'over', 'after', 'get_frame', 'shadow_root', 'sr'):
             return self
         else:
             if item in ('size', 'link', 'css_path', 'xpath', 'comments', 'texts', 'tag', 'html', 'inner_html',

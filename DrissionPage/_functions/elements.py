@@ -5,7 +5,7 @@
 @Copyright: (c) 2024 by g1879, Inc. All Rights Reserved.
 @License  : BSD 3-Clause.
 """
-from time import perf_counter
+from time import perf_counter, sleep
 
 from .locator import is_loc
 from .._elements.none_element import NoneElement
@@ -263,19 +263,31 @@ class Getter(object):
 
 
 def get_eles(locators, owner, any_one=False, first_ele=True, timeout=10):
-    res = {loc: False for loc in locators}
+    if isinstance(locators, str):
+        locators = (locators,)
+    res = {loc: None for loc in locators}
+
+    if timeout == 0:
+        for loc in locators:
+            ele = owner._ele(loc, timeout=0, raise_err=False, index=1 if first_ele else None, method='find()')
+            res[loc] = ele
+            if ele and any_one:
+                return res
+        return res
+
     end_time = perf_counter() + timeout
     while perf_counter() <= end_time:
         for loc in locators:
-            if res[loc] is not False:
+            if res[loc]:
                 continue
-            ele = owner._ele(loc, timeout=0, raise_err=False, index=1 if first_ele else None)
-            if ele:
-                res[loc] = ele
-                if any_one:
-                    return res
-        if False not in res.values():
-            break
+            ele = owner._ele(loc, timeout=0, raise_err=False, index=1 if first_ele else None, method='find()')
+            res[loc] = ele
+            if ele and any_one:
+                return res
+        if all(res.values()):
+            return res
+        sleep(.05)
+
     return res
 
 

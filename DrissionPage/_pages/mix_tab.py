@@ -182,9 +182,9 @@ class MixTab(SessionPage, ChromiumTab, BasePage):
             if self._response is not None:
                 self._response.close()
 
-    def _find_elements(self, locator, timeout=None, index=1, relative=False, raise_err=None):
+    def _find_elements(self, locator, timeout, index=1, relative=False, raise_err=None):
         return super(SessionPage, self)._find_elements(locator, timeout=timeout, index=index, relative=relative) \
-            if self._d_mode else super()._find_elements(locator, index=index)
+            if self._d_mode else super()._find_elements(locator, index=index, timeout=timeout)
 
     def _set_session_options(self, session_or_options=None):
         if session_or_options is None:

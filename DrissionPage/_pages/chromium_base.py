@@ -425,7 +425,8 @@ class ChromiumBase(BasePage):
         return self._ele(locator, timeout=timeout, index=None)
 
     def s_ele(self, locator=None, index=1, timeout=None):
-        return (NoneElement(self, method='s_ele()', args={'locator': locator, 'index': index})
+        timeout = self.timeout if timeout is None else timeout
+        return (NoneElement(self, method='s_ele()', args={'locator': locator, 'index': index, 'timeout': timeout})
                 if locator and not self.wait.eles_loaded(locator, timeout=timeout)
                 else make_session_ele(self, locator, index=index, method='s_ele()'))
 
@@ -433,7 +434,7 @@ class ChromiumBase(BasePage):
         return (make_session_ele(self, locator, index=None)
                 if self.wait.eles_loaded(locator, timeout=timeout) else SessionElementsList())
 
-    def _find_elements(self, locator, timeout=None, index=1, relative=False, raise_err=None):
+    def _find_elements(self, locator, timeout, index=1, relative=False, raise_err=None):
         if isinstance(locator, (str, tuple)):
             loc = get_loc(locator)[1]
         elif locator._type in ('ChromiumElement', 'ChromiumFrame'):
@@ -442,7 +443,6 @@ class ChromiumBase(BasePage):
             raise ValueError('locator参数只能是tuple、str、ChromiumElement类型。')
 
         self.wait.doc_loaded()
-        timeout = timeout if timeout is not None else self.timeout
         end_time = perf_counter() + timeout
 
         search_ids = []

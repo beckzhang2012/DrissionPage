@@ -6,13 +6,14 @@
 @License  : BSD 3-Clause.
 """
 from abc import abstractmethod
-from typing import Union, Tuple, List, Any, Optional
+from typing import Union, Tuple, List, Any, Optional, Dict
 
 from DownloadKit import DownloadKit
 from requests import Session
 from requests.structures import CaseInsensitiveDict
 
 from .._configs.session_options import SessionOptions
+from .._elements.chromium_element import ChromiumElement
 from .._elements.none_element import NoneElement
 from .._elements.session_element import SessionElement
 from .._functions.elements import SessionElementsList
@@ -34,6 +35,21 @@ class BaseParser(object):
 
     def eles(self, locator: Union[Tuple[str, str], str], timeout=None): ...
 
+    def find(self,
+             locators: Union[str, List[str], tuple],
+             any_one: bool = False,
+             first_ele: bool = True,
+             timeout: float = None) -> Union[Dict[str, ChromiumElement], Dict[str, SessionElement],
+    Dict[str, List[ChromiumElement]], Dict[str, List[SessionElement]]]:
+        """传入多个定位符，获取多个ele
+        :param locators: 定位符组成的列表
+        :param any_one: 是否任何一个定位符找到结果即返回
+        :param first_ele: 每个定位符是否只获取第一个元素
+        :param timeout: 超时时间（秒）
+        :return: 多个定位符组成的dict，first_only为False返回列表，否则为元素，无结果的返回False
+        """
+        ...
+
     # ----------------以下属性或方法待后代实现----------------
     @property
     def html(self) -> str: ...
@@ -53,7 +69,7 @@ class BaseParser(object):
 
     def _find_elements(self,
                        locator: Union[Tuple[str, str], str],
-                       timeout: float = None,
+                       timeout: float,
                        index: Optional[int] = 1,
                        relative: bool = False,
                        raise_err: bool = None): ...
@@ -63,6 +79,11 @@ class BaseElement(BaseParser):
     owner: BasePage = ...
 
     def __init__(self, owner: BasePage = None): ...
+
+    @property
+    def timeout(self) -> float:
+        """返回其查找元素时超时时间"""
+        ...
 
     # ----------------以下属性或方法由后代实现----------------
     @property

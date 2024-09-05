@@ -428,7 +428,7 @@ class ChromiumElement(DrissionElement):
         return (make_session_ele(self, locator, index=None)
                 if self.ele(locator, timeout=timeout) else SessionElementsList())
 
-    def _find_elements(self, locator, timeout=None, index=1, relative=False, raise_err=None):
+    def _find_elements(self, locator, timeout, index=1, relative=False, raise_err=None):
         return find_in_chromium_ele(self, locator, index, timeout, relative=relative)
 
     def style(self, style, pseudo_ele=''):
@@ -851,7 +851,7 @@ class ShadowRoot(BaseElement):
         return (make_session_ele(self, locator, index=None)
                 if self.ele(locator, timeout=timeout) else SessionElementsList())
 
-    def _find_elements(self, locator, timeout=None, index=1, relative=False, raise_err=None):
+    def _find_elements(self, locator, timeout, index=1, relative=False, raise_err=None):
         loc = get_loc(locator, css_mode=False)
         if loc[0] == 'css selector' and str(loc[1]).startswith(':root'):
             loc = loc[0], loc[1][5:]
@@ -901,7 +901,6 @@ class ShadowRoot(BaseElement):
                     r = make_chromium_eles(self.owner, _ids=node_ids, index=index, is_obj_id=False)
                     return None if r is False else r
 
-        timeout = timeout if timeout is not None else self.owner.timeout
         end_time = perf_counter() + timeout
         result = do_find()
         while result is None and perf_counter() <= end_time:

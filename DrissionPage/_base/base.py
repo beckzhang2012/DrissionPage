@@ -16,7 +16,7 @@ from requests import Session
 
 from .._configs.session_options import SessionOptions
 from .._elements.none_element import NoneElement
-from .._functions.elements import get_frame
+from .._functions.elements import get_frame, get_eles
 from .._functions.locator import get_loc
 from .._functions.settings import Settings
 from .._functions.web import format_html
@@ -35,6 +35,13 @@ class BaseParser(object):
     def eles(self, locator, timeout=None):
         return self._ele(locator, timeout, index=None)
 
+    def find(self, locators, any_one=False, first_ele=True, timeout=None):
+        if 'Session' in self._type:
+            timeout = 0
+        if timeout is None:
+            timeout = self.timeout
+        return get_eles(locators, self, any_one, first_ele, timeout)
+
     # ----------------以下属性或方法待后代实现----------------
     @property
     def html(self):
@@ -49,7 +56,7 @@ class BaseParser(object):
     def _ele(self, locator, timeout=None, index=1, raise_err=None, method=None):
         pass
 
-    def _find_elements(self, locator, timeout=None, index=1, relative=False, raise_err=None):
+    def _find_elements(self, locator, timeout, index=1, relative=False, raise_err=None):
         pass
 
 
@@ -68,15 +75,21 @@ class BaseElement(BaseParser):
     def _ele(self, locator, timeout=None, index=1, relative=False, raise_err=None, method=None):
         if hasattr(locator, '_type'):
             return locator
+        if timeout is None:
+            timeout = self.timeout
         r = self._find_elements(locator, timeout=timeout, index=index, relative=relative, raise_err=raise_err)
         if r or isinstance(r, list):
             return r
         if Settings.raise_when_ele_not_found or raise_err is True:
-            raise ElementNotFoundError(None, method, {'locator': locator, 'index': index})
+            raise ElementNotFoundError(None, method, {'locator': locator, 'index': index, 'timeout': timeout})
 
         r.method = method
-        r.args = {'locator': locator, 'index': index}
+        r.args = {'locator': locator, 'index': index, 'timeout': timeout}
         return r
+
+    @property
+    def timeout(self):
+        return self.owner.timeout
 
     # ----------------以下属性或方法由后代实现----------------
     @property
@@ -235,7 +248,7 @@ class DrissionElement(BaseElement):
     def _get_ele_path(self, mode):
         return ''
 
-    def _find_elements(self, locator, timeout=None, index=1, relative=False, raise_err=None):
+    def _find_elements(self, locator, timeout, index=1, relative=False, raise_err=None):
         pass
 
 
@@ -327,14 +340,15 @@ class BasePage(BaseParser):
     def _ele(self, locator, timeout=None, index=1, raise_err=None, method=None):
         if not locator:
             raise ElementNotFoundError(None, method, {'locator': locator})
+        if timeout is None:
+            timeout = self.timeout
 
         r = self._find_elements(locator, timeout=timeout, index=index, raise_err=raise_err)
-
         if r or isinstance(r, list):
             return r
         if Settings.raise_when_ele_not_found or raise_err is True:
-            raise ElementNotFoundError(None, method, {'locator': locator, 'index': index})
+            raise ElementNotFoundError(None, method, {'locator': locator, 'index': index, 'timeout': timeout})
 
         r.method = method
-        r.args = {'locator': locator, 'index': index}
+        r.args = {'locator': locator, 'index': index, 'timeout': timeout}
         return r

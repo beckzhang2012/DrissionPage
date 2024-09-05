@@ -237,10 +237,10 @@ class WebPage(SessionPage, ChromiumPage, BasePage):
             if self._response is not None:
                 self._response.close()
 
-    def _find_elements(self, locator, timeout=None, index=1, relative=False, raise_err=None):
+    def _find_elements(self, locator, timeout, index=1, relative=False, raise_err=None):
         if self._d_mode:
             return super(SessionPage, self)._find_elements(locator, timeout=timeout, index=index, relative=relative)
-        return super()._find_elements(locator, index=index)
+        return super()._find_elements(locator, index=index, timeout=timeout)
 
     def quit(self, timeout=5, force=True, del_data=False):
         if self._has_session:

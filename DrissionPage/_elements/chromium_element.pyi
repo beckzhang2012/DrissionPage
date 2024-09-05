@@ -466,7 +466,7 @@ class ChromiumElement(DrissionElement):
 
     def _find_elements(self,
                        locator: Union[Tuple[str, str], str],
-                       timeout: float = None,
+                       timeout: float,
                        index: Optional[int] = 1,
                        relative: bool = False,
                        raise_err: bool = False) -> Union[ChromiumElement, ChromiumFrame, ChromiumElementsList]:
@@ -831,7 +831,7 @@ class ShadowRoot(BaseElement):
 
     def _find_elements(self,
                        locator: Union[Tuple[str, str], str],
-                       timeout: float = None,
+                       timeout: float,
                        index: Optional[int] = 1,
                        relative: bool = False,
                        raise_err: bool = None) -> Union[ChromiumElement, ChromiumFrame, str, ChromiumElementsList]:

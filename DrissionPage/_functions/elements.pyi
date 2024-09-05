@@ -5,7 +5,7 @@
 @Copyright: (c) 2024 by g1879, Inc. All Rights Reserved.
 @License  : BSD 3-Clause.
 """
-from typing import Union, List, Optional, Iterable
+from typing import Union, List, Optional, Iterable, Dict
 
 from .._base.base import BaseParser
 from .._elements.chromium_element import ChromiumElement
@@ -551,18 +551,19 @@ class Getter(object):
         ...
 
 
-def get_eles(locators: Union[List[str], tuple],
+def get_eles(locators: Union[str, List[str], tuple],
              owner: BaseParser,
              any_one: bool = False,
              first_ele: bool = True,
-             timeout: float = 10) -> dict:
+             timeout: float = 10) -> Union[Dict[str, ChromiumElement], Dict[str, SessionElement],
+Dict[str, List[ChromiumElement]], Dict[str, List[SessionElement]]]:
     """传入多个定位符，获取多个ele
     :param locators: 定位符组成的列表
     :param owner: 页面或元素对象
     :param any_one: 是否找到任何一个即返回
     :param first_ele: 每个定位符是否只获取第一个元素
     :param timeout: 超时时间（秒）
-    :return: 多个定位符组成的dict
+    :return: 多个定位符组成的dict，first_only为False返回列表，否则为元素，无结果的返回False
     """
     ...
 
