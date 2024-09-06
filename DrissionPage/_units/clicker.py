@@ -5,6 +5,7 @@
 @Copyright: (c) 2024 by g1879, Inc. All Rights Reserved.
 @License  : BSD 3-Clause.
 """
+from pathlib import Path
 from time import perf_counter, sleep
 
 from .._functions.settings import Settings
@@ -117,17 +118,24 @@ class Clicker(object):
         return self.at(count=times)
 
     def to_download(self, save_path=None, rename=None, suffix=None, new_tab=False, by_js=False, timeout=None):
-        if save_path:
-            self._ele.tab.set.download_path(save_path)
-        elif not self._ele.tab._browser._dl_mgr._running:
+        tmp_save_path = None
+        if not self._ele.tab._browser._dl_mgr._running:
             self._ele.tab._browser.set.download_path('.')
+        if save_path:
+            if new_tab:
+                tmp_save_path = str(Path(save_path).absolute())
+            else:
+                self._ele.tab.set.download_path(save_path)
 
         obj = self._ele.tab._browser if new_tab else self._ele.owner._tab
         if rename or suffix:
             obj.set.download_file_name(rename, suffix)
 
         self.left(by_js=by_js)
-        return obj.wait.download_begin(timeout=timeout)
+        r = obj.wait.download_begin(timeout=timeout)
+        if tmp_save_path:
+            r.path = tmp_save_path
+        return r
 
     def to_upload(self, file_paths, by_js=False):
         self._ele.owner.set.upload_files(file_paths)

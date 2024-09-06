@@ -62,21 +62,33 @@ class ElementRect(object):
         vx, vy = self._ele.owner.rect.viewport_location
         ex, ey = self.viewport_location
         pr = self._ele.owner._run_js('return window.devicePixelRatio;')
-        return (vx + ex) * pr, (ey + vy) * pr
+        if getattr(self._ele.owner, '_is_diff_domain', None):
+            x, y = self._ele.owner.rect.screen_location
+            return (vx + ex) * pr + x, (ey + vy) * pr + y
+        else:
+            return (vx + ex) * pr, (ey + vy) * pr
 
     @property
     def screen_midpoint(self):
         vx, vy = self._ele.owner.rect.viewport_location
         ex, ey = self.viewport_midpoint
         pr = self._ele.owner._run_js('return window.devicePixelRatio;')
-        return (vx + ex) * pr, (ey + vy) * pr
+        if getattr(self._ele.owner, '_is_diff_domain', None):
+            x, y = self._ele.owner.rect.screen_location
+            return (vx + ex) * pr + x, (ey + vy) * pr + y
+        else:
+            return (vx + ex) * pr, (ey + vy) * pr
 
     @property
     def screen_click_point(self):
         vx, vy = self._ele.owner.rect.viewport_location
         ex, ey = self.viewport_click_point
         pr = self._ele.owner._run_js('return window.devicePixelRatio;')
-        return (vx + ex) * pr, (ey + vy) * pr
+        if getattr(self._ele.owner, '_is_diff_domain', None):
+            x, y = self._ele.owner.rect.screen_location
+            return (vx + ex) * pr + x, (ey + vy) * pr + y
+        else:
+            return (vx + ex) * pr, (ey + vy) * pr
 
     @property
     def scroll_position(self):

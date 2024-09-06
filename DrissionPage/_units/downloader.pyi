@@ -165,10 +165,10 @@ class DownloadMission(object):
         :param mgr: BrowserDownloadManager对象
         :param tab_id: 标签页id
         :param _id: 任务id
-        :param path: 保存路径
+        :param path: 最终保存路径
         :param name: 文件名
         :param url: url
-        :param save_path: 下载路径
+        :param save_path: 下载临时路径
         """
         ...
 
