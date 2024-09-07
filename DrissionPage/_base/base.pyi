@@ -25,6 +25,7 @@ from .._pages.web_page import WebPage
 
 class BaseParser(object):
     _type: str
+    timeout: float
 
     def __call__(self, locator: Union[Tuple[str, str], str], index: int = 1): ...
 

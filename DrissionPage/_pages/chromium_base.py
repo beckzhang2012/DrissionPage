@@ -425,7 +425,8 @@ class ChromiumBase(BasePage):
         return self._ele(locator, timeout=timeout, index=None)
 
     def s_ele(self, locator=None, index=1, timeout=None):
-        timeout = self.timeout if timeout is None else timeout
+        if timeout is None:
+            timeout = self.timeout
         return (NoneElement(self, method='s_ele()', args={'locator': locator, 'index': index, 'timeout': timeout})
                 if locator and not self.wait.eles_loaded(locator, timeout=timeout)
                 else make_session_ele(self, locator, index=index, method='s_ele()'))
@@ -682,8 +683,8 @@ class ChromiumBase(BasePage):
             self._alert.handle_next = accept
             self._alert.next_text = send
             return
-
-        timeout = self.timeout if timeout is None else timeout
+        if timeout is None:
+            timeout = self.timeout
         timeout = .1 if timeout <= 0 else timeout
         end_time = perf_counter() + timeout
         while not self._alert.activated and perf_counter() < end_time:
@@ -728,7 +729,8 @@ class ChromiumBase(BasePage):
         self._has_alert = False
 
     def _wait_loaded(self, timeout=None):
-        timeout = timeout if timeout is not None else self.timeouts.page_load
+        if timeout is None:
+            timeout = self.timeouts.page_load
         end_time = perf_counter() + timeout
         while perf_counter() < end_time:
             if self._ready_state == 'complete':

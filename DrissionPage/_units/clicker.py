@@ -32,7 +32,8 @@ class Clicker(object):
 
         if not by_js:  # 模拟点击
             can_click = False
-            timeout = self._ele.owner.timeout if timeout is None else timeout
+            if timeout is None:
+                timeout = self._ele.timeout
             rect = None
             if timeout == 0:
                 try:

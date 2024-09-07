@@ -141,7 +141,7 @@ class ChromiumElement(DrissionElement):
 
     @property
     def sr(self):
-        end_time = perf_counter() + self.owner.timeout
+        end_time = perf_counter() + self.timeout
         while perf_counter() < end_time:
             info = self.owner._run_cdp('DOM.describeNode', backendNodeId=self._backend_id)['node']
             if info.get('shadowRoots', None):
@@ -238,7 +238,8 @@ class ChromiumElement(DrissionElement):
         return ChromiumElementsList(self.owner, super().afters(locator, timeout, ele_only=ele_only))
 
     def over(self, timeout=None):
-        timeout = timeout if timeout is None else self.owner.timeout
+        if timeout is None:
+            timeout = self.timeout
         bid = self.wait.covered(timeout=timeout)
         if bid:
             return ChromiumElement(owner=self.owner, backend_id=bid)
@@ -261,7 +262,8 @@ class ChromiumElement(DrissionElement):
             x = int(nx)
             y = int(ny)
         loc_data = locator_to_tuple(locator) if locator else None
-        timeout = timeout if timeout is not None else self.owner.timeout
+        if timeout is None:
+            timeout = self.timeout
         end_time = perf_counter() + timeout
         try:
             ele = ChromiumElement(owner=self.owner,
@@ -437,7 +439,8 @@ class ChromiumElement(DrissionElement):
         return self._run_js(f'return window.getComputedStyle(this{pseudo_ele}).getPropertyValue("{style}");')
 
     def src(self, timeout=None, base64_to_bytes=True):
-        timeout = self.owner.timeout if timeout is None else timeout
+        if timeout is None:
+            timeout = self.timeout
         if self.tag == 'img':  # 等待图片加载完成
             js = ('return this.complete && typeof this.naturalWidth != "undefined" '
                   '&& this.naturalWidth > 0 && typeof this.naturalHeight != "undefined" '
@@ -524,7 +527,7 @@ class ChromiumElement(DrissionElement):
         if self.tag == 'img':  # 等待图片加载完成
             js = ('return this.complete && typeof this.naturalWidth != "undefined" && this.naturalWidth > 0 '
                   '&& typeof this.naturalHeight != "undefined" && this.naturalHeight > 0')
-            end_time = perf_counter() + self.owner.timeout
+            end_time = perf_counter() + self.timeout
             while not self._run_js(js) and perf_counter() < end_time:
                 sleep(.1)
         if scroll_to_center:
@@ -937,7 +940,8 @@ def find_in_chromium_ele(ele, locator, index=1, timeout=None, relative=True):
         loc_str = f'{ele.css_path}{loc[1]}'
     loc = loc[0], loc_str
 
-    timeout = timeout if timeout is not None else ele.owner.timeout
+    if timeout is None:
+        timeout = ele.timeout
 
     # ---------------执行查找-----------------
     if loc[0] == 'xpath':

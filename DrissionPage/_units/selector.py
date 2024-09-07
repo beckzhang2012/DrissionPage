@@ -18,7 +18,8 @@ class SelectElement(object):
 
     def __call__(self, text_or_index, timeout=None):
         para_type = 'index' if isinstance(text_or_index, int) else 'text'
-        timeout = timeout if timeout is not None else self._ele.owner.timeout
+        if timeout is None:
+            timeout = self._ele.timeout
         return self._select(text_or_index, para_type, timeout=timeout)
 
     @property
@@ -106,7 +107,8 @@ class SelectElement(object):
             raise TypeError('单选列表只能传入str格式。')
 
         mode = 'false' if cancel else 'true'
-        timeout = timeout if timeout is not None else self._ele.owner.timeout
+        if timeout is None:
+            timeout = self._ele.timeout
         condition = set(condition) if isinstance(condition, (list, tuple)) else {condition}
 
         if para_type in ('text', 'value'):

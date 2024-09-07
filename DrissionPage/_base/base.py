@@ -89,7 +89,7 @@ class BaseElement(BaseParser):
 
     @property
     def timeout(self):
-        return self.owner.timeout
+        return self.owner.timeout if self.owner else 10
 
     # ----------------以下属性或方法由后代实现----------------
     @property

@@ -9,7 +9,7 @@ from time import sleep, perf_counter
 
 from .._functions.locator import get_loc
 from .._functions.settings import Settings
-from ..errors import WaitTimeoutError, NoRectError, ContextLostError
+from ..errors import WaitTimeoutError, NoRectError
 
 
 class OriginWaiter(object):
@@ -31,7 +31,8 @@ class BrowserWaiter(OriginWaiter):
             curr_tab = self._owner.tab_ids[0]
         elif hasattr(curr_tab, '_type'):
             curr_tab = curr_tab.tab_id
-        timeout = timeout if timeout is not None else self._owner.timeout
+        if timeout is None:
+            timeout = self._owner.timeout
         end_time = perf_counter() + timeout
         while perf_counter() < end_time:
             latest_tid = self._owner.tab_ids[0]
@@ -151,7 +152,8 @@ class BaseWaiter(OriginWaiter):
                     else [get_loc(x)[1] for x in locators])
         method = any if any_one else all
 
-        timeout = self._owner.timeout if timeout is None else timeout
+        if timeout is None:
+            timeout = self._owner.timeout
         end_time = perf_counter() + timeout
         while perf_counter() < end_time:
             if method([_find(l, self._owner.driver) for l in locators]):
@@ -302,7 +304,7 @@ class ElementWaiter(OriginWaiter):
 
     @property
     def _timeout(self):
-        return self._ele.owner.timeout
+        return self._ele.timeout
 
     def deleted(self, timeout=None, raise_err=None):
         return self._wait_state('is_alive', False, timeout, raise_err, err_text='等待元素被删除失败。')
