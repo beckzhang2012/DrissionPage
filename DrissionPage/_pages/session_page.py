@@ -22,16 +22,17 @@ from .._units.setter import SessionPageSetter
 
 
 class SessionPage(BasePage):
-    def __init__(self, session_or_options=None):
+    def __init__(self, session_or_options=None, timeout=None):
         super().__init__()
         self._response = None
         self._set = None
         self._encoding = None
         self._type = 'SessionPage'
         self._page = self
-        self._timeout = 10
         self._set_session_options(session_or_options)
         self._s_set_runtime_settings()
+        if timeout is not None:  # 即将废弃
+            self._timeout = timeout
         if not self._session:
             self._create_session()
 

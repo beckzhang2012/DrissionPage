@@ -19,6 +19,7 @@ class ChromiumPage(ChromiumBase):
     _PAGES = {}
 
     def __new__(cls, addr_or_opts=None, tab_id=None, timeout=None):
+        # 即将废弃timeout
         browser = Chromium(addr_or_opts=addr_or_opts)
         if browser.id in cls._PAGES:
             r = cls._PAGES[browser.id]
@@ -32,6 +33,7 @@ class ChromiumPage(ChromiumBase):
         return r
 
     def __init__(self, addr_or_opts=None, tab_id=None, timeout=None):
+        # 即将废弃timeout
         if hasattr(self, '_created'):
             return
         self._created = True
@@ -39,7 +41,7 @@ class ChromiumPage(ChromiumBase):
         self.tab = self
         super().__init__(self.browser, tab_id)
         self._type = 'ChromiumPage'
-        self.set.timeouts(base=timeout)
+        self.set.timeouts(base=timeout)  # 即将废弃
         self._tab = self
 
     def __repr__(self):

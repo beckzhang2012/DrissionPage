@@ -17,15 +17,11 @@ from .._units.setter import WebPageSetter
 
 class WebPage(SessionPage, ChromiumPage, BasePage):
     def __new__(cls, mode='d', timeout=None, chromium_options=None, session_or_options=None):
-        """初始化函数
-        :param mode: 'd' 或 's'，即driver模式和session模式
-        :param timeout: 超时时间（秒），d模式时为寻找元素时间，s模式时为连接时间，默认10秒
-        :param chromium_options: Driver对象，只使用s模式时应传入False
-        :param session_or_options: Session对象或SessionOptions对象，只使用d模式时应传入False
-        """
+        # 即将废弃timeout
         return super().__new__(cls, chromium_options)
 
     def __init__(self, mode='d', timeout=None, chromium_options=None, session_or_options=None):
+        # 即将废弃timeout
         if hasattr(self, '_created'):
             return
 
@@ -40,7 +36,7 @@ class WebPage(SessionPage, ChromiumPage, BasePage):
         if not chromium_options:
             chromium_options = ChromiumOptions(read_file=chromium_options)
             chromium_options.set_timeouts(base=self._timeout).set_paths(download_path=self.download_path)
-        super(SessionPage, self).__init__(addr_or_opts=chromium_options, timeout=timeout)
+        super(SessionPage, self).__init__(addr_or_opts=chromium_options, timeout=timeout)  # 即将废弃timeout
         self._type = 'WebPage'
         self.change_mode(mode, go=False, copy_cookies=False)
 

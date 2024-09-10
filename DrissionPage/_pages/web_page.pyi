@@ -35,14 +35,12 @@ class WebPage(SessionPage, ChromiumPage, BasePage):
 
     def __init__(self,
                  mode: str = 'd',
-                 timeout: float = None,
                  chromium_options: Union[ChromiumOptions, bool] = None,
                  session_or_options: Union[Session, SessionOptions, bool] = None) -> None:
         """初始化函数
         :param mode: 'd' 或 's'，即driver模式和session模式
-        :param timeout: 超时时间（秒），d模式时为寻找元素时间，s模式时为连接时间，默认10秒
-        :param chromium_options: ChromiumOptions对象，只使用s模式时应传入False
-        :param session_or_options: Session对象或SessionOptions对象，只使用d模式时应传入False
+        :param chromium_options: ChromiumOptions对象，传入None时从默认ini文件读取，传入False时不读取ini文件，使用默认配置
+        :param session_or_options: Session对象或SessionOptions对象，传入None时从默认ini文件读取，传入False时不读取ini文件，使用默认配置
         """
         ...
 

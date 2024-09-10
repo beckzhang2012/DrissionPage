@@ -27,23 +27,19 @@ class ChromiumPage(ChromiumBase):
 
     def __new__(cls,
                 addr_or_opts: Union[str, int, ChromiumOptions] = None,
-                tab_id: str = None,
-                timeout: float = None):
+                tab_id: str = None):
         """
         :param addr_or_opts: 浏览器地址:端口、ChromiumOptions对象或端口数字（int）
         :param tab_id: 要控制的标签页id，不指定默认为激活的
-        :param timeout: 超时时间（秒）
         """
         ...
 
     def __init__(self,
                  addr_or_opts: Union[str, int, ChromiumOptions] = None,
-                 tab_id: str = None,
-                 timeout: float = None):
+                 tab_id: str = None):
         """
         :param addr_or_opts: 浏览器地址:端口、ChromiumOptions对象或端口数字（int）
         :param tab_id: 要控制的标签页id，不指定默认为激活的
-        :param timeout: 超时时间（秒）
         """
         ...
 

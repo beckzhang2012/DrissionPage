@@ -151,11 +151,11 @@ class BaseWaiter(OriginWaiter):
         """等待自动填写上传文件路径"""
         ...
 
-    def download_begin(self, timeout: float = None, cancel_it: bool = False) -> Union[DownloadMission, bool]:
+    def download_begin(self, timeout: float = None, cancel_it: bool = False) -> Union[DownloadMission, bool, dict]:
         """等待浏览器下载开始，可将其拦截
         :param timeout: 超时时间（秒），None使用页面对象超时时间
         :param cancel_it: 是否取消该任务
-        :return: 成功返回任务对象，失败返回False
+        :return: 成功返回任务对象（cancel_it为True时返回dict格式的下载信息），失败返回False
         """
         ...
 

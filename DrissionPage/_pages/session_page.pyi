@@ -32,8 +32,7 @@ class SessionPage(BasePage):
     _encoding: Optional[str] = ...
     _page: SessionPage = ...
 
-    def __init__(self,
-                 session_or_options: Union[Session, SessionOptions] = None):
+    def __init__(self, session_or_options: Union[Session, SessionOptions] = None):
         """
         :param session_or_options: Session对象或SessionOptions对象
         """
@@ -260,7 +259,7 @@ class SessionPage(BasePage):
         """返回cookies
         :param all_domains: 是否返回所有域的cookies
         :param all_info: 是否返回所有信息，False则只返回name、value、domain
-        :return: cookies信息
+        :return: cookies组成的列表
         """
         ...
 
