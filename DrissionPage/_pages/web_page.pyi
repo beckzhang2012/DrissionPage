@@ -230,7 +230,7 @@ class WebPage(SessionPage, ChromiumPage, BasePage):
 
     def eles(self,
              locator: Union[Tuple[str, str], str],
-             timeout: float = None) -> Union[SessionElementsList, ChromiumElementsList]:
+             timeout: float = None) -> ChromiumElementsList:
         """返回页面中所有符合条件的元素、属性或节点文本
         :param locator: 元素的定位信息，可以是loc元组，或查询字符串
         :param timeout: 查找元素超时时间（秒），默认与页面等待时间一致

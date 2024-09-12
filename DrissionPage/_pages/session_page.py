@@ -197,10 +197,10 @@ class SessionPage(BasePage):
 
     def _make_response(self, url, mode='get', retry=None, interval=None, show_errmsg=False, **kwargs):
         kwargs = CaseInsensitiveDict(kwargs)
-        if 'headers' not in kwargs:
-            kwargs['headers'] = CaseInsensitiveDict()
-        else:
+        if 'headers' in kwargs:
             kwargs['headers'] = CaseInsensitiveDict(format_headers(kwargs['headers']))
+        else:
+            kwargs['headers'] = CaseInsensitiveDict()
 
         # 设置referer和host值
         parsed_url = urlparse(url)
@@ -208,8 +208,12 @@ class SessionPage(BasePage):
         scheme = parsed_url.scheme
         if not check_headers(kwargs['headers'], self._headers, 'Referer'):
             kwargs['headers']['Referer'] = self.url if self.url else f'{scheme}://{hostname}'
+        elif not kwargs['headers']['Referer']:
+            kwargs['headers'].pop('Referer')
         if not check_headers(kwargs['headers'], self._headers, 'Host'):
             kwargs['headers']['Host'] = hostname
+        elif not kwargs['headers']['Host']:
+            kwargs['headers'].pop('Host')
         if not check_headers(kwargs, self._headers, 'timeout'):
             kwargs['timeout'] = self.timeout
 

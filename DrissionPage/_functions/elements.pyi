@@ -27,6 +27,10 @@ class SessionElementsList(list):
         """
         ...
 
+    def __next__(self) -> SessionElement: ...
+
+    def __getitem__(self, _i) -> SessionElement: ...
+
     @property
     def get(self) -> Getter:
         """返回用于属性的对象"""
@@ -42,8 +46,6 @@ class SessionElementsList(list):
         """用于筛选单个元素的对象"""
         ...
 
-    def __next__(self) -> SessionElement: ...
-
 
 class ChromiumElementsList(SessionElementsList):
     _owner: ChromiumBase = ...
@@ -56,6 +58,10 @@ class ChromiumElementsList(SessionElementsList):
         :param args:
         """
         ...
+
+    def __next__(self) -> ChromiumElement: ...
+
+    def __getitem__(self, _i) -> ChromiumElement: ...
 
     @property
     def filter(self) -> ChromiumFilter:
@@ -112,8 +118,6 @@ class ChromiumElementsList(SessionElementsList):
         :return: 筛选结果
         """
         ...
-
-    def __next__(self) -> ChromiumElement: ...
 
 
 class SessionFilterOne(object):

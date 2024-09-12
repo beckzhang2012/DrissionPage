@@ -304,7 +304,7 @@ def format_headers(txt):
         for k, v in txt.items():
             if k in (':method', ':scheme', ':authority', ':path'):
                 txt.pop(k)
-            else:
+            elif v not in (None, False, True):
                 txt[k] = str(v)
         return txt
     headers = {}
