@@ -104,8 +104,8 @@ class MixTab(SessionPage, ChromiumTab, BasePage):
         return self.response
 
     def ele(self, locator, index=1, timeout=None):
-        return super(SessionPage, self).ele(locator, index=index, timeout=timeout) if self._d_mode \
-            else super().ele(locator, index=index)
+        return (super(SessionPage, self).ele(locator, index=index, timeout=timeout)
+                if self._d_mode else super().ele(locator, index=index))
 
     def eles(self, locator, timeout=None):
         return super(SessionPage, self).eles(locator, timeout=timeout) if self._d_mode else super().eles(locator)
