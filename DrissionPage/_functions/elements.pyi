@@ -31,6 +31,8 @@ class SessionElementsList(list):
 
     def __getitem__(self, _i) -> Union[SessionElement, List[SessionElement]]: ...
 
+    def __iter__(self) -> List[SessionElement]: ...
+
     @property
     def get(self) -> Getter:
         """返回用于属性的对象"""
@@ -62,6 +64,8 @@ class ChromiumElementsList(SessionElementsList):
     def __next__(self) -> ChromiumElement: ...
 
     def __getitem__(self, _i) -> Union[ChromiumElement, List[ChromiumElement]]: ...
+
+    def __iter__(self) -> List[ChromiumElement]: ...
 
     @property
     def filter(self) -> ChromiumFilter:
