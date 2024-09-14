@@ -35,7 +35,7 @@ class BaseParser(object):
     def eles(self, locator, timeout=None):
         return self._ele(locator, timeout, index=None)
 
-    def find(self, locators, any_one=False, first_ele=True, timeout=None):
+    def find(self, locators, any_one=True, first_ele=True, timeout=None):
         if 'Session' in self._type:
             timeout = 0
         if timeout is None:

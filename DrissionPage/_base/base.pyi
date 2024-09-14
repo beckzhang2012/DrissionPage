@@ -38,7 +38,7 @@ class BaseParser(object):
 
     def find(self,
              locators: Union[str, List[str], tuple],
-             any_one: bool = False,
+             any_one: bool = True,
              first_ele: bool = True,
              timeout: float = None) -> Union[Dict[str, ChromiumElement], Dict[str, SessionElement],
     Dict[str, List[ChromiumElement]], Dict[str, List[SessionElement]]]:
