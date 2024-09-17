@@ -17,7 +17,7 @@ from requests import Session
 from .._configs.session_options import SessionOptions
 from .._elements.none_element import NoneElement
 from .._functions.elements import get_frame, get_eles
-from .._functions.locator import get_loc
+from .._functions.locator import get_loc, is_selenium_loc
 from .._functions.settings import Settings
 from .._functions.web import format_html
 from ..errors import ElementNotFoundError
@@ -40,7 +40,17 @@ class BaseParser(object):
             timeout = 0
         if timeout is None:
             timeout = self.timeout
-        return get_eles(locators, self, any_one, first_ele, timeout)
+        if isinstance(locators, tuple) and not is_selenium_loc(locators):
+            raise ValueError(f"locators参数为tuple时必须是单独的定位符，即长度为2，且第一位是'id', 'xpath', 'link text', "
+                             f"'partial link text','name', 'tag name', 'class name', 'css selector' 之一。\n"
+                             f"现在是：{locators}")
+        r = get_eles(locators, self, any_one, first_ele, timeout)
+        if any_one:
+            for ele in r:
+                if r[ele]:
+                    return ele, r[ele]
+            return None, None
+        return r
 
     # ----------------以下属性或方法待后代实现----------------
     @property

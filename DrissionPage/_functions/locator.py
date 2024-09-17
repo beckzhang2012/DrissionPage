@@ -79,9 +79,15 @@ def _get_arg(text) -> list:
     return [name, None, None] if len(r) != 3 else [name, r[1], r[2]]
 
 
-def is_loc(text):
+def is_str_loc(text):
     return text.startswith(('.', '#', '@', 't:', 't=', 'tag:', 'tag=', 'tx:', 'tx=', 'tx^', 'tx$', 'text:', 'text=',
                             'text^', 'text$', 'xpath:', 'xpath=', 'x:', 'x=', 'css:', 'css=', 'c:', 'c='))
+
+
+def is_selenium_loc(loc):
+    return (isinstance(loc, tuple) and len(loc) == 2 and isinstance(loc[1], str)
+            and loc[0] in ('id', 'xpath', 'link text', 'partial link text', 'name', 'tag name', 'class name',
+                           'css selector'))
 
 
 def get_loc(loc, translate_css=False, css_mode=False):
@@ -457,7 +463,7 @@ def translate_loc(loc):
         loc_str = f'//a[contains(text(),"{loc[1]}")]'
 
     else:
-        raise ValueError('无法识别的定位符。')
+        raise ValueError(f'无法识别的定位符：{loc}')
 
     return loc_by, loc_str
 
