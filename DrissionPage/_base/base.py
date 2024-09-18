@@ -90,7 +90,7 @@ class BaseElement(BaseParser):
         r = self._find_elements(locator, timeout=timeout, index=index, relative=relative, raise_err=raise_err)
         if r or isinstance(r, list):
             return r
-        if Settings.raise_when_ele_not_found or raise_err is True:
+        if raise_err is True or (Settings.raise_when_ele_not_found and raise_err is None):
             raise ElementNotFoundError(None, method, {'locator': locator, 'index': index, 'timeout': timeout})
 
         r.method = method
@@ -356,7 +356,7 @@ class BasePage(BaseParser):
         r = self._find_elements(locator, timeout=timeout, index=index, raise_err=raise_err)
         if r or isinstance(r, list):
             return r
-        if Settings.raise_when_ele_not_found or raise_err is True:
+        if raise_err is True or (Settings.raise_when_ele_not_found and raise_err is None):
             raise ElementNotFoundError(None, method, {'locator': locator, 'index': index, 'timeout': timeout})
 
         r.method = method
