@@ -100,6 +100,8 @@ class MixTab(SessionPage, ChromiumTab, BasePage):
             self.cookies_to_session()
         if timeout is None:
             kwargs['timeout'] = self.timeouts.page_load
+        if self._session is None:
+            self._create_session()
         super().post(url, show_errmsg, retry, interval, **kwargs)
         return self.response
 

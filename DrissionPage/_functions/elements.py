@@ -309,6 +309,12 @@ def get_frame(owner, loc_ind_ele, timeout=None):
             raise TypeError('该定位符不是指向frame元素。')
         r = ele
 
+    elif isinstance(loc_ind_ele, int):
+        ele = owner._ele('@|tag():iframe@|tag():frame', timeout=timeout, index=loc_ind_ele)
+        if ele and ele._type != 'ChromiumFrame':
+            raise TypeError('该定位符不是指向frame元素。')
+        r = ele
+
     elif getattr(loc_ind_ele, '_type', None) == 'ChromiumFrame':
         r = loc_ind_ele
 
