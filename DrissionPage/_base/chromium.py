@@ -72,6 +72,8 @@ class Chromium(object):
         self._load_mode = self._chromium_options.load_mode
         self._download_path = str(Path(self._chromium_options.download_path).absolute())
         self._auto_handle_alert = None
+        self._none_ele_return_value = False
+        self._none_ele_value = None
         self.retry_times = self._chromium_options.retry_times
         self.retry_interval = self._chromium_options.retry_interval
         self.address = self._chromium_options.address

@@ -225,7 +225,7 @@ def _make_single_xpath_str(tag: str, text: str) -> tuple:
             else:
                 symbol = r[1]
                 if symbol == '=':  # 精确查找
-                    arg = '.' if r[0] in ('@text()', '@tx()') else r[0]
+                    arg = 'text()' if r[0] in ('@text()', '@tx()') else r[0]
                     arg_str = f'{arg}={_make_search_str(r[2])}'
 
                 elif symbol == '^':  # 匹配开头

@@ -6,7 +6,7 @@
 @License  : BSD 3-Clause.
 """
 from threading import Lock
-from typing import List, Optional, Set, Dict, Union, Tuple, Literal
+from typing import List, Optional, Set, Dict, Union, Tuple, Literal, Any
 
 from .driver import BrowserDriver, Driver
 from .._configs.chromium_options import ChromiumOptions
@@ -49,6 +49,8 @@ class Chromium(object):
     _is_exists: bool = ...
     _is_headless: bool = ...
     _disconnect_flag: bool = ...
+    _none_ele_return_value: bool = ...
+    _none_ele_value: Any = ...
 
     def __new__(cls,
                 addr_or_opts: Union[str, int, ChromiumOptions] = None,
