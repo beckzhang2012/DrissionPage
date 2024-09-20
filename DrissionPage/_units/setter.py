@@ -10,7 +10,8 @@ from time import sleep
 
 from requests.structures import CaseInsensitiveDict
 
-from .cookies_setter import SessionCookiesSetter, CookiesSetter, WebPageCookiesSetter, BrowserCookiesSetter
+from .cookies_setter import (SessionCookiesSetter, CookiesSetter, WebPageCookiesSetter, BrowserCookiesSetter,
+                             MixTabCookiesSetter)
 from .._functions.tools import show_or_hide_browser
 from .._functions.web import format_headers
 from ..errors import ElementLostError, JavaScriptError
@@ -300,7 +301,7 @@ class MixTabSetter(TabSetter):
     @property
     def cookies(self):
         if self._cookies_setter is None:
-            self._cookies_setter = WebPageCookiesSetter(self._owner)
+            self._cookies_setter = MixTabCookiesSetter(self._owner)
         return self._cookies_setter
 
     def headers(self, headers):

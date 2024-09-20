@@ -6,6 +6,7 @@
 @License  : BSD 3-Clause.
 """
 from pathlib import Path
+from re import match
 from shutil import rmtree
 from threading import Lock
 from time import sleep, perf_counter
@@ -476,6 +477,8 @@ def _new_tab_by_js(browser: Chromium, url, obj, new_window):
     mix = isinstance(obj, MixTab)
     tab = browser._get_tab(mix=mix)
     url = f'"{url}"' if url else ''
+    if url and not match(r'^.*?://.*', url):
+        raise ValueError(f'url也许需要加上http://？')
     new = 'target="_new"' if new_window else 'target="_blank"'
     tid = browser.latest_tab.tab_id
     tab.run_js(f'window.open({url}, {new})')

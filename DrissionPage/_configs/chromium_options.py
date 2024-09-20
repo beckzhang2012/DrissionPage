@@ -271,7 +271,8 @@ class ChromiumOptions(object):
 
     def incognito(self, on_off=True):
         on_off = None if on_off else False
-        return self.set_argument('--incognito', on_off)
+        self.set_argument('--incognito', on_off)
+        return self.set_argument('--inprivate', on_off)  # edge
 
     def new_env(self, on_off=True):
         self._new_env = on_off
