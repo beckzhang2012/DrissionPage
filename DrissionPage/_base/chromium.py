@@ -307,7 +307,7 @@ class Chromium(object):
         if tab:
             kwargs['browserContextId'] = tab
 
-        if self.states.is_incognito():
+        if self.states.is_incognito:
             return _new_tab_by_js(self, url, obj, new_window)
         else:
             try:

@@ -80,8 +80,8 @@ def clean_folder(folder_path, ignore=None):
                 rmtree(f, True)
 
 
-def show_or_hide_browser(page, hide=True):
-    if not page.browser.address.startswith(('127.0.0.1', 'localhost')):
+def show_or_hide_browser(tab, hide=True):
+    if not tab.browser.address.startswith(('127.0.0.1', 'localhost')):
         return
 
     if system().lower() != 'windows':
@@ -93,10 +93,10 @@ def show_or_hide_browser(page, hide=True):
     except ImportError:
         raise ImportError('请先安装：pip install pypiwin32')
 
-    pid = page._page.process_id
+    pid = tab.browser.process_id
     if not pid:
         return None
-    hds = get_hwnds_from_pid(pid, page.title)
+    hds = get_hwnds_from_pid(pid, tab.title)
     sw = SW_HIDE if hide else SW_SHOW
     for hd in hds:
         ShowWindow(hd, sw)

@@ -53,9 +53,9 @@ def clean_folder(folder_path: Union[str, Path], ignore: Union[tuple, list] = Non
     ...
 
 
-def show_or_hide_browser(page: ChromiumBase, hide: bool = True) -> None:
+def show_or_hide_browser(tab: ChromiumBase, hide: bool = True) -> None:
     """执行显示或隐藏浏览器窗口
-    :param page: ChromePage对象
+    :param tab: ChromiumTab对象
     :param hide: 是否隐藏
     :return: None
     """

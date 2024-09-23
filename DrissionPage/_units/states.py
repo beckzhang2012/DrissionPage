@@ -94,18 +94,22 @@ class BrowserStates(object):
         self._browser = browser
         self._incognito = None
 
+    @property
     def is_alive(self):
         return self._browser._driver.is_running
 
+    @property
     def is_headless(self):
         return self._browser._is_headless
 
+    @property
     def is_existed(self):
         return self._browser._is_exists
 
+    @property
     def is_incognito(self):
         if self._incognito is None:
-            self._incognito = str(self._browser._run_cdp('Browser.getHistograms')).count('Incognito') > 1
+            self._incognito = "'Browser.WindowCount.Incognito'" in str(self._browser._run_cdp('Browser.getHistograms'))
         return self._incognito
 
 
