@@ -16,6 +16,15 @@ class SessionElementsList(list):
         super().__init__(*args)
         self._owner = owner
 
+    def __getitem__(self, item):
+        cls = type(self)
+        if isinstance(item, slice):
+            return cls(self._owner, super().__getitem__(item))
+        elif isinstance(item, int):
+            return super().__getitem__(item)
+        else:
+            raise TypeError('序号必须是数字或切片。')
+
     @property
     def get(self):
         return Getter(self)

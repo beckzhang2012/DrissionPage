@@ -454,6 +454,11 @@ class Request(object):
         return self._headers
 
     @property
+    def params(self):
+        from urllib.parse import parse_qsl, urlparse
+        return dict(parse_qsl(urlparse(self.url).query, keep_blank_values=True))
+
+    @property
     def postData(self):
         if self._postData is None:
             if self._raw_post_data:

@@ -240,11 +240,12 @@ class ChromiumElement(DrissionElement):
     def over(self, timeout=None):
         if timeout is None:
             timeout = self.timeout
-        bid = self.wait.covered(timeout=timeout)
-        if bid:
-            return ChromiumElement(owner=self.owner, backend_id=bid)
-        else:
-            return NoneElement(page=self.owner, method='on()', args={'timeout': timeout})
+        bid = self.states.is_covered
+        end_time = perf_counter() + timeout
+        while not bid and perf_counter() < end_time:
+            bid = self.states.is_covered
+        return (ChromiumElement(owner=self.owner, backend_id=bid)
+                if bid else NoneElement(page=self.owner, method='over()', args={'timeout': timeout}))
 
     def offset(self, locator=None, x=None, y=None, timeout=None):
         if locator and not (isinstance(locator, str) and not locator.startswith(

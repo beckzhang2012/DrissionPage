@@ -134,12 +134,13 @@ class WebPage(SessionPage, ChromiumPage, BasePage):
     def eles(self, locator, timeout=None):
         return super(SessionPage, self).eles(locator, timeout=timeout) if self._d_mode else super().eles(locator)
 
-    def s_ele(self, locator=None, index=1):
-        return super(SessionPage, self).s_ele(locator,
-                                              index=index) if self._d_mode else super().s_ele(locator, index=index)
+    def s_ele(self, locator=None, index=1, timeout=None):
+        return (super(SessionPage, self).s_ele(locator, index=index, timeout=timeout)
+                if self._d_mode else super().s_ele(locator, index=index, timeout=timeout))
 
-    def s_eles(self, locator):
-        return super(SessionPage, self).s_eles(locator) if self._d_mode else super().s_eles(locator)
+    def s_eles(self, locator, timeout=None):
+        return (super(SessionPage, self).s_eles(locator, timeout=timeout)
+                if self._d_mode else super().s_eles(locator, timeout=timeout))
 
     def change_mode(self, mode=None, go=True, copy_cookies=True):
         if mode:

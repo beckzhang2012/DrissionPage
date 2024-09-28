@@ -316,7 +316,8 @@ class ElementWaiter(OriginWaiter):
         return self._wait_state('is_displayed', False, timeout, raise_err, err_text='等待元素隐藏失败。')
 
     def covered(self, timeout=None, raise_err=None):
-        return self._wait_state('is_covered', True, timeout, raise_err, err_text='等待元素被覆盖失败。')
+        return self._ele if self._wait_state('is_covered', True, timeout, raise_err,
+                                             err_text='等待元素被覆盖失败。') else False
 
     def not_covered(self, timeout=None, raise_err=None):
         return self._wait_state('is_covered', False, timeout, raise_err, err_text='等待元素不被覆盖失败。')
@@ -355,7 +356,8 @@ class ElementWaiter(OriginWaiter):
         return r
 
     def has_rect(self, timeout=None, raise_err=None):
-        return self._wait_state('has_rect', True, timeout, raise_err, err_text='等待元素拥有大小及位置失败（等{}秒）。')
+        return self._ele if self._wait_state('has_rect', True, timeout, raise_err,
+                                             err_text='等待元素拥有大小及位置失败（等{}秒）。') else False
 
     def stop_moving(self, timeout=None, gap=.1, raise_err=None):
         if timeout is None:

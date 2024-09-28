@@ -339,7 +339,7 @@ class Chromium(object):
             if tabs:
                 id_or_num = tabs[0]
             else:
-                return None
+                raise RuntimeError('没有找到指定标签页。')
 
         if as_id:
             return id_or_num
@@ -478,9 +478,9 @@ def run_browser(chromium_options):
 def _new_tab_by_js(browser: Chromium, url, obj, new_window):
     mix = isinstance(obj, MixTab)
     tab = browser._get_tab(mix=mix)
-    url = f'"{url}"' if url else ''
     if url and not match(r'^.*?://.*', url):
         raise ValueError(f'url也许需要加上http://？')
+    url = f'"{url}"' if url else '""'
     new = 'target="_new"' if new_window else 'target="_blank"'
     tid = browser.latest_tab.tab_id
     tab.run_js(f'window.open({url}, {new})')
