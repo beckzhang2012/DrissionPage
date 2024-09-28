@@ -695,6 +695,16 @@ class FrameWaiter(BaseWaiter, ElementWaiter):
         """
         ...
 
+    def has_rect(self,
+                 timeout: float = None,
+                 raise_err: bool = None) -> Union[ChromiumFrame, False]:
+        """等待当前元素有大小及位置属性
+        :param timeout: 超时时间（秒），为None使用元素所在页面timeout属性
+        :param raise_err: 等待失败时是否报错，为None时根据Settings设置
+        :return: 成功返回元素对象，失败返回False
+        """
+        ...
+
     def covered(self, timeout: float = None, raise_err: bool = None) -> Union[ChromiumFrame, False]:
         """等待当前元素被遮盖
         :param timeout: 超时时间（秒），为None使用元素所在页面timeout属性
