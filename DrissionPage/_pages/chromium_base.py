@@ -187,6 +187,8 @@ class ChromiumBase(BasePage):
             self._doc_got = False
             self._ready_state = 'loading'
             self._is_loading = True
+            if kwargs.get('type', None) == 'BackForwardCacheRestore':
+                self._get_document()
 
     def _onDomContentEventFired(self, **kwargs):
         if self._load_mode == 'eager':
