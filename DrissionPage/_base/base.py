@@ -124,11 +124,11 @@ class DrissionElement(BaseElement):
 
     @property
     def css_path(self):
-        return self._get_ele_path('css')
+        return self._get_ele_path(xpath=False)
 
     @property
     def xpath(self):
-        return self._get_ele_path('xpath')
+        return self._get_ele_path()
 
     @property
     def comments(self):
@@ -255,7 +255,7 @@ class DrissionElement(BaseElement):
     def attr(self, name: str):
         return ''
 
-    def _get_ele_path(self, mode):
+    def _get_ele_path(self, xpath=True):
         return ''
 
     def _find_elements(self, locator, timeout, index=1, relative=False, raise_err=None):

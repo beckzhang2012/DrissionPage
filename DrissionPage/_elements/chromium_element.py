@@ -636,16 +636,14 @@ class ChromiumElement(DrissionElement):
         self._obj_id = self._get_obj_id(backend_id=self._backend_id)
         self._node_id = self._get_node_id(obj_id=self._obj_id)
 
-    def _get_ele_path(self, mode):
-        if mode == 'xpath':
+    def _get_ele_path(self, xpath=True):
+        if xpath:
             txt1 = 'let tag = el.nodeName.toLowerCase();'
-            txt3 = ''' && sib.nodeName.toLowerCase()==tag'''
-            txt4 = '''
-            if(nth>1){path = '/' + tag + '[' + nth + ']' + path;}
-                    else{path = '/' + tag + path;}'''
+            txt3 = ''' && sib.nodeName.toLowerCase()===tag'''
+            txt4 = '''path = '/' + tag + '[' + nth + ']' + path;'''
             txt5 = '''return path;'''
 
-        elif mode == 'css':
+        else:
             txt1 = '''
             let i = el.getAttribute("id");
             if (i){path = '>' + el.tagName.toLowerCase() + "#" + i + path;
@@ -654,9 +652,6 @@ class ChromiumElement(DrissionElement):
             txt3 = ''
             txt4 = '''path = '>' + el.tagName.toLowerCase() + ":nth-child(" + nth + ")" + path;'''
             txt5 = '''return path.substr(1);'''
-
-        else:
-            raise ValueError(f"mode参数只能是'xpath'或'css'，现在是：'{mode}'。")
 
         js = '''function(){
         function e(el) {
@@ -677,8 +672,7 @@ class ChromiumElement(DrissionElement):
         }
         return e(this);}
         '''
-        t = self._run_js(js)
-        return f'{t}' if mode == 'css' else t
+        return self._run_js(js)
 
     def _set_file_input(self, files):
         if isinstance(files, str):
