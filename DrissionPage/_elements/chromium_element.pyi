@@ -587,7 +587,7 @@ class ChromiumElement(DrissionElement):
         """根据backend id刷新其它id"""
         ...
 
-    def _get_ele_path(self, mode: str) -> str:
+    def _get_ele_path(self, xpath: bool = True) -> str:
         """返获取绝对的css路径或xpath路径"""
         ...
 
