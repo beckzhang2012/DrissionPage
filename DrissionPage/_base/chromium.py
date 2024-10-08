@@ -315,8 +315,12 @@ class Chromium(object):
             except CDPError:
                 return _new_tab_by_js(self, url, obj, new_window)
 
-        while tab not in self._drivers:
+        while self.states.is_alive:
+            if tab in self._drivers:
+                break
             sleep(.1)
+        else:
+            raise BrowserConnectError('浏览器已关闭')
         tab = obj(self, tab)
         if url:
             tab.get(url)
