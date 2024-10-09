@@ -149,19 +149,20 @@ class SessionElement(DrissionElement):
         path_str = ''
         ele = self
 
-        while ele:
-            if xpath:
+        if xpath:
+            while ele:
                 brothers = len(ele.eles(f'xpath:./preceding-sibling::{ele.tag}'))
                 path_str = f'/{ele.tag}[{brothers + 1}]{path_str}'
-            else:
+                ele = ele.parent()
+
+        else:
+            while ele:
                 id_ = ele.attr('id')
                 if id_:
                     path_str = f'>{ele.tag}#{id_}{path_str}'
-                    break
-                brothers = len(ele.eles(f'xpath:./preceding-sibling::*'))
-                path_str = f'>{ele.tag}:nth-child({brothers + 1}){path_str}'
-
-            ele = ele.parent()
+                else:
+                    path_str = f'>{ele.tag}:nth-child({len(ele.eles("xpath:./preceding-sibling::*")) + 1}){path_str}'
+                ele = ele.parent()
 
         return path_str if xpath else f'{path_str[1:]}'
 

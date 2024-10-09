@@ -647,7 +647,8 @@ class ChromiumElement(DrissionElement):
             txt1 = '''
             let i = el.getAttribute("id");
             if (i){path = '>' + el.tagName.toLowerCase() + "#" + i + path;
-            break;}
+            el = el.parentNode;
+            continue;}
             '''
             txt3 = ''
             txt4 = '''path = '>' + el.tagName.toLowerCase() + ":nth-child(" + nth + ")" + path;'''
@@ -655,7 +656,6 @@ class ChromiumElement(DrissionElement):
 
         js = '''function(){
         function e(el) {
-        //return el;
             if (!(el instanceof Element)) return;
             let path = '';
             while (el.nodeType === Node.ELEMENT_NODE) {
