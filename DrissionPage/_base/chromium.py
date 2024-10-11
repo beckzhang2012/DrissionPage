@@ -373,7 +373,7 @@ class Chromium(object):
     def _run_cdp(self, cmd, **cmd_args):
         ignore = cmd_args.pop('_ignore', None)
         r = self._driver.run(cmd, **cmd_args)
-        return r if __ERROR__ not in r else raise_error(r, ignore)
+        return r if __ERROR__ not in r else raise_error(r, self, ignore)
 
     def _get_driver(self, tab_id, owner=None):
         d = self._drivers.pop(tab_id, None)

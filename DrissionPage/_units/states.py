@@ -139,6 +139,18 @@ class PageStates(object):
     def has_alert(self):
         return self._owner._has_alert
 
+    @property
+    def is_headless(self):
+        return self._owner.browser.states.is_headless
+
+    @property
+    def is_existed(self):
+        return self._owner.browser.states.is_existed
+
+    @property
+    def is_incognito(self):
+        return self._owner.browser.states.is_incognito
+
 
 class FrameStates(object):
     def __init__(self, frame):

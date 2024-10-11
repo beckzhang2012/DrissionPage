@@ -157,7 +157,7 @@ def configs_to_here(save_name=None):
     om.save(save_name)
 
 
-def raise_error(result, ignore=None, user=False):
+def raise_error(result, browser, ignore=None, user=False):
     error = result['error']
     if error in ('Cannot find context with specified id', 'Inspected target navigated or closed',
                  'No frame with given id found'):
@@ -183,7 +183,7 @@ def raise_error(result, ignore=None, user=False):
     elif error == 'Given expression does not evaluate to a function':
         r = JavaScriptError(f'传入的js无法解析成函数：\n{result["args"]["functionDeclaration"]}')
     elif error.endswith("' wasn't found"):
-        r = RuntimeError(f'没有找到对应功能，方法错误或你的浏览器太旧。\n方法：{result["method"]}\n参数：{result["args"]}')
+        r = RuntimeError(f'没有找到对应功能，方法错误或你的浏览器太旧。\n浏览器版本：{browser.version}\n方法：{result["method"]}')
     elif result['type'] == 'timeout':
         from DrissionPage import __version__
         txt = f'\n错误：{result["error"]}\n方法：{result["method"]}\n参数：{result["args"]}\n' \
