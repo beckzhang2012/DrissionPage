@@ -28,16 +28,15 @@ class OriginWaiter(object):
 class BrowserWaiter(OriginWaiter):
     def new_tab(self, timeout=None, curr_tab=None, raise_err=None):
         if not curr_tab:
-            curr_tab = self._owner.tab_ids[0]
+            curr_tab = self._owner._newest_tab_id
         elif hasattr(curr_tab, '_type'):
             curr_tab = curr_tab.tab_id
         if timeout is None:
             timeout = self._owner.timeout
         end_time = perf_counter() + timeout
         while perf_counter() < end_time:
-            latest_tid = self._owner.tab_ids[0]
-            if curr_tab != latest_tid:
-                return latest_tid
+            if curr_tab != self._owner._newest_tab_id:
+                return self._owner._newest_tab_id
             sleep(.01)
 
         if raise_err is True or Settings.raise_when_wait_failed is True:

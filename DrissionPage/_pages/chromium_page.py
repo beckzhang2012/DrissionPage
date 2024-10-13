@@ -114,7 +114,7 @@ class ChromiumPage(ChromiumBase):
         self.browser.activate_tab(id_ind_tab)
 
     def close(self):
-        self.close_tabs(self.tab_id)
+        self.browser._close_tab(self.tab_id)
 
     def close_tabs(self, tabs_or_ids=None, others=False):
         self.browser.close_tabs(tabs_or_ids=tabs_or_ids or self.tab_id, others=others)

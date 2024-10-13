@@ -51,6 +51,8 @@ class Chromium(object):
     _disconnect_flag: bool = ...
     _none_ele_return_value: bool = ...
     _none_ele_value: Any = ...
+    _newest_tab_id: Optional[str] = ...
+    _tab_to_close: set = ...
 
     def __new__(cls,
                 addr_or_opts: Union[str, int, ChromiumOptions] = None,
@@ -191,6 +193,12 @@ class Chromium(object):
         :return: None
         """
         ...
+
+    def _close_tab(self, tab_id: str):
+        """关闭一个标签页
+        :param tab_id: 标签页id
+        :return: None
+        """
 
     def activate_tab(self, id_ind_tab: Union[int, str, ChromiumTab]) -> None:
         """使一个标签页显示到前端

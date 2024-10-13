@@ -64,6 +64,8 @@ class Chromium(object):
         self._frames = {}
         self._drivers = {}
         self._all_drivers = {}
+        self._newest_tab_id = None
+        self._tab_to_close = set()
 
         self._set = None
         self._wait = None
@@ -211,12 +213,14 @@ class Chromium(object):
             return
 
         for tab in tabs:
-            self._onTargetDestroyed(targetId=tab)
-            self._driver.run('Target.closeTarget', targetId=tab)
+            self._close_tab(tab_id=tab)
+
+    def _close_tab(self, tab_id):
+        # self._onTargetDestroyed(targetId=tab)
+        self._tab_to_close.add(tab_id)
+        self._driver.run('Target.closeTarget', targetId=tab_id)
+        while tab_id in self._tab_to_close:
             sleep(.2)
-        end_time = perf_counter() + 3
-        while self.tabs_count != end_len and perf_counter() < end_time:
-            sleep(.1)
 
     def activate_tab(self, id_ind_tab):
         if isinstance(id_ind_tab, int):
@@ -392,6 +396,7 @@ class Chromium(object):
                 d = Driver(tab_id, 'page', self.address)
                 self._drivers[tab_id] = d
                 self._all_drivers.setdefault(tab_id, set()).add(d)
+                self._newest_tab_id = tab_id
             except WebSocketBadStatusException:
                 pass
 
@@ -404,6 +409,7 @@ class Chromium(object):
             d.stop()
         self._drivers.pop(tab_id, None)
         self._all_drivers.pop(tab_id, None)
+        self._tab_to_close.discard(tab_id)
 
     def _on_disconnect(self):
         if not self._disconnect_flag:

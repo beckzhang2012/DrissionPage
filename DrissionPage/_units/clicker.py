@@ -144,7 +144,7 @@ class Clicker(object):
         self._ele.owner.wait.upload_paths_inputted()
 
     def for_new_tab(self, by_js=False, timeout=3):
-        curr_tid = self._ele.tab.browser.tab_ids[0]
+        curr_tid = self._ele.tab.browser._newest_tab_id
         self.left(by_js=by_js)
         tid = self._ele.tab.browser.wait.new_tab(timeout=timeout, curr_tab=curr_tid)
         if not tid:

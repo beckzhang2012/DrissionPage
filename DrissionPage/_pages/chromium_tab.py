@@ -51,7 +51,10 @@ class ChromiumTab(ChromiumBase):
         self._none_ele_value = self.browser._none_ele_value
 
     def close(self, others=False):
-        self.browser.close_tabs(self.tab_id, others=others)
+        if others:
+            self.browser.close_tabs(self.tab_id, others=True)
+        else:
+            self.browser._close_tab(self.tab_id)
 
     @property
     def set(self):
