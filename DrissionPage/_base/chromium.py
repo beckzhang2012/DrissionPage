@@ -191,27 +191,22 @@ class Chromium(object):
     def get_tabs(self, title=None, url=None, tab_type='page'):
         return self._get_tabs(title=title, url=url, tab_type=tab_type, mix=True, as_id=False)
 
-    def close_tabs(self, tabs_or_ids=None, others=False):
-        all_tabs = set(self.tab_ids)
+    def close_tabs(self, tabs_or_ids, others=False):
         if isinstance(tabs_or_ids, str):
             tabs = {tabs_or_ids}
         elif isinstance(tabs_or_ids, ChromiumTab):
             tabs = {tabs_or_ids.tab_id}
-        elif tabs_or_ids is None:
-            tabs = {self.tab_ids[0]}
         elif isinstance(tabs_or_ids, (list, tuple)):
             tabs = set(i.tab_id if isinstance(i, ChromiumTab) else i for i in tabs_or_ids)
         else:
             raise TypeError('tabs_or_ids参数只能传入标签页对象或id。')
 
+        all_tabs = set(self.tab_ids)
         if others:
             tabs = all_tabs - tabs
-
-        end_len = len(set(all_tabs) - set(tabs))
-        if end_len <= 0:
+        if len(all_tabs - tabs) <= 0:
             self.quit()
             return
-
         for tab in tabs:
             self._close_tab(tab_id=tab)
 

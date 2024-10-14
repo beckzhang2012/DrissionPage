@@ -116,8 +116,8 @@ class ChromiumPage(ChromiumBase):
     def close(self):
         self.browser._close_tab(self.tab_id)
 
-    def close_tabs(self, tabs_or_ids=None, others=False):
-        self.browser.close_tabs(tabs_or_ids=tabs_or_ids or self.tab_id, others=others)
+    def close_tabs(self, tabs_or_ids, others=False):
+        self.browser.close_tabs(tabs_or_ids=tabs_or_ids, others=others)
 
     def quit(self, timeout=5, force=True, del_data=False):
         self.browser.quit(timeout, force, del_data=del_data)
