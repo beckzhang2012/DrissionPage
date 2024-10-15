@@ -10,6 +10,7 @@ from time import perf_counter, sleep
 
 from .._functions.settings import Settings
 from .._functions.web import offset_scroll
+from .._units.downloader import TabDownloadSettings
 from ..errors import CanNotClickError, CDPError, NoRectError, AlertExistsError
 
 
@@ -129,6 +130,12 @@ class Clicker(object):
                 self._ele.tab.set.download_path(save_path)
         elif new_tab:
             tmp_save_path = self._ele.owner._tab.download_path
+            t_settings = TabDownloadSettings(self._ele.owner.tab_id)
+            b_settings = TabDownloadSettings('browser')
+            b_settings.rename = t_settings.rename
+            b_settings.suffix = t_settings.suffix
+            t_settings.rename = None
+            t_settings.suffix = None
 
         obj = self._ele.tab._browser if new_tab else self._ele.owner._tab
         if rename or suffix:
