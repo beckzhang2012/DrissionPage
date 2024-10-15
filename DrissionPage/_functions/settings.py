@@ -5,6 +5,7 @@
 @Copyright: (c) 2024 by g1879, Inc. All Rights Reserved.
 @License  : BSD 3-Clause.
 """
+from pathlib import Path
 
 
 class Settings(object):
@@ -14,3 +15,7 @@ class Settings(object):
     singleton_tab_obj = True
     cdp_timeout = 30
     auto_handle_alert = None
+    locate_suffixes_list = str(Path(__file__).parent.absolute() / 'suffixes.dat').replace('\\', '/')
+
+    def set_suffixes_list_path(self, path):
+        Settings.locate_suffixes_list = str(Path(path).absolute())

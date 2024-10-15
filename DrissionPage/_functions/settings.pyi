@@ -1,0 +1,26 @@
+# -*- coding:utf-8 -*-
+"""
+@Author   : g1879
+@Contact  : g1879@qq.com
+@Copyright: (c) 2024 by g1879, Inc. All Rights Reserved.
+@License  : BSD 3-Clause.
+"""
+from pathlib import Path
+from typing import Optional, Union
+
+
+class Settings(object):
+    raise_when_ele_not_found: bool = ...
+    raise_when_click_failed: bool = ...
+    raise_when_wait_failed: bool = ...
+    singleton_tab_obj: bool = ...
+    cdp_timeout: float = ...
+    auto_handle_alert: Optional[bool] = ...
+    locate_suffixes_list: str = ...
+
+    def set_suffixes_list_path(self, path: Union[str, Path]) -> None:
+        """设置用于识别域名后缀的文件路径
+        :param path: 文件路径
+        :return: None
+        """
+        ...
