@@ -396,15 +396,16 @@ class Chromium(object):
                 pass
 
     def _onTargetDestroyed(self, **kwargs):
-        tab_id = kwargs['targetId']
-        self._dl_mgr.clear_tab_info(tab_id)
-        for key in [k for k, i in self._frames.items() if i == tab_id]:
-            self._frames.pop(key, None)
-        for d in self._all_drivers.get(tab_id, tuple()):
-            d.stop()
-        self._drivers.pop(tab_id, None)
-        self._all_drivers.pop(tab_id, None)
-        self._tab_to_close.discard(tab_id)
+        with self._lock:
+            tab_id = kwargs['targetId']
+            self._dl_mgr.clear_tab_info(tab_id)
+            for key in [k for k, i in self._frames.items() if i == tab_id]:
+                self._frames.pop(key, None)
+            for d in self._all_drivers.get(tab_id, tuple()):
+                d.stop()
+            self._drivers.pop(tab_id, None)
+            self._all_drivers.pop(tab_id, None)
+            self._tab_to_close.discard(tab_id)
 
     def _on_disconnect(self):
         if not self._disconnect_flag:
