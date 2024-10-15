@@ -266,6 +266,9 @@ class ChromiumPageSetter(TabSetter):
         super().download_path(path)
         self._owner.browser.set.download_path(path)
 
+    def download_file_name(self, name=None, suffix=None):
+        self._owner.browser.set.download_file_name(name, suffix)
+
 
 class WebPageSetter(ChromiumPageSetter):
     def __init__(self, owner):

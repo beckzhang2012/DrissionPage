@@ -127,6 +127,8 @@ class Clicker(object):
                 tmp_save_path = str(Path(save_path).absolute())
             else:
                 self._ele.tab.set.download_path(save_path)
+        elif new_tab:
+            tmp_save_path = self._ele.owner._tab.download_path
 
         obj = self._ele.tab._browser if new_tab else self._ele.owner._tab
         if rename or suffix:
