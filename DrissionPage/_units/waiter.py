@@ -50,18 +50,7 @@ class BrowserWaiter(OriginWaiter):
         self._owner._dl_mgr.set_flag('browser', False if cancel_it else True)
         if timeout is None:
             timeout = self._owner.timeout
-
-        r = False
-        end_time = perf_counter() + timeout
-        while perf_counter() < end_time:
-            v = self._owner._dl_mgr.get_flag('browser')
-            if not isinstance(v, bool):
-                r = v
-                break
-            sleep(.005)
-
-        self._owner._dl_mgr.set_flag('browser', None)
-        return r
+        return wait_mission(self._owner, 'browser', timeout)
 
     def downloads_done(self, timeout=None, cancel_if_timeout=True):
         if not self._owner._dl_mgr._running:
@@ -183,18 +172,7 @@ class BaseWaiter(OriginWaiter):
         self._owner.browser._dl_mgr.set_flag(self._owner.tab_id, False if cancel_it else True)
         if timeout is None:
             timeout = self._owner.timeout
-
-        r = False
-        end_time = perf_counter() + timeout
-        while perf_counter() < end_time:
-            v = self._owner.browser._dl_mgr.get_flag(self._owner.tab_id)
-            if not isinstance(v, bool):
-                r = v
-                break
-            sleep(.005)
-
-        self._owner.browser._dl_mgr.set_flag(self._owner.tab_id, None)
-        return r
+        return wait_mission(self._owner.browser, self._owner.tab_id, timeout)
 
     def url_change(self, text, exclude=False, timeout=None, raise_err=None):
         return self._owner if self._change('url', text, exclude, timeout, raise_err) else False
@@ -417,3 +395,17 @@ class FrameWaiter(BaseWaiter, ElementWaiter):
     @property
     def _timeout(self):
         return self._owner.timeout
+
+
+def wait_mission(browser, tid, timeout=None):
+    r = False
+    end_time = perf_counter() + timeout
+    while perf_counter() < end_time:
+        v = browser._dl_mgr.get_flag(tid)
+        if not isinstance(v, bool):
+            r = v
+            break
+        sleep(.005)
+
+    browser._dl_mgr.set_flag(tid, None)
+    return r

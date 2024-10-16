@@ -193,7 +193,7 @@ class TabDownloadSettings(object):
         self.tab_id = tab_id
         self.rename = None
         self.suffix = None
-        self.path = ''
+        self.path = '' if tab_id == 'browser' else self.TABS['browser'].path
         self.when_file_exists = 'rename'
 
         TabDownloadSettings.TABS[tab_id] = self

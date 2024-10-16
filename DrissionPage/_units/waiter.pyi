@@ -768,3 +768,13 @@ class FrameWaiter(BaseWaiter, ElementWaiter):
         :return: 成功返回元素对象，失败返回False
         """
         ...
+
+
+def wait_mission(browser: Chromium, tid: str, timeout: float = None) -> Union[DownloadMission, False]:
+    """等待下载任务
+    :param browser: Chromium对象
+    :param tid: 标签页id
+    :param timeout: 超时时间
+    :return:
+    """
+    ...
