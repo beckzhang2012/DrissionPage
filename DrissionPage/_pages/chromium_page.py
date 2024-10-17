@@ -96,6 +96,10 @@ class ChromiumPage(ChromiumBase):
     def address(self):
         return self.browser.address
 
+    @property
+    def download_path(self):
+        return self.browser.download_path
+
     def save(self, path=None, name=None, as_pdf=False, **kwargs):
         return save_page(self, path, name, as_pdf, kwargs)
 

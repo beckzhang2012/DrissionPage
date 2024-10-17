@@ -51,7 +51,7 @@ class SessionPageSetter(BaseSetter):
     def download_path(self, path):
         super().download_path(path)
         if self._owner._DownloadKit:
-            self._owner._DownloadKit.set.goal_path(self._owner._download_path)
+            self._owner._DownloadKit.set.save_path(self._owner._download_path)
 
     def timeout(self, second):
         self._owner._timeout = second
@@ -230,7 +230,7 @@ class TabSetter(ChromiumBaseSetter):
         super().download_path(path)
         self._owner.browser._dl_mgr.set_path(self._owner, self._owner._download_path)
         if self._owner._DownloadKit:
-            self._owner._DownloadKit.set.goal_path(self._owner._download_path)
+            self._owner._DownloadKit.set.save_path(self._owner._download_path)
 
     def download_file_name(self, name=None, suffix=None):
         self._owner.browser._dl_mgr.set_rename(self._owner.tab_id, name, suffix)
@@ -263,8 +263,12 @@ class ChromiumPageSetter(TabSetter):
         self._owner.browser.retry_interval = interval
 
     def download_path(self, path):
-        super().download_path(path)
+        if path is None:
+            path = '.'
+        self._owner._download_path = str(Path(path).absolute())
         self._owner.browser.set.download_path(path)
+        if self._owner._DownloadKit:
+            self._owner._DownloadKit.set.save_path(path)
 
     def download_file_name(self, name=None, suffix=None):
         self._owner.browser.set.download_file_name(name, suffix)

@@ -112,6 +112,10 @@ class WebPage(SessionPage, ChromiumPage, BasePage):
     def timeout(self):
         return self.timeouts.base if self._d_mode else self._timeout
 
+    @property
+    def download_path(self):
+        return self.browser.download_path
+
     def get(self, url, show_errmsg=False, retry=None, interval=None, timeout=None, **kwargs):
         if self._d_mode:
             return super(SessionPage, self).get(url, show_errmsg, retry, interval, timeout)

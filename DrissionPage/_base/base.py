@@ -296,7 +296,7 @@ class BasePage(BaseParser):
         if self._DownloadKit is None:
             if not self._session:
                 self._create_session()
-            self._DownloadKit = DownloadKit(driver=self, goal_path=self.download_path)
+            self._DownloadKit = DownloadKit(driver=self, save_path=self.download_path)
         return self._DownloadKit
 
     def _before_connect(self, url, retry, interval):

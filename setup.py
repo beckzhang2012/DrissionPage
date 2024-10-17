@@ -23,7 +23,7 @@ setup(
         'lxml',
         'requests',
         'cssselect',
-        'DownloadKit>=2.0.4',
+        'DownloadKit>=2.0.5',
         'websocket-client',
         'click',
         'tldextract',

@@ -125,7 +125,7 @@ class Clicker(object):
         if not self._ele.tab._browser._dl_mgr._running:
             self._ele.tab._browser.set.download_path('.')
 
-        if new_tab:
+        if new_tab or self._ele.tab._type.endswith('Page'):
             obj = browser = self._ele.tab._browser
             tid = 'browser'
             t_settings = TabDownloadSettings(self._ele.owner.tab_id)
