@@ -158,7 +158,7 @@ class SessionPage(BasePage):
             if self.url:
                 ex_url = TLDExtract(
                     suffix_list_urls=["https://publicsuffix.org/list/public_suffix_list.dat",
-                                      f"file:///{Settings.locate_suffixes_list}"]).extract_str(self._session_url)
+                                      f"file:///{Settings.suffixes_list_path}"]).extract_str(self._session_url)
                 domain = f'{ex_url.domain}.{ex_url.suffix}' if ex_url.suffix else ex_url.domain
                 cookies = tuple(c for c in self.session.cookies if domain in c.domain or c.domain == '')
             else:

@@ -92,7 +92,7 @@ def set_browser_cookies(browser, cookies):
 
 
 def set_tab_cookies(page, cookies):
-    suffixes_list = f"file:///{Settings.locate_suffixes_list}"
+    suffixes_list = f"file:///{Settings.suffixes_list_path}"
     for cookie in cookies_to_tuple(cookies):
         cookie = format_cookie(cookie)
 

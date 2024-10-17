@@ -15,7 +15,12 @@ class Settings(object):
     singleton_tab_obj = True
     cdp_timeout = 30
     auto_handle_alert = None
-    locate_suffixes_list = str(Path(__file__).parent.absolute() / 'suffixes.dat').replace('\\', '/')
+    _suffixes_list = str(Path(__file__).parent.absolute() / 'suffixes.dat').replace('\\', '/')
 
-    def set_suffixes_list_path(self, path):
-        Settings.locate_suffixes_list = str(Path(path).absolute())
+    @property
+    def suffixes_list_path(self):
+        return Settings._suffixes_list
+
+    @suffixes_list_path.setter
+    def suffixes_list_path(self, path):
+        Settings._suffixes_list = str(Path(path).absolute()).replace('\\', '/')
