@@ -270,6 +270,9 @@ class ChromiumPageWaiter(TabWaiter):
     def new_tab(self, timeout=None, raise_err=None):
         return self._owner.browser.wait.new_tab(timeout=timeout, raise_err=raise_err)
 
+    def download_begin(self, timeout=None, cancel_it=False):
+        return self._owner.browser.wait.download_begin(timeout=timeout, cancel_it=cancel_it)
+
     def all_downloads_done(self, timeout=None, cancel_if_timeout=True):
         return self._owner.browser.wait.downloads_done(timeout=timeout, cancel_if_timeout=cancel_if_timeout)
 

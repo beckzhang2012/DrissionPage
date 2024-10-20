@@ -65,7 +65,6 @@ class Chromium(object):
         self._drivers = {}
         self._all_drivers = {}
         self._newest_tab_id = None
-        self._tab_to_close = set()
 
         self._set = None
         self._wait = None
@@ -204,18 +203,19 @@ class Chromium(object):
         all_tabs = set(self.tab_ids)
         if others:
             tabs = all_tabs - tabs
-        if len(all_tabs - tabs) <= 0:
-            self.quit()
-            return
-        for tab in tabs:
-            self._close_tab(tab_id=tab)
 
-    def _close_tab(self, tab_id):
-        # self._onTargetDestroyed(targetId=tab)
-        self._tab_to_close.add(tab_id)
-        self._driver.run('Target.closeTarget', targetId=tab_id)
-        while tab_id in self._tab_to_close:
-            sleep(.2)
+        if len(all_tabs - tabs) > 0:
+            for tab in tabs:
+                self._close_tab(tab=tab)
+        else:
+            self.quit()
+
+    def _close_tab(self, tab):
+        if isinstance(tab, str):
+            tab = self.get_tab(tab)
+        tab._run_cdp('Target.closeTarget', targetId=tab.tab_id)
+        while tab.driver.is_running and tab.tab_id in self._all_drivers:
+            sleep(.01)
 
     def activate_tab(self, id_ind_tab):
         if isinstance(id_ind_tab, int):
@@ -396,16 +396,14 @@ class Chromium(object):
                 pass
 
     def _onTargetDestroyed(self, **kwargs):
-        with self._lock:
-            tab_id = kwargs['targetId']
-            self._dl_mgr.clear_tab_info(tab_id)
-            for key in [k for k, i in self._frames.items() if i == tab_id]:
-                self._frames.pop(key, None)
-            for d in self._all_drivers.get(tab_id, tuple()):
-                d.stop()
-            self._drivers.pop(tab_id, None)
-            self._all_drivers.pop(tab_id, None)
-            self._tab_to_close.discard(tab_id)
+        tab_id = kwargs['targetId']
+        self._dl_mgr.clear_tab_info(tab_id)
+        for key in [k for k, i in self._frames.items() if i == tab_id]:
+            self._frames.pop(key, None)
+        for d in self._all_drivers.get(tab_id, tuple()):
+            d.stop()
+        self._drivers.pop(tab_id, None)
+        self._all_drivers.pop(tab_id, None)
 
     def _on_disconnect(self):
         if not self._disconnect_flag:

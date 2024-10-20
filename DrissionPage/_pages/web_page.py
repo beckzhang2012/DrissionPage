@@ -232,7 +232,7 @@ class WebPage(SessionPage, ChromiumPage, BasePage):
 
     def close(self):
         if self._has_driver:
-            self.browser._close_tab(self.tab_id)
+            self.browser._close_tab(self)
         if self._session:
             self._session.close()
             if self._response is not None:

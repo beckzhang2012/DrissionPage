@@ -12,7 +12,7 @@ from .driver import BrowserDriver, Driver
 from .._configs.chromium_options import ChromiumOptions
 from .._configs.session_options import SessionOptions
 from .._functions.cookies import CookiesList
-from .._pages.chromium_base import Timeout
+from .._pages.chromium_base import Timeout, ChromiumBase
 from .._pages.chromium_tab import ChromiumTab
 from .._pages.mix_tab import MixTab
 from .._units.downloader import DownloadManager
@@ -52,7 +52,6 @@ class Chromium(object):
     _none_ele_return_value: bool = ...
     _none_ele_value: Any = ...
     _newest_tab_id: Optional[str] = ...
-    _tab_to_close: set = ...
 
     def __new__(cls,
                 addr_or_opts: Union[str, int, ChromiumOptions] = None,
@@ -194,9 +193,9 @@ class Chromium(object):
         """
         ...
 
-    def _close_tab(self, tab_id: str):
+    def _close_tab(self, tab: Union[ChromiumBase, str]):
         """关闭一个标签页
-        :param tab_id: 标签页id
+        :param tab: 标签页对象或id
         :return: None
         """
 

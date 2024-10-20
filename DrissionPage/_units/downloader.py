@@ -25,7 +25,7 @@ class DownloadManager(object):
         t.when_file_exists = 'rename'
 
         self._missions = {}  # {guid: DownloadMission}
-        self._tab_missions = {}  # {tab_id: DownloadMission}
+        self._tab_missions = {}  # {tab_id: [DownloadMission, ...]}
         self._flags = {}  # {tab_id: [bool, DownloadMission]}
 
         self._running = False
@@ -67,8 +67,11 @@ class DownloadManager(object):
         if mission.state not in ('canceled', 'skipped'):
             mission.state = state
         mission.final_path = final_path
-        if mission.tab_id in self._tab_missions and mission.id in self._tab_missions[mission.tab_id]:
-            self._tab_missions[mission.tab_id].remove(mission.id)
+        if mission.tab_id in self._tab_missions and mission in self._tab_missions[mission.tab_id]:
+            self._tab_missions[mission.tab_id].remove(mission)
+        if (mission.from_tab and mission.from_tab in self._tab_missions
+                and mission in self._tab_missions[mission.from_tab]):
+            self._tab_missions[mission.from_tab].remove(mission)
         self._missions.pop(mission.id, None)
         mission._is_done = True
 
@@ -96,8 +99,9 @@ class DownloadManager(object):
     def _onDownloadWillBegin(self, **kwargs):
         guid = kwargs['guid']
         tab_id = self._browser._frames.get(kwargs['frameId'], 'browser')
+        tab = tab_id if tab_id in TabDownloadSettings.TABS else 'browser'
 
-        settings = TabDownloadSettings(tab_id if tab_id in TabDownloadSettings.TABS else 'browser')
+        settings = TabDownloadSettings(tab)
         if settings.rename:
             if settings.suffix is not None:
                 name = f'{settings.rename}.{settings.suffix}' if settings.suffix else settings.rename
@@ -132,15 +136,15 @@ class DownloadManager(object):
         m = DownloadMission(self, tab_id, guid, settings.path, name, kwargs['url'], self._browser.download_path)
         self._missions[guid] = m
 
-        if self.get_flag(tab_id) is False:  # 取消该任务
+        if self.get_flag(tab) is False:  # 取消该任务
             self.cancel(m)
         elif skip:
             self.skip(m)
         else:
             self._tab_missions.setdefault(tab_id, []).append(m)
 
-        if self.get_flag(tab_id) is not None:
-            self._flags[tab_id] = m
+        if self.get_flag(tab) is not None:
+            self._flags[tab] = m
 
     def _onDownloadProgress(self, **kwargs):
         if kwargs['guid'] in self._missions:
@@ -204,6 +208,7 @@ class DownloadMission(object):
         self._mgr = mgr
         self.url = url
         self.tab_id = tab_id
+        self.from_tab = None
         self.id = _id
         self.path = path
         self.name = name

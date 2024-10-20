@@ -125,7 +125,18 @@ class Clicker(object):
         if not self._ele.tab._browser._dl_mgr._running:
             self._ele.tab._browser.set.download_path('.')
 
-        if new_tab or self._ele.tab._type.endswith('Page'):
+        if self._ele.tab._type.endswith('Page'):
+            obj = browser = self._ele.tab._browser
+            tid = 'browser'
+            # t_settings = TabDownloadSettings(self._ele.owner.tab_id)
+            # b_settings = TabDownloadSettings('browser')
+            # b_settings.rename = t_settings.rename
+            # b_settings.suffix = t_settings.suffix
+            # t_settings.rename = None
+            # t_settings.suffix = None
+            tmp_save_path = str(Path(save_path).absolute()) if save_path else self._ele.owner._tab.download_path
+
+        elif new_tab:
             obj = browser = self._ele.tab._browser
             tid = 'browser'
             t_settings = TabDownloadSettings(self._ele.owner.tab_id)
@@ -150,11 +161,15 @@ class Clicker(object):
 
         browser._dl_mgr.set_flag(tid, True)
         self.left(by_js=by_js)
-        r = wait_mission(browser, tid, timeout)
+        m = wait_mission(browser, tid, timeout)
 
-        if tmp_save_path:
-            r.path = tmp_save_path
-        return r
+        if m:
+            if tmp_save_path:
+                m.path = tmp_save_path
+            if new_tab:
+                self._ele.owner.browser._dl_mgr._tab_missions.setdefault(self._ele.owner.tab_id, []).append(m)
+                m.from_tab = self._ele.owner
+        return m
 
     def to_upload(self, file_paths, by_js=False):
         self._ele.owner.set.upload_files(file_paths)

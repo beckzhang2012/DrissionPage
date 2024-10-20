@@ -336,7 +336,7 @@ class ChromiumOptions(object):
         return self
 
     def set_address(self, address):
-        address = address.replace('localhost', '127.0.0.1').lstrip('http://').lstrip('https://')
+        address = address.replace('localhost', '127.0.0.1').lstrip('htps:/')
         self._address = address
         return self
 

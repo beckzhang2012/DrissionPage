@@ -204,6 +204,8 @@ class ChromiumElement(DrissionElement):
             if (is_checked and uncheck) or (not is_checked and not uncheck):
                 self.click()
 
+        return self
+
     def parent(self, level_or_loc=1, index=1, timeout=0):
         return super().parent(level_or_loc, index, timeout=timeout)
 
@@ -399,6 +401,7 @@ class ChromiumElement(DrissionElement):
 
     def remove_attr(self, name):
         self._run_js(f'this.removeAttribute("{name}");')
+        return self
 
     def property(self, name):
         try:
@@ -555,7 +558,7 @@ class ChromiumElement(DrissionElement):
                 vals = ''.join([str(i) for i in vals])
             self.set.property('value', str(vals))
             self._run_js('this.dispatchEvent(new Event("change", {bubbles: true}));')
-            return
+            return self
 
         self.wait.clickable(wait_moved=False, timeout=.5)
         if clear and vals not in ('\n', '\ue007'):
@@ -575,7 +578,7 @@ class ChromiumElement(DrissionElement):
         if by_js:
             self._run_js("this.value='';")
             self._run_js('this.dispatchEvent(new Event("change", {bubbles: true}));')
-            return
+            return self
 
         self._input_focus()
         self.input(('\ue009', 'a', '\ue017'), clear=False)

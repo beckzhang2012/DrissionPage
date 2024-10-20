@@ -182,7 +182,7 @@ class MixTab(SessionPage, ChromiumTab, BasePage):
         if others:
             self.browser.close_tabs(self.tab_id, others=True)
         else:
-            self.browser._close_tab(self.tab_id)
+            self.browser._close_tab(self)
         if session and self._session:
             self._session.close()
             if self._response is not None:
