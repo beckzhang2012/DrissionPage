@@ -170,6 +170,7 @@ class DownloadManager(object):
                     to_path = str(get_usable_path(f'{mission.folder}{sep}{mission.name}'))
                 else:
                     to_path = f'{mission.folder}{sep}{mission.name}'
+                Path(mission.folder).mkdir(parents=True, exist_ok=True)
                 not_moved = True
                 for _ in range(10):
                     try:
@@ -206,7 +207,7 @@ class TabDownloadSettings(object):
         self.rename = None
         self.suffix = None
         self.path = '' if tab_id == 'browser' else self.TABS['browser'].path
-        self.when_file_exists = 'rename'
+        self.when_file_exists = 'rename' if tab_id == 'browser' else self.TABS['browser'].when_file_exists
 
         TabDownloadSettings.TABS[tab_id] = self
 

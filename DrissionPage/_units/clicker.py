@@ -5,7 +5,6 @@
 @Copyright: (c) 2024 by g1879, Inc. All Rights Reserved.
 @License  : BSD 3-Clause.
 """
-from pathlib import Path
 from time import perf_counter, sleep
 
 from .waiter import wait_mission
@@ -124,6 +123,8 @@ class Clicker(object):
         if not self._ele.tab._browser._dl_mgr._running:
             self._ele.tab._browser.set.download_path('.')
 
+        when_file_exists = None
+        tmp_path = None
         if self._ele.tab._type.endswith('Page'):
             obj = browser = self._ele.owner._browser
             tid = 'browser'
@@ -133,10 +134,16 @@ class Clicker(object):
             tid = 'browser'
             t_settings = TabDownloadSettings(self._ele.owner.tab_id)
             b_settings = TabDownloadSettings('browser')
+
+            when_file_exists = b_settings.when_file_exists
+            b_settings.when_file_exists = t_settings.when_file_exists
             b_settings.rename = t_settings.rename
             b_settings.suffix = t_settings.suffix
             t_settings.rename = None
             t_settings.suffix = None
+            if not save_path:
+                tmp_path = b_settings.path
+                b_settings.path = t_settings.path
 
         else:
             obj = self._ele.owner._tab
@@ -146,8 +153,6 @@ class Clicker(object):
         if save_path:
             tmp_path = obj.download_path
             obj.set.download_path(save_path)
-        else:
-            tmp_path = None
         if rename or suffix:
             obj.set.download_file_name(rename, suffix)
         if timeout is None:
@@ -159,6 +164,8 @@ class Clicker(object):
 
         if tmp_path:
             obj.set.download_path(tmp_path)
+        if when_file_exists:
+            browser.set.when_download_file_exists(when_file_exists)
         if m and new_tab:
             self._ele.owner.browser._dl_mgr._tab_missions.setdefault(self._ele.owner.tab_id, []).append(m)
             m.from_tab = self._ele.owner.tab_id
