@@ -27,6 +27,7 @@ class DownloadManager(object):
         self._missions = {}  # {guid: DownloadMission}
         self._tab_missions = {}  # {tab_id: [DownloadMission, ...]}
         self._flags = {}  # {tab_id: [bool, DownloadMission]}
+        self._tmp_path = '.'
 
         self._running = False
 
@@ -42,6 +43,7 @@ class DownloadManager(object):
             self._browser._driver.set_callback('Browser.downloadWillBegin', self._onDownloadWillBegin)
             r = self._browser._run_cdp('Browser.setDownloadBehavior', downloadPath=self._browser._download_path,
                                        behavior='allowAndName', eventsEnabled=True)
+            self._tmp_path = self._browser._download_path
             if 'error' in r:
                 print('浏览器版本太低无法使用下载管理功能。')
         self._running = True
@@ -126,14 +128,17 @@ class DownloadManager(object):
             name = kwargs['suggestedFilename']
 
         skip = False
+        overwrite = None  # 存在且重命名
         goal_path = Path(settings.path) / name
         if goal_path.exists():
             if settings.when_file_exists == 'skip':
                 skip = True
             elif settings.when_file_exists == 'overwrite':
-                goal_path.unlink()
+                overwrite = True  # 存在且覆盖
+        else:  # 不存在
+            overwrite = False
 
-        m = DownloadMission(self, tab_id, guid, settings.path, name, kwargs['url'], self._browser.download_path)
+        m = DownloadMission(self, tab_id, guid, settings.path, name, kwargs['url'], self._tmp_path, overwrite)
         self._missions[guid] = m
 
         if self.get_flag(tab) is False:  # 取消该任务
@@ -155,13 +160,16 @@ class DownloadManager(object):
 
             elif kwargs['state'] == 'completed':
                 if mission.state == 'skipped':
-                    Path(f'{mission.save_path}{sep}{mission.id}').unlink(True)
+                    Path(f'{mission.tmp_path}{sep}{mission.id}').unlink(True)
                     self.set_done(mission, 'skipped')
                     return
                 mission.received_bytes = kwargs['receivedBytes']
                 mission.total_bytes = kwargs['totalBytes']
-                form_path = f'{mission.save_path}{sep}{mission.id}'
-                to_path = str(get_usable_path(f'{mission.path}{sep}{mission.name}'))
+                form_path = f'{mission.tmp_path}{sep}{mission.id}'
+                if mission._overwrite is None:
+                    to_path = str(get_usable_path(f'{mission.folder}{sep}{mission.name}'))
+                else:
+                    to_path = f'{mission.folder}{sep}{mission.name}'
                 not_moved = True
                 for _ in range(10):
                     try:
@@ -204,19 +212,20 @@ class TabDownloadSettings(object):
 
 
 class DownloadMission(object):
-    def __init__(self, mgr, tab_id, _id, path, name, url, save_path):
+    def __init__(self, mgr, tab_id, _id, folder, name, url, tmp_path, overwrite):
         self._mgr = mgr
         self.url = url
         self.tab_id = tab_id
         self.from_tab = None
         self.id = _id
-        self.path = path
+        self.folder = folder
         self.name = name
         self.state = 'running'
         self.total_bytes = None
         self.received_bytes = 0
         self.final_path = None
-        self.save_path = save_path
+        self.tmp_path = tmp_path
+        self._overwrite = overwrite
         self._is_done = False
 
     def __repr__(self):
@@ -240,7 +249,7 @@ class DownloadMission(object):
             while self.name is None and perf_counter() < end_time:
                 sleep(0.01)
             print(f'文件名：{self.name}')
-            print(f'目标路径：{self.path}')
+            print(f'目录路径：{self.folder}')
 
         if timeout is None:
             while not self.is_done:
@@ -260,11 +269,16 @@ class DownloadMission(object):
 
         if show:
             if self.state == 'completed':
-                print(f'下载完成 {self.final_path}')
+                if self._overwrite is None:
+                    print(f'完成并重命名 {self.final_path}')
+                elif self._overwrite is False:
+                    print(f'下载完成 {self.final_path}')
+                else:
+                    print(f'已覆盖 {self.final_path}')
             elif self.state == 'canceled':
                 print(f'下载取消')
             elif self.state == 'skipped':
-                print(f'已跳过')
+                print(f'已跳过 {self.folder}{sep}{self.name}')
             print()
 
         return self.final_path if self.final_path else False

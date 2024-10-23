@@ -24,7 +24,7 @@ def from_selenium(driver):
     address, port = driver.caps.get('goog:chromeOptions', {}).get('debuggerAddress', ':').split(':')
     if not address:
         raise RuntimeError('获取失败。')
-    co = ChromiumOptions().set_local_port(f'{address}:{port}')
+    co = ChromiumOptions().set_local_port(port)
     co._ua_set = True
     return Chromium(co)
 

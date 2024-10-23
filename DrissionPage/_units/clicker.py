@@ -121,23 +121,15 @@ class Clicker(object):
         return self.at(count=times)
 
     def to_download(self, save_path=None, rename=None, suffix=None, new_tab=False, by_js=False, timeout=None):
-        tmp_save_path = None
         if not self._ele.tab._browser._dl_mgr._running:
             self._ele.tab._browser.set.download_path('.')
 
         if self._ele.tab._type.endswith('Page'):
-            obj = browser = self._ele.tab._browser
+            obj = browser = self._ele.owner._browser
             tid = 'browser'
-            # t_settings = TabDownloadSettings(self._ele.owner.tab_id)
-            # b_settings = TabDownloadSettings('browser')
-            # b_settings.rename = t_settings.rename
-            # b_settings.suffix = t_settings.suffix
-            # t_settings.rename = None
-            # t_settings.suffix = None
-            tmp_save_path = str(Path(save_path).absolute()) if save_path else self._ele.owner._tab.download_path
 
         elif new_tab:
-            obj = browser = self._ele.tab._browser
+            obj = browser = self._ele.owner._browser
             tid = 'browser'
             t_settings = TabDownloadSettings(self._ele.owner.tab_id)
             b_settings = TabDownloadSettings('browser')
@@ -145,15 +137,17 @@ class Clicker(object):
             b_settings.suffix = t_settings.suffix
             t_settings.rename = None
             t_settings.suffix = None
-            tmp_save_path = str(Path(save_path).absolute()) if save_path else self._ele.owner._tab.download_path
 
         else:
             obj = self._ele.owner._tab
             browser = obj.browser
             tid = obj.tab_id
-            if save_path:
-                tmp_save_path = str(Path(save_path).absolute())
 
+        if save_path:
+            tmp_path = obj.download_path
+            obj.set.download_path(save_path)
+        else:
+            tmp_path = None
         if rename or suffix:
             obj.set.download_file_name(rename, suffix)
         if timeout is None:
@@ -163,12 +157,11 @@ class Clicker(object):
         self.left(by_js=by_js)
         m = wait_mission(browser, tid, timeout)
 
-        if m:
-            if tmp_save_path:
-                m.path = tmp_save_path
-            if new_tab:
-                self._ele.owner.browser._dl_mgr._tab_missions.setdefault(self._ele.owner.tab_id, []).append(m)
-                m.from_tab = self._ele.owner
+        if tmp_path:
+            obj.set.download_path(tmp_path)
+        if m and new_tab:
+            self._ele.owner.browser._dl_mgr._tab_missions.setdefault(self._ele.owner.tab_id, []).append(m)
+            m.from_tab = self._ele.owner.tab_id
         return m
 
     def to_upload(self, file_paths, by_js=False):
