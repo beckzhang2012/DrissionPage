@@ -27,7 +27,9 @@ class DownloadManager(object):
         self._missions = {}  # {guid: DownloadMission}
         self._tab_missions = {}  # {tab_id: [DownloadMission, ...]}
         self._flags = {}  # {tab_id: [bool, DownloadMission]}
+        self._waiting_tab = set()  # click.to_download()专用
         self._tmp_path = '.'
+        self._page_id = None
 
         self._running = False
 
@@ -97,11 +99,16 @@ class DownloadManager(object):
         self._tab_missions.pop(tab_id, None)
         self._flags.pop(tab_id, None)
         TabDownloadSettings.TABS.pop(tab_id, None)
+        self._waiting_tab.discard(tab_id)
 
     def _onDownloadWillBegin(self, **kwargs):
         guid = kwargs['guid']
         tab_id = self._browser._frames.get(kwargs['frameId'], 'browser')
-        tab = tab_id if tab_id in TabDownloadSettings.TABS else 'browser'
+        tab = 'browser' if tab_id in ('browser', self._page_id) else tab_id
+        opener = self._browser._relation.get(tab_id, None)
+        from_tab = None
+        if opener and opener in self._waiting_tab:
+            tab = from_tab = opener
 
         settings = TabDownloadSettings(tab)
         if settings.rename:
@@ -139,16 +146,21 @@ class DownloadManager(object):
             overwrite = False
 
         m = DownloadMission(self, tab_id, guid, settings.path, name, kwargs['url'], self._tmp_path, overwrite)
+        if from_tab:
+            m.from_tab = from_tab
+            self._tab_missions.setdefault(from_tab, []).append(m)
         self._missions[guid] = m
 
-        if self.get_flag(tab) is False:  # 取消该任务
+        if self.get_flag('browser') is False or self.get_flag(tab) is False:  # 取消该任务
             self.cancel(m)
         elif skip:
             self.skip(m)
         else:
             self._tab_missions.setdefault(tab_id, []).append(m)
 
-        if self.get_flag(tab) is not None:
+        if self.get_flag('browser') is not None:
+            self._flags['browser'] = m
+        elif self.get_flag(tab) is not None:
             self._flags[tab] = m
 
     def _onDownloadProgress(self, **kwargs):

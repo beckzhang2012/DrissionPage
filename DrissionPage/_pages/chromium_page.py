@@ -43,6 +43,7 @@ class ChromiumPage(ChromiumBase):
         self._type = 'ChromiumPage'
         self.set.timeouts(base=timeout)  # 即将废弃
         self._tab = self
+        self._browser._dl_mgr._page_id = self.tab_id
 
     def __repr__(self):
         return f'<ChromiumPage browser_id={self.browser.id} tab_id={self.tab_id}>'

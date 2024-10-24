@@ -64,6 +64,7 @@ class Chromium(object):
         self._frames = {}
         self._drivers = {}
         self._all_drivers = {}
+        self._relation = {}
         self._newest_tab_id = None
 
         self._set = None
@@ -388,7 +389,9 @@ class Chromium(object):
                 and not kwargs['targetInfo']['url'].startswith('devtools://')):
             try:
                 tab_id = kwargs['targetInfo']['targetId']
+                self._frames[tab_id] = tab_id
                 d = Driver(tab_id, 'page', self.address)
+                self._relation[tab_id] = kwargs['targetInfo'].get('openerId', None)
                 self._drivers[tab_id] = d
                 self._all_drivers.setdefault(tab_id, set()).add(d)
                 self._newest_tab_id = tab_id
@@ -404,6 +407,7 @@ class Chromium(object):
             d.stop()
         self._drivers.pop(tab_id, None)
         self._all_drivers.pop(tab_id, None)
+        self._relation.pop(tab_id, None)
 
     def _on_disconnect(self):
         if not self._disconnect_flag:
