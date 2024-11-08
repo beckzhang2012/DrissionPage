@@ -65,17 +65,17 @@ class DownloadManager(object):
         return self._flags.get(tab_id, None)
 
     def get_tab_missions(self, tab_id):
-        return self._tab_missions.get(tab_id, [])
+        return self._tab_missions.get(tab_id, set())
 
     def set_done(self, mission, state, final_path=None):
         if mission.state not in ('canceled', 'skipped'):
             mission.state = state
         mission.final_path = final_path
         if mission.tab_id in self._tab_missions and mission in self._tab_missions[mission.tab_id]:
-            self._tab_missions[mission.tab_id].remove(mission)
+            self._tab_missions[mission.tab_id].discard(mission)
         if (mission.from_tab and mission.from_tab in self._tab_missions
                 and mission in self._tab_missions[mission.from_tab]):
-            self._tab_missions[mission.from_tab].remove(mission)
+            self._tab_missions[mission.from_tab].discard(mission)
         self._missions.pop(mission.id, None)
         mission._is_done = True
 
@@ -104,7 +104,7 @@ class DownloadManager(object):
     def _onDownloadWillBegin(self, **kwargs):
         guid = kwargs['guid']
         tab_id = self._browser._frames.get(kwargs['frameId'], 'browser')
-        tab = 'browser' if tab_id in ('browser', self._page_id) else tab_id
+        tab = 'browser' if tab_id in ('browser', self._page_id) or self.get_flag('browser') is not None else tab_id
         opener = self._browser._relation.get(tab_id, None)
         from_tab = None
         if opener and opener in self._waiting_tab:
@@ -148,7 +148,7 @@ class DownloadManager(object):
         m = DownloadMission(self, tab_id, guid, settings.path, name, kwargs['url'], self._tmp_path, overwrite)
         if from_tab:
             m.from_tab = from_tab
-            self._tab_missions.setdefault(from_tab, []).append(m)
+            self._tab_missions.setdefault(from_tab, set()).add(m)
         self._missions[guid] = m
 
         if self.get_flag('browser') is False or self.get_flag(tab) is False:  # 取消该任务
@@ -156,7 +156,7 @@ class DownloadManager(object):
         elif skip:
             self.skip(m)
         else:
-            self._tab_missions.setdefault(tab_id, []).append(m)
+            self._tab_missions.setdefault(tab_id, set()).add(m)
 
         if self.get_flag('browser') is not None:
             self._flags['browser'] = m
@@ -261,7 +261,7 @@ class DownloadMission(object):
             end_time = perf_counter()
             while self.name is None and perf_counter() < end_time:
                 sleep(0.01)
-            print(f'文件名：{self.name}')
+            print(f'文件名：{self.name or "未知"}')
             print(f'目录路径：{self.folder}')
 
         if timeout is None:
@@ -282,6 +282,7 @@ class DownloadMission(object):
 
         if show:
             if self.state == 'completed':
+                print('\r100% ', end='')
                 if self._overwrite is None:
                     print(f'完成并重命名 {self.final_path}')
                 elif self._overwrite is False:

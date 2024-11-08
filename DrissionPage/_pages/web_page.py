@@ -127,9 +127,8 @@ class WebPage(SessionPage, ChromiumPage, BasePage):
     def post(self, url, show_errmsg=False, retry=None, interval=None, **kwargs):
         if self.mode == 'd':
             self.cookies_to_session()
-            super().post(url, show_errmsg, retry, interval, **kwargs)
-            return self.response
-        return super().post(url, show_errmsg, retry, interval, **kwargs)
+        super().post(url, show_errmsg, retry, interval, **kwargs)
+        return self.response
 
     def ele(self, locator, index=1, timeout=None):
         return (super(SessionPage, self).ele(locator, index=index, timeout=timeout)

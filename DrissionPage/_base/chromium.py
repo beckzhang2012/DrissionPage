@@ -361,7 +361,8 @@ class Chromium(object):
             raise TypeError('tab_type只能是set、list、tuple、str、None。')
 
         tabs = [i for i in tabs if ((title is None or title in i['title']) and (url is None or url in i['url'])
-                                    and (tab_type is None or i['type'] in tab_type))]
+                                    and (tab_type is None or i['type'] in tab_type)
+                                    and i['title'] != 'chrome-extension://neajdppkdcdipfabeoofebfddakdcjhd/audio.html')]
         if as_id:
             return [tab['id'] for tab in tabs]
         with self._lock:
