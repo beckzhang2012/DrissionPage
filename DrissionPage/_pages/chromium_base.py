@@ -673,11 +673,11 @@ class ChromiumBase(BasePage):
         self._get_document()
 
     def handle_alert(self, accept=True, send=None, timeout=None, next_one=False):
-        r = self._handle_alert(accept=accept, send=send, timeout=timeout, next_one=next_one)
         if not isinstance(accept, bool):
-            return r
+            return self._handle_alert(accept=accept, send=send, timeout=timeout, next_one=next_one)
+        r = self._handle_alert(accept=accept, send=send, timeout=timeout, next_one=next_one)
         while self._has_alert:
-            sleep(.1)
+            sleep(.0001)
         return r
 
     def _handle_alert(self, accept=True, send=None, timeout=None, next_one=False):

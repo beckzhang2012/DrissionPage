@@ -573,7 +573,10 @@ class ChromiumBase(BasePage):
         """
         ...
 
-    def handle_alert(self, accept: Optional[bool] = True, send: str = None, timeout: float = None,
+    def handle_alert(self,
+                     accept: Optional[bool] = True,
+                     send: str = None,
+                     timeout: float = None,
                      next_one: bool = False) -> Union[str, False]:
         """处理提示框，可以自动等待提示框出现
         :param accept: True表示确认，False表示取消，为None不会按按钮但依然返回文本值
@@ -584,7 +587,10 @@ class ChromiumBase(BasePage):
         """
         ...
 
-    def _handle_alert(self, accept: bool = True, send: str = None, timeout: float = None,
+    def _handle_alert(self,
+                      accept: Optional[bool] = True,
+                      send: str = None,
+                      timeout: float = None,
                       next_one: bool = False) -> Union[str, False]:
         """处理提示框，可以自动等待提示框出现
         :param accept: True表示确认，False表示取消，其它值不会按按钮但依然返回文本值

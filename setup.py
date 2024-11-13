@@ -26,7 +26,7 @@ setup(
         'DownloadKit>=2.0.5',
         'websocket-client',
         'click',
-        'tldextract',
+        'tldextract>=3.4.4',
         'psutil'
     ],
     classifiers=[
