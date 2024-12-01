@@ -333,6 +333,9 @@ class ChromiumFrame(ChromiumBase):
     def remove_attr(self, name):
         self.frame_ele.remove_attr(name)
 
+    def style(self, style, pseudo_ele=''):
+        return self.frame_ele.style(style=style, pseudo_ele=pseudo_ele)
+
     def run_js(self, script, *args, as_expr=False, timeout=None):
         return self._run_js(script, *args, as_expr=as_expr, timeout=timeout)
 

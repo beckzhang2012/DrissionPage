@@ -240,6 +240,14 @@ class ChromiumFrame(ChromiumBase):
         """
         ...
 
+    def style(self, style: str, pseudo_ele: str = '') -> str:
+        """返回frame元素样式属性值，可获取伪元素属性值
+        :param style: 样式属性名称
+        :param pseudo_ele: 伪元素名称（如有）
+        :return: 样式属性的值
+        """
+        ...
+
     def run_js(self,
                script: str,
                *args,

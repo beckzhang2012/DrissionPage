@@ -33,7 +33,7 @@ from .._units.scroller import PageScroller
 from .._units.setter import ChromiumBaseSetter
 from .._units.states import PageStates
 from .._units.waiter import BaseWaiter
-from ..errors import ContextLostError, CDPError, PageDisconnectedError, ElementLostError
+from ..errors import ContextLostError, CDPError, PageDisconnectedError, ElementLostError, JavaScriptError
 
 __ERROR__ = 'error'
 
@@ -600,7 +600,10 @@ class ChromiumBase(BasePage):
         else:
             raise TypeError('html_or_info参数必须是html文本或tuple，tuple格式为(tag, {name: value})。')
 
-        ele = self._run_js(js, *args)
+        try:
+            ele = self._run_js(js, *args)
+        except JavaScriptError:
+            raise RuntimeError('此网页DOM不允许修改。')
         return ele
 
     def get_frame(self, loc_ind_ele, timeout=None):
