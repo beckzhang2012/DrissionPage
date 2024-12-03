@@ -24,7 +24,7 @@ class ChromiumPage(ChromiumBase):
         if browser.id in cls._PAGES:
             r = cls._PAGES[browser.id]
             while not hasattr(r, '_frame_id'):
-                sleep(.1)
+                sleep(.05)
             return r
 
         r = object.__new__(cls)

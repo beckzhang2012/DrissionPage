@@ -191,7 +191,7 @@ class Listener(object):
         if timeout is None:
             while ((not targets_only and self._running_requests > limit)
                    or (targets_only and self._running_targets > limit)):
-                sleep(.1)
+                sleep(.01)
             return True
 
         end_time = perf_counter() + timeout
@@ -199,7 +199,7 @@ class Listener(object):
             if ((not targets_only and self._running_requests <= limit)
                     or (targets_only and self._running_targets <= limit)):
                 return True
-            sleep(.1)
+            sleep(.01)
         else:
             return False
 
@@ -423,7 +423,7 @@ class DataPacket(object):
     def wait_extra_info(self, timeout=None):
         if timeout is None:
             while self._responseExtraInfo is None:
-                sleep(.1)
+                sleep(.01)
             return True
 
         else:
@@ -431,7 +431,7 @@ class DataPacket(object):
             while perf_counter() < end_time:
                 if self._responseExtraInfo is not None:
                     return True
-                sleep(.1)
+                sleep(.01)
             else:
                 return False
 

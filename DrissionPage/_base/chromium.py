@@ -45,7 +45,7 @@ class Chromium(object):
             if browser_id in cls._BROWSERS:
                 r = cls._BROWSERS[browser_id]
                 while not hasattr(r, '_driver'):
-                    sleep(.1)
+                    sleep(.05)
                 return r
         r = object.__new__(cls)
         r._chromium_options = opt
@@ -318,7 +318,7 @@ class Chromium(object):
         while self.states.is_alive:
             if tab in self._drivers:
                 break
-            sleep(.1)
+            sleep(.01)
         else:
             raise BrowserConnectError('浏览器已关闭')
         tab = tab_type(self, tab)

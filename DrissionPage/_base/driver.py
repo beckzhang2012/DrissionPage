@@ -199,7 +199,7 @@ class Driver(object):
     def stop(self):
         self._stop()
         while self._handle_event_th.is_alive() or self._recv_th.is_alive():
-            sleep(.1)
+            sleep(.01)
         return True
 
     def _stop(self):

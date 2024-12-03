@@ -289,7 +289,7 @@ class ChromiumElement(DrissionElement):
 
             if ele and (loc_data is None or _check_ele(ele, loc_data)):
                 return ele
-            sleep(.1)
+            sleep(.01)
 
         return NoneElement(page=self.owner, method='offset()',
                            args={'locator': locator, 'offset_x': x, 'offset_y': y, 'timeout': timeout})
@@ -451,7 +451,7 @@ class ChromiumElement(DrissionElement):
                   '&& this.naturalHeight > 0')
             end_time = perf_counter() + timeout
             while not self._run_js(js) and perf_counter() < end_time:
-                sleep(.1)
+                sleep(.05)
 
         src = self.attr('href') if self.tag == 'link' else self.attr('src')
         if not src:
@@ -488,7 +488,7 @@ class ChromiumElement(DrissionElement):
                     break
                 except CDPError:
                     pass
-                sleep(.1)
+                sleep(.05)
 
         if not result:
             return None
@@ -533,7 +533,7 @@ class ChromiumElement(DrissionElement):
                   '&& typeof this.naturalHeight != "undefined" && this.naturalHeight > 0')
             end_time = perf_counter() + self.timeout
             while not self._run_js(js) and perf_counter() < end_time:
-                sleep(.1)
+                sleep(.05)
         if scroll_to_center:
             self.scroll.to_see(center=True)
 
@@ -905,7 +905,7 @@ class ShadowRoot(BaseElement):
         end_time = perf_counter() + timeout
         result = do_find()
         while result is None and perf_counter() <= end_time:
-            sleep(.1)
+            sleep(.01)
             result = do_find()
 
         if result:
@@ -1004,7 +1004,7 @@ def find_by_xpath(ele, xpath, index, timeout, relative=True):
     end_time = perf_counter() + timeout
     result = do_find()
     while result is None and perf_counter() < end_time:
-        sleep(.1)
+        sleep(.01)
         result = do_find()
 
     if result:
@@ -1043,7 +1043,7 @@ def find_by_css(ele, selector, index, timeout):
     end_time = perf_counter() + timeout
     result = do_find()
     while result is None and perf_counter() < end_time:
-        sleep(.1)
+        sleep(.01)
         result = do_find()
 
     if result:

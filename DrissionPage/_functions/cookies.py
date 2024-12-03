@@ -92,7 +92,6 @@ def set_browser_cookies(browser, cookies):
 
 
 def set_tab_cookies(page, cookies):
-    suffixes_list = f"file:///{Settings.suffixes_list_path}"
     for cookie in cookies_to_tuple(cookies):
         cookie = format_cookie(cookie)
 
@@ -117,7 +116,7 @@ def set_tab_cookies(page, cookies):
         if not url.startswith('http'):
             raise RuntimeError(f'未设置域名，请设置cookie的domain参数或先访问一个网站。{cookie}')
         ex_url = TLDExtract(suffix_list_urls=["https://publicsuffix.org/list/public_suffix_list.dat",
-                                              suffixes_list]).extract_str(url)
+                                              f"file:///{Settings.suffixes_list_path}"]).extract_str(url)
         d_list = ex_url.subdomain.split('.')
         d_list.append(f'{ex_url.domain}.{ex_url.suffix}' if ex_url.suffix else ex_url.domain)
 

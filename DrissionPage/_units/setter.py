@@ -469,7 +469,7 @@ class WindowSetter(object):
             try:
                 return self._owner._run_cdp('Browser.getWindowForTarget')
             except:
-                sleep(.1)
+                sleep(.02)
         raise RuntimeError('获取窗口信息失败。')
 
     def _perform(self, bounds):

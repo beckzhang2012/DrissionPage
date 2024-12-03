@@ -35,7 +35,7 @@ class ChromiumFrame(ChromiumBase):
         if Settings.singleton_tab_obj and fid in cls._Frames:
             r = cls._Frames[fid]
             while not hasattr(r, '_type') or r._type != 'ChromiumFrame':
-                sleep(.1)
+                sleep(.01)
             return r
         r = object.__new__(cls)
         cls._Frames[fid] = r

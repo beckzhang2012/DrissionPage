@@ -77,7 +77,7 @@ class Scroller(object):
 
         end_time = perf_counter() + owner.timeout
         while perf_counter() < end_time:
-            sleep(.1)
+            sleep(.02)
             r = owner._run_cdp('Page.getLayoutMetrics')
             x1 = r['layoutViewport']['pageX']
             y1 = r['layoutViewport']['pageY']

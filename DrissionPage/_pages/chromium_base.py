@@ -150,7 +150,7 @@ class ChromiumBase(BasePage):
             except:
                 timeout = end_time - perf_counter()
                 timeout = .5 if timeout <= 0 else timeout
-            sleep(.1)
+            sleep(.05)
 
         else:
             result = False
@@ -223,7 +223,7 @@ class ChromiumBase(BasePage):
     def _wait_to_stop(self):
         end_time = perf_counter() + self.timeouts.page_load
         while perf_counter() < end_time:
-            sleep(.1)
+            sleep(.02)
         if self._ready_state in ('interactive', 'complete') and self._is_loading:
             self.stop_loading()
 
@@ -486,7 +486,7 @@ class ChromiumBase(BasePage):
             if perf_counter() >= end_time:
                 return NoneElement(self) if index is not None else ChromiumElementsList(owner=self)
 
-            sleep(.1)
+            sleep(.01)
             timeout = end_time - perf_counter()
             timeout = .5 if timeout <= 0 else timeout
             result = self.driver.run('DOM.performSearch', query=loc, _timeout=timeout, includeUserAgentShadowDOM=True)
@@ -539,7 +539,7 @@ class ChromiumBase(BasePage):
             self._run_cdp('Page.stopLoading')
             end_time = perf_counter() + 5
             while self._ready_state != 'complete' and perf_counter() < end_time:
-                sleep(.1)
+                sleep(.02)
         except (PageDisconnectedError, CDPError):
             pass
         finally:
@@ -693,7 +693,7 @@ class ChromiumBase(BasePage):
         timeout = .1 if timeout <= 0 else timeout
         end_time = perf_counter() + timeout
         while not self._alert.activated and perf_counter() < end_time:
-            sleep(.1)
+            sleep(.01)
         if not self._alert.activated:
             return False
 
@@ -744,7 +744,7 @@ class ChromiumBase(BasePage):
                                                                       'complete') and not self._is_loading:
                 return True
 
-            sleep(.1)
+            sleep(.01)
 
         try:
             self.stop_loading()
@@ -773,7 +773,7 @@ class ChromiumBase(BasePage):
                         print(f'重试{t + 1} {to_url}')
                 end_time1 = end_time - perf_counter()
                 while self._ready_state not in ('loading', 'complete') and perf_counter() < end_time1:  # 等待出错信息显示
-                    sleep(.1)
+                    sleep(.01)
                 self.stop_loading()
                 continue
 

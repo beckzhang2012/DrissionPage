@@ -22,7 +22,7 @@ class ChromiumTab(ChromiumBase):
         if Settings.singleton_tab_obj and tab_id in cls._TABS:
             r = cls._TABS[tab_id]
             while not hasattr(r, '_frame_id'):
-                sleep(.1)
+                sleep(.05)
             return r
         r = object.__new__(cls)
         cls._TABS[tab_id] = r

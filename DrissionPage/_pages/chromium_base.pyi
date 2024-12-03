@@ -267,7 +267,7 @@ class ChromiumBase(BasePage):
         ...
 
     @property
-    def session(self)->Session:
+    def session(self) -> Session:
         """返回用于转换模式或download的Session对象"""
         ...
 
@@ -479,7 +479,8 @@ class ChromiumBase(BasePage):
     def add_ele(self,
                 html_or_info: Union[str, Tuple[str, dict]],
                 insert_to: Union[ChromiumElement, str, Tuple[str, str], None] = None,
-                before: Union[ChromiumElement, str, Tuple[str, str], None] = None) -> ChromiumElement:
+                before: Union[ChromiumElement, str, Tuple[str, str], None] = None) -> Union[
+        ChromiumElement, ChromiumFrame]:
         """新建一个元素
         :param html_or_info: 新元素的html文本或信息。信息格式为：(tag, {attr1: value, ...})
         :param insert_to: 插入到哪个元素中，可接收元素对象和定位符，为None且为html添加到body，不为html不插入

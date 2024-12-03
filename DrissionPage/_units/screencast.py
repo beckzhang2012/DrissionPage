@@ -86,7 +86,7 @@ class Screencast(object):
         if self._mode.startswith('js'):
             self._owner._run_js('mediaRecorder.stop();', as_expr=True)
             while not self._owner._run_js('return DrissionPage_Screencast_blob_ok;'):
-                sleep(.1)
+                sleep(.05)
             blob = self._owner._run_js('return DrissionPage_Screencast_blob;')
             uuid = self._owner._run_cdp('IO.resolveBlob', objectId=blob['result']['objectId'])['uuid']
             data = self._owner._run_cdp('IO.read', handle=f'blob:{uuid}')['data']
@@ -100,7 +100,7 @@ class Screencast(object):
         else:
             self._enable = False
             while self._running:
-                sleep(.1)
+                sleep(.01)
 
         if self._mode.endswith('imgs'):
             return str(Path(self._path).absolute())
