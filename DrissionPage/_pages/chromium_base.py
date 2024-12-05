@@ -2,8 +2,7 @@
 """
 @Author   : g1879
 @Contact  : g1879@qq.com
-@Copyright: (c) 2024 by g1879, Inc. All Rights Reserved.
-@License  : BSD 3-Clause.
+@Copyright: (c) 2020 by g1879, Inc. All Rights Reserved.
 """
 from json import loads, JSONDecodeError
 from os.path import sep
@@ -603,7 +602,7 @@ class ChromiumBase(BasePage):
         try:
             ele = self._run_js(js, *args)
         except JavaScriptError:
-            raise RuntimeError('此网页DOM不允许修改。')
+            raise RuntimeError('此网页不支持html格式新建元素，请用dict传入html_or_info参数。')
         return ele
 
     def get_frame(self, loc_ind_ele, timeout=None):
