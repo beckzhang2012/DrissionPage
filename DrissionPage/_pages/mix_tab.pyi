@@ -5,42 +5,31 @@
 @Copyright: (c) 2020 by g1879, Inc. All Rights Reserved.
 """
 from http.cookiejar import CookieJar
-from typing import Union, Tuple, List, Any, Optional, Literal
+from typing import Union, Tuple, Any, Optional, Literal
 
 from requests import Session, Response
 
 from .chromium_frame import ChromiumFrame
-from .chromium_page import ChromiumPage
-from .mix_tab import MixTab
+from .chromium_tab import ChromiumTab
 from .session_page import SessionPage
-from .._base.base import BasePage
-from .._configs.chromium_options import ChromiumOptions
-from .._configs.session_options import SessionOptions
+from .._base.chromium import Chromium
 from .._elements.chromium_element import ChromiumElement
 from .._elements.session_element import SessionElement
 from .._functions.cookies import CookiesList
 from .._functions.elements import SessionElementsList, ChromiumElementsList
-from .._units.setter import WebPageSetter
-from .._units.waiter import WebPageWaiter
+from .._units.setter import MixTabSetter
+from .._units.waiter import MixTabWaiter
 
 
-class WebPage(SessionPage, ChromiumPage, BasePage):
-    """整合浏览器和request的页面类"""
+class MixTab(SessionPage, ChromiumTab):
+    _tab: MixTab = ...
     _d_mode: bool = ...
-    _set: WebPageSetter = ...
-    _has_driver: Optional[bool] = ...
-    _has_session: Optional[bool] = ...
-    _session_options: Union[SessionOptions, None] = ...
-    _chromium_options: Union[ChromiumOptions, None] = ...
+    _set: MixTabSetter = ...
 
-    def __init__(self,
-                 mode: str = 'd',
-                 chromium_options: Union[ChromiumOptions, bool] = None,
-                 session_or_options: Union[Session, SessionOptions, bool] = None) -> None:
-        """初始化函数
-        :param mode: 'd' 或 's'，即driver模式和session模式
-        :param chromium_options: ChromiumOptions对象，传入None时从默认ini文件读取，传入False时不读取ini文件，使用默认配置
-        :param session_or_options: Session对象或SessionOptions对象，传入None时从默认ini文件读取，传入False时不读取ini文件，使用默认配置
+    def __init__(self, browser: Chromium, tab_id: str):
+        """
+        :param browser: Chromium对象
+        :param tab_id: 标签页id
         """
         ...
 
@@ -49,6 +38,7 @@ class WebPage(SessionPage, ChromiumPage, BasePage):
                  index: int = 1,
                  timeout: float = None) -> Union[ChromiumElement, SessionElement]:
         """在内部查找元素
+        例：ele = page('@id=ele_id')
         :param locator: 元素的定位信息，可以是loc元组，或查询字符串
         :param index: 获取第几个，从1开始，可传入负数获取倒数第几个
         :param timeout: 超时时间（秒）
@@ -57,18 +47,12 @@ class WebPage(SessionPage, ChromiumPage, BasePage):
         ...
 
     @property
-    def latest_tab(self) -> Union[MixTab, WebPage, str]:
-        """返回最新的标签页，最新标签页指最后创建或最后被激活的
-        当Settings.singleton_tab_obj==True时返回Tab对象，否则返回tab id"""
-        ...
-
-    @property
-    def set(self) -> WebPageSetter:
+    def set(self) -> MixTabSetter:
         """返回用于设置的对象"""
         ...
 
     @property
-    def wait(self) -> WebPageWaiter:
+    def wait(self) -> MixTabWaiter:
         """返回用于等待的对象"""
         ...
 
@@ -258,10 +242,7 @@ class WebPage(SessionPage, ChromiumPage, BasePage):
         """
         ...
 
-    def change_mode(self,
-                    mode: str = None,
-                    go: bool = True,
-                    copy_cookies: bool = True) -> None:
+    def change_mode(self, mode: str = None, go: bool = True, copy_cookies: bool = True) -> None:
         """切换模式，接收's'或'd'，除此以外的字符串会切换为 d 模式
         如copy_cookies为True，切换时会把当前模式的cookies复制到目标模式
         切换后，如果go是True，调用相应的get函数使访问的页面同步
@@ -273,7 +254,7 @@ class WebPage(SessionPage, ChromiumPage, BasePage):
         ...
 
     def cookies_to_session(self, copy_user_agent: bool = True) -> None:
-        """把driver对象的cookies复制到session对象
+        """把浏览器的cookies复制到session对象
         :param copy_user_agent: 是否复制ua信息
         :return: None
         """
@@ -283,9 +264,7 @@ class WebPage(SessionPage, ChromiumPage, BasePage):
         """把session对象的cookies复制到浏览器"""
         ...
 
-    def cookies(self,
-                all_domains: bool = False,
-                all_info: bool = False) -> CookiesList:
+    def cookies(self, all_domains: bool = False, all_info: bool = False) -> CookiesList:
         """返回cookies
         :param all_domains: 是否返回所有域的cookies
         :param all_info: 是否返回所有信息，False则只返回name、value、domain
@@ -293,60 +272,11 @@ class WebPage(SessionPage, ChromiumPage, BasePage):
         """
         ...
 
-    def get_tab(self,
-                id_or_num: Union[str, MixTab, int] = None,
-                title: str = None,
-                url: str = None,
-                tab_type: Union[str, list, tuple] = 'page',
-                as_id: bool = False) -> Union[MixTab, str, None]:
-        """获取一个标签页对象，id_or_num不为None时，后面几个参数无效
-        :param id_or_num: 要获取的标签页id或序号，序号从1开始，可传入负数获取倒数第几个，不是视觉排列顺序，而是激活顺序
-        :param title: 要匹配title的文本，模糊匹配，为None则匹配所有
-        :param url: 要匹配url的文本，模糊匹配，为None则匹配所有
-        :param tab_type: tab类型，可用列表输入多个，如 'page', 'iframe' 等，为None则匹配所有
-        :param as_id: 是否返回标签页id而不是标签页对象
-        :return: MixTab对象
+    def close(self, others: bool = False) -> None:
+        """关闭标签页
+        :param others: 是否关闭其它，保留自己
+        :return: None
         """
-        ...
-
-    def get_tabs(self,
-                 title: str = None,
-                 url: str = None,
-                 tab_type: Union[str, list, tuple] = 'page',
-                 as_id: bool = False) -> Union[List[MixTab], List[str]]:
-        """查找符合条件的tab，返回它们组成的列表
-        :param title: 要匹配title的文本，模糊匹配，为None则匹配所有
-        :param url: 要匹配url的文本，模糊匹配，为None则匹配所有
-        :param tab_type: tab类型，可用列表输入多个，如 'page', 'iframe' 等，为None则匹配所有
-        :param as_id: 是否返回标签页id而不是标签页对象
-        :return: ChromiumTab对象组成的列表
-        """
-        ...
-
-    def new_tab(self,
-                url: str = None,
-                new_window: bool = False,
-                background: bool = False,
-                new_context: bool = False) -> MixTab:
-        """新建一个标签页
-        :param url: 新标签页跳转到的网址
-        :param new_window: 是否在新窗口打开标签页
-        :param background: 是否不激活新标签页，如new_window为True则无效
-        :param new_context: 是否创建新的上下文
-        :return: 新标签页对象
-        """
-        ...
-
-    def close_driver(self) -> None:
-        """关闭driver及浏览器"""
-        ...
-
-    def close_session(self) -> None:
-        """关闭session"""
-        ...
-
-    def close(self) -> None:
-        """关闭标签页和Session"""
         ...
 
     def _find_elements(self,
@@ -354,8 +284,8 @@ class WebPage(SessionPage, ChromiumPage, BasePage):
                        timeout: float,
                        index: Optional[int] = 1,
                        relative: bool = False,
-                       raise_err: bool = None) -> Union[
-        ChromiumElement, SessionElement, ChromiumFrame, SessionElementsList, ChromiumElementsList]:
+                       raise_err: bool = None) \
+            -> Union[ChromiumElement, SessionElement, ChromiumFrame, SessionElementsList, ChromiumElementsList]:
         """返回页面中符合条件的元素、属性或节点文本，默认返回第一个
         :param locator: 元素的定位信息，可以是元素对象，loc元组，或查询字符串
         :param timeout: 查找元素超时时间（秒），d模式专用
@@ -363,17 +293,5 @@ class WebPage(SessionPage, ChromiumPage, BasePage):
         :param relative: MixTab用的表示是否相对定位的参数
         :param raise_err: 找不到元素是是否抛出异常，为None时根据全局设置
         :return: 元素对象或属性、文本节点文本
-        """
-        ...
-
-    def quit(self,
-             timeout: float = 5,
-             force: bool = True,
-             del_data: bool = False) -> None:
-        """关闭浏览器和Session
-        :param timeout: 等待浏览器关闭超时时间（秒）
-        :param force: 关闭超时是否强制终止进程
-        :param del_data: 是否删除用户文件夹
-        :return: None
         """
         ...
