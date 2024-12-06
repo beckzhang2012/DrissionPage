@@ -1252,7 +1252,13 @@ def parse_js_result(page, ele, result, end_time):
             r = page._run_cdp('Runtime.getProperties', objectId=result['objectId'], ownProperties=True)['result']
             return [parse_js_result(page, ele, result=i['value'], end_time=end_time) for i in r if i['name'].isdigit()]
 
-        elif 'objectId' in result:
+        elif result.get('className') == 'Blob':
+            data = page._run_cdp('IO.read',
+                                 handle=f"blob:{page._run_cdp('IO.resolveBlob', objectId=result['objectId'])['uuid']}")[
+                'data']
+            return data
+
+        elif 'objectId' in result and result.get('className') == 'Blob':
             timeout = end_time - perf_counter()
             if timeout < 0:
                 return

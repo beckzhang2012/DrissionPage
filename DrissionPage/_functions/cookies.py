@@ -181,10 +181,8 @@ def format_cookie(cookie):
 
     if 'sameSite' in cookie:
         sameSite = cookie['sameSite']
-        if sameSite in (None, False):
+        if sameSite in (None, False) or sameSite not in ('None', 'Lax', 'Strict', 'no_restriction'):
             cookie.pop('sameSite')
-        elif sameSite not in ('None', 'Lax', 'Strict'):
-            raise ValueError(f'{cookie}\nsameSite字段必须为"None"、"Lax"、"Strict"之一。')
 
     if 'priority' in cookie:
         priority = cookie['priority']
