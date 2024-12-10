@@ -2,6 +2,7 @@
 """
 @Author   : g1879
 @Contact  : g1879@qq.com
+@Website  : https://DrissionPage.cn
 @Copyright: (c) 2020 by g1879, Inc. All Rights Reserved.
 """
 from base64 import b64decode
@@ -77,11 +78,11 @@ class Screencast(object):
             self._owner._run_js(js)
         print('开始录制')
 
-    def stop(self, video_name=None):
-        if video_name and not video_name.endswith('mp4'):
-            video_name = f'{video_name}.mp4'
-        name = f'{time()}.mp4' if not video_name else video_name
-        path = f'{self._path}{sep}{name}'
+    def stop(self, video_name=None, suffix='mp4', coding='mp4v'):
+        video_name = f'{time()}.{suffix}' if not video_name else video_name
+        if not video_name.endswith(f'.{suffix}'):
+            video_name = f'{video_name}.{suffix}'
+        path = f'{self._path}{sep}{video_name}'
 
         if self._mode.startswith('js'):
             self._owner._run_js('mediaRecorder.stop();', as_expr=True)
@@ -121,7 +122,7 @@ class Screencast(object):
         imgInfo = img.shape
         size = (imgInfo[1], imgInfo[0])
 
-        videoWrite = VideoWriter(path, VideoWriter_fourcc(*"H264"), 5, size)
+        videoWrite = VideoWriter(path, VideoWriter_fourcc(*coding.upper()), 5, size)
 
         for i in pic_list:
             img = imread(str(i))
@@ -130,7 +131,7 @@ class Screencast(object):
         rmtree(self._tmp_path)
         self._tmp_path = None
         print('停止录制')
-        return f'{self._path}{sep}{name}'
+        return f'{self._path}{sep}{video_name}'
 
     def set_save_path(self, save_path=None):
         if save_path:
