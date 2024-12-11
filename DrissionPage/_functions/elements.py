@@ -7,7 +7,7 @@
 """
 from time import perf_counter, sleep
 
-from .locator import is_str_loc
+from .locator import is_str_loc, is_selenium_loc
 from .._elements.none_element import NoneElement
 
 
@@ -272,7 +272,7 @@ class Getter(object):
 
 
 def get_eles(locators, owner, any_one=False, first_ele=True, timeout=10):
-    if isinstance(locators, (tuple, str)):
+    if is_selenium_loc(locators):
         locators = (locators,)
     res = {loc: None for loc in locators}
 
@@ -302,11 +302,10 @@ def get_eles(locators, owner, any_one=False, first_ele=True, timeout=10):
 
 def get_frame(owner, loc_ind_ele, timeout=None):
     if isinstance(loc_ind_ele, str):
-        if not is_str_loc(loc_ind_ele):
-            xpath = f'xpath://*[(name()="iframe" or name()="frame") and ' \
-                    f'(@name="{loc_ind_ele}" or @id="{loc_ind_ele}")]'
-        else:
+        if is_str_loc(loc_ind_ele):
             xpath = loc_ind_ele
+        else:
+            xpath = f'xpath://*[(name()="iframe" or name()="frame") and (@name="{loc_ind_ele}" or @id="{loc_ind_ele}")]'
         ele = owner._ele(xpath, timeout=timeout)
         if ele and ele._type != 'ChromiumFrame':
             raise TypeError('该定位符不是指向frame元素。')
