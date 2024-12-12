@@ -1259,7 +1259,7 @@ def parse_js_result(page, ele, result, end_time):
                 'data']
             return data
 
-        elif 'objectId' in result and result.get('className') == 'Blob':
+        elif 'objectId' in result:
             timeout = end_time - perf_counter()
             if timeout < 0:
                 return

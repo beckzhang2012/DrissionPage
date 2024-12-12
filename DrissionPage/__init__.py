@@ -26,4 +26,4 @@ from ._pages.chromium_page import ChromiumPage
 from ._pages.session_page import SessionPage
 from ._pages.web_page import WebPage
 
-__version__ = '4.1.0.13'
+__version__ = '4.1.0.14'
