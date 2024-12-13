@@ -372,32 +372,32 @@ class ChromiumElement(DrissionElement):
 
         return NoneElement(page=self.owner, method=f'{mode}()', args={'locator': locator})
 
-    def attr(self, attr):
+    def attr(self, name):
         attrs = self.attrs
-        if attr == 'href':  # 获取href属性时返回绝对url
+        if name == 'href':
             link = attrs.get('href')
             if not link or link.lower().startswith(('javascript:', 'mailto:')):
                 return link
             else:
                 return make_absolute_link(link, self.property('baseURI'))
 
-        elif attr == 'src':
+        elif name == 'src':
             return make_absolute_link(attrs.get('src'), self.property('baseURI'))
 
-        elif attr == 'text':
+        elif name == 'text':
             return self.text
 
-        elif attr == 'innerText':
+        elif name == 'innerText':
             return self.raw_text
 
-        elif attr in ('html', 'outerHTML'):
+        elif name in ('html', 'outerHTML'):
             return self.html
 
-        elif attr == 'innerHTML':
+        elif name == 'innerHTML':
             return self.inner_html
 
         else:
-            return attrs.get(attr, None)
+            return attrs.get(name, None)
 
     def remove_attr(self, name):
         self._run_js(f'this.removeAttribute("{name}");')

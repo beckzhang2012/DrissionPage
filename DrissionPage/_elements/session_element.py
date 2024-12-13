@@ -59,7 +59,10 @@ class SessionElement(DrissionElement):
 
     @property
     def attrs(self):
-        return {attr: self.attr(attr) for attr, val in self.inner_ele.items()}
+        r = {}
+        for attr, val in self.inner_ele.items():
+            r[attr] = val if attr.lower in ('href', 'src') else self.attr(attr)
+        return r
 
     @property
     def text(self):
@@ -103,12 +106,11 @@ class SessionElement(DrissionElement):
         return SessionElementsList(self.owner, super().afters(locator, timeout, ele_only=ele_only))
 
     def attr(self, name):
-        if name == 'href':  # 获取href属性时返回绝对url
+        if name == 'href':
             link = self.inner_ele.get('href')
-            # 若为链接为None、js或邮件，直接返回
             if not link or link.lower().startswith(('javascript:', 'mailto:')):
                 return link
-            else:  # 其它情况直接返回绝对url
+            else:
                 return make_absolute_link(link, self.owner.url) if self.owner else link
 
         elif name == 'src':

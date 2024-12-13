@@ -252,7 +252,7 @@ class DrissionElement(BaseElement):
         return
 
     @abstractmethod
-    def attr(self, name: str):
+    def attr(self, name):
         return ''
 
     def _get_ele_path(self, xpath=True):
