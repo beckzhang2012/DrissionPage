@@ -97,6 +97,10 @@ class BaseElement(BaseParser):
     def timeout(self):
         return self.owner.timeout if self.owner else 10
 
+    @property
+    def child_count(self):
+        return int(self._ele('xpath:count(./*)'))
+
     # ----------------以下属性或方法由后代实现----------------
     @property
     def tag(self):

@@ -88,6 +88,11 @@ class BaseElement(BaseParser):
         """返回其查找元素时超时时间"""
         ...
 
+    @property
+    def child_count(self) -> int:
+        """返回直接子元素的个数"""
+        ...
+
     # ----------------以下属性或方法由后代实现----------------
     @property
     def tag(self) -> str: ...

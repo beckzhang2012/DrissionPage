@@ -211,6 +211,11 @@ class ChromiumFrame(ChromiumBase):
         ...
 
     @property
+    def child_count(self) -> int:
+        """返回直接子元素的个数"""
+        ...
+
+    @property
     def _js_ready_state(self) -> Literal['loading', 'interactive', 'complete']:
         """返回当前页面加载状态"""
         ...

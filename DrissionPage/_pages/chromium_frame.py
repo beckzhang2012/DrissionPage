@@ -306,6 +306,10 @@ class ChromiumFrame(ChromiumBase):
         return self.frame_ele.sr
 
     @property
+    def child_count(self):
+        return int(self._ele('xpath:count(./*)'))
+
+    @property
     def _js_ready_state(self):
         if self._is_diff_domain:
             return super()._js_ready_state

@@ -873,34 +873,54 @@ class ShadowRoot(BaseElement):
 
             else:
                 eles = make_session_ele(self, loc, index=None)
-                if not eles:
+                if isinstance(eles, (float, str, int)):
+                    return eles
+                elif not eles:
                     return None
 
                 css = []
                 for i in eles:
-                    c = i.css_path
-                    if c in ('html:nth-child(1)', 'html:nth-child(1)>body:nth-child(1)',
-                             'html:nth-child(1)>body:nth-child(1)>shadow_root:nth-child(1)'):
-                        continue
-                    elif c.startswith('html:nth-child(1)>body:nth-child(1)>shadow_root:nth-child(1)'):
-                        c = c[61:]
-                    css.append(c)
+                    if hasattr(i, 'css_path'):
+                        c = i.css_path
+                        if c in ('html:nth-child(1)', 'html:nth-child(1)>body:nth-child(1)',
+                                 'html:nth-child(1)>body:nth-child(1)>shadow_root:nth-child(1)'):
+                            continue
+                        elif c.startswith('html:nth-child(1)>body:nth-child(1)>shadow_root:nth-child(1)'):
+                            c = c[61:]
+                        css.append((True, c))
+
+                    else:
+                        css.append((False, i))
+
                 if index is not None:
                     try:
+                        c = css[index - 1]
+                        if c[0] is False:
+                            return c[1]
                         node_id = self.owner._run_cdp('DOM.querySelector', nodeId=self._node_id,
-                                                      selector=css[index - 1])['nodeId']
+                                                      selector=c[1])['nodeId']
+                        r = make_chromium_eles(self.owner, _ids=node_id, is_obj_id=False)
+                        return None if r is False else r
+
                     except IndexError:
                         return None
-                    r = make_chromium_eles(self.owner, _ids=node_id, is_obj_id=False)
-                    return None if r is False else r
+
                 else:
-                    node_ids = [self.owner._run_cdp('DOM.querySelector', nodeId=self._node_id, selector=i)['nodeId']
-                                for i in css]
-                    node_ids = [i for i in node_ids if i]
-                    if not node_ids:
-                        return None
-                    r = make_chromium_eles(self.owner, _ids=node_ids, index=index, is_obj_id=False)
-                    return None if r is False else r
+                    r = []
+                    for i in css:
+                        if i[0] is False:
+                            r.append(i[1])
+
+                        else:
+                            node_id = self.owner._run_cdp('DOM.querySelector', nodeId=self._node_id,
+                                                          selector=i[1])['nodeId']
+                            if node_id:
+                                e = make_chromium_eles(self.owner, _ids=node_id, is_obj_id=False)
+                                if e is False:
+                                    return None
+                                r.append(e)
+
+                    return None if not r else r
 
         end_time = perf_counter() + timeout
         result = do_find()
@@ -908,7 +928,7 @@ class ShadowRoot(BaseElement):
             sleep(.01)
             result = do_find()
 
-        if result:
+        if result or isinstance(result, (str, float, int)):
             return result
         return NoneElement(self.owner) if index is not None else ChromiumElementsList(self.owner)
 

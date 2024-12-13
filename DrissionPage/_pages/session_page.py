@@ -114,7 +114,7 @@ class SessionPage(BasePage):
         :param kwargs: 连接参数
         :return: url是否可用
         """
-        retry, interval, is_file = self._before_connect(url.lstrip('file:///'), retry, interval)
+        retry, interval, is_file = self._before_connect(url.replace('file:///', '', 1), retry, interval)
         if is_file:
             with open(self._url, 'rb') as f:
                 r = Response()
