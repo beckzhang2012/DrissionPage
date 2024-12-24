@@ -25,35 +25,44 @@ class Settings(object):
     @classmethod
     def set_raise_when_ele_not_found(cls, on_off=True):
         cls.raise_when_ele_not_found = on_off
+        return cls
 
     @classmethod
     def set_raise_when_click_failed(cls, on_off=True):
         cls.raise_when_click_failed = on_off
+        return cls
 
     @classmethod
     def set_raise_when_wait_failed(cls, on_off=True):
         cls.raise_when_wait_failed = on_off
+        return cls
 
     @classmethod
     def set_singleton_tab_obj(cls, on_off=True):
         cls.singleton_tab_obj = on_off
+        return cls
 
     @classmethod
     def set_cdp_timeout(cls, second):
         cls.cdp_timeout = second
+        return cls
 
     @classmethod
     def set_browser_connect_timeout(cls, second):
         cls.browser_connect_timeout = second
+        return cls
 
     @classmethod
     def set_auto_handle_alert(cls, accept=True):
         cls.auto_handle_alert = accept
+        return cls
 
     @classmethod
     def set_language(cls, code):
         cls._lang = get_txt_class(code)
+        return cls
 
     @classmethod
     def set_suffixes_list(cls, path):
         cls.suffixes_list = str(Path(path).absolute()).replace('\\', '/')
+        return cls

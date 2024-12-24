@@ -23,7 +23,7 @@ class Settings(object):
     suffixes_list: str = ...
 
     @classmethod
-    def set_raise_when_ele_not_found(cls, on_off: bool = True) -> None:
+    def set_raise_when_ele_not_found(cls, on_off: bool = True) -> Settings:
         """设置找不到元素时是否立即抛出异常
         :param on_off: bool表示开或关
         :return: None
@@ -31,7 +31,7 @@ class Settings(object):
         ...
 
     @classmethod
-    def set_raise_when_click_failed(cls, on_off: bool = True) -> None:
+    def set_raise_when_click_failed(cls, on_off: bool = True) -> Settings:
         """设置点击失败时是否立即抛出异常
         :param on_off: bool表示开或关
         :return: None
@@ -39,7 +39,7 @@ class Settings(object):
         ...
 
     @classmethod
-    def set_raise_when_wait_failed(cls, on_off: bool = True) -> None:
+    def set_raise_when_wait_failed(cls, on_off: bool = True) -> Settings:
         """设置等待失败时是否立即抛出异常
         :param on_off: bool表示开或关
         :return: None
@@ -47,7 +47,7 @@ class Settings(object):
         ...
 
     @classmethod
-    def set_singleton_tab_obj(cls, on_off: bool = True) -> None:
+    def set_singleton_tab_obj(cls, on_off: bool = True) -> Settings:
         """设置是否开启tab单例模式
         :param on_off: bool表示开或关
         :return: None
@@ -55,7 +55,7 @@ class Settings(object):
         ...
 
     @classmethod
-    def set_cdp_timeout(cls, second: float) -> None:
+    def set_cdp_timeout(cls, second: float) -> Settings:
         """设置csp执行超时时间（秒）
         :param second: 超时秒数
         :return: None
@@ -63,7 +63,7 @@ class Settings(object):
         ...
 
     @classmethod
-    def set_browser_connect_timeout(cls, second: float) -> None:
+    def set_browser_connect_timeout(cls, second: float) -> Settings:
         """设置等待浏览器连接超时时间（秒）
         :param second: 超时秒数
         :return: None
@@ -71,7 +71,7 @@ class Settings(object):
         ...
 
     @classmethod
-    def set_auto_handle_alert(cls, accept: Optional[bool] = True) -> None:
+    def set_auto_handle_alert(cls, accept: Optional[bool] = True) -> Settings:
         """设置是否自动处理js弹出信息
         :param accept: None为不处理，True为接受，False为取消
         :return: None
@@ -79,7 +79,7 @@ class Settings(object):
         ...
 
     @classmethod
-    def set_language(cls, code: Literal['zh_cn', 'en']) -> None:
+    def set_language(cls, code: Literal['zh_cn', 'en']) -> Settings:
         """设置报错和提示信息使用的语言
         :param code: 表示语言的文本'zh_cn', 'en'
         :return: None
@@ -87,7 +87,7 @@ class Settings(object):
         ...
 
     @classmethod
-    def set_suffixes_list(cls, path: Union[str, Path]) -> None:
+    def set_suffixes_list(cls, path: Union[str, Path]) -> Settings:
         """设置用于识别域名后缀的文件路径
         :param path: 文件路径
         :return: None
