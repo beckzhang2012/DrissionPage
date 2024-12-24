@@ -107,7 +107,8 @@ class BrowserDriver(Driver):
 
     def __init__(self, tab_id: str, tab_type: str, address: str, owner: Chromium): ...
 
-    def get(self, url) -> Response:
+    @staticmethod
+    def get(url) -> Response:
         """
         :param url: 要访问的链接
         :return: Response对象

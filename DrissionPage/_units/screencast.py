@@ -14,6 +14,8 @@ from tempfile import gettempdir
 from threading import Thread
 from time import sleep, time
 
+from .._functions.settings import Settings as _S
+
 
 class Screencast(object):
     def __init__(self, owner):
@@ -31,7 +33,7 @@ class Screencast(object):
     def start(self, save_path=None):
         self.set_save_path(save_path)
         if self._path is None:
-            raise ValueError('save_path必须设置。')
+            raise RuntimeError(_S._lang.join(_S._lang.NEED_ARG_, 'save_path'))
 
         if self._mode in ('frugal_video', 'video'):
             if self._owner.browser._chromium_options.tmp_path:
@@ -73,10 +75,10 @@ class Screencast(object):
                 })
               }
             '''
-            print('请手动选择要录制的目标。')
+            print(_S._lang.CHOOSE_RECORD_TARGET)
             self._owner._run_js('var DrissionPage_Screencast_blob;var DrissionPage_Screencast_blob_ok=false;')
             self._owner._run_js(js)
-        print('开始录制')
+        print(_S._lang.START_RECORD)
 
     def stop(self, video_name=None, suffix='mp4', coding='mp4v'):
         video_name = f'{time()}.{suffix}' if not video_name else video_name
@@ -93,7 +95,7 @@ class Screencast(object):
             self._owner._run_js('DrissionPage_Screencast_blob_ok = false;'
                                 'DrissionPage_Screencast_chunks = [];'
                                 'DrissionPage_Screencast_blob = null', as_expr=True)
-            print('停止录制')
+            print(_S._lang.STOP_RECORDING)
             return path
 
         if self._mode.startswith('frugal'):
@@ -105,17 +107,18 @@ class Screencast(object):
                 sleep(.01)
 
         if self._mode.endswith('imgs'):
-            print('停止录制')
+            print(_S._lang.STOP_RECORDING)
             return str(Path(self._path).absolute())
 
         if not str(self._path).isascii():
-            raise TypeError('转换成视频仅支持英文路径和文件名。')
+            raise ValueError(_S._lang.join(_S._lang.ONLY_ENGLISH, CURR_VAL=self._path))
 
         try:
             from cv2 import VideoWriter, imread, VideoWriter_fourcc
             from numpy import fromfile, uint8
-        except ModuleNotFoundError:
-            raise ModuleNotFoundError('请先安装cv2，pip install opencv-python')
+        except (ImportError, ModuleNotFoundError):
+            raise EnvironmentError(_S._lang.join(_S._lang.NEED_LIB_, 'cv2, numpy',
+                                                 TIP='pip install opencv-python\npip install numpy'))
 
         pic_list = Path(self._tmp_path or self._path).glob('*.jpg')
         img = imread(str(next(pic_list)))
@@ -130,14 +133,14 @@ class Screencast(object):
 
         rmtree(self._tmp_path)
         self._tmp_path = None
-        print('停止录制')
+        print(_S._lang.STOP_RECORDING)
         return f'{self._path}{sep}{video_name}'
 
     def set_save_path(self, save_path=None):
         if save_path:
             save_path = Path(save_path)
             if save_path.exists() and save_path.is_file():
-                raise TypeError('save_path必须指定文件夹。')
+                raise ValueError(_S._lang.join(_S._lang.SAVE_PATH_MUST_BE_FOLDER))
             save_path.mkdir(parents=True, exist_ok=True)
             self._path = save_path
 

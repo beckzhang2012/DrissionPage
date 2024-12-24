@@ -24,6 +24,7 @@ from .._pages.web_page import WebPage
 
 
 class BaseParser(object):
+    """所有页面、元素类的基类"""
     _type: str
     timeout: float
 
@@ -79,6 +80,7 @@ class BaseParser(object):
 
 
 class BaseElement(BaseParser):
+    """各元素类的基类"""
     owner: BasePage = ...
 
     def __init__(self, owner: BasePage = None): ...

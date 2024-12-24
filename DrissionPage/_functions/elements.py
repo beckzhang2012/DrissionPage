@@ -8,7 +8,9 @@
 from time import perf_counter, sleep
 
 from .locator import is_str_loc, is_selenium_loc
+from .._functions.settings import Settings as _S
 from .._elements.none_element import NoneElement
+from ..errors import LocatorError
 
 
 class SessionElementsList(list):
@@ -23,7 +25,7 @@ class SessionElementsList(list):
         elif isinstance(item, int):
             return super().__getitem__(item)
         else:
-            raise TypeError('序号必须是数字或切片。')
+            raise ValueError(_S._lang.join(_S._lang.INDEX_FORMAT, CURR_VAL=item))
 
     @property
     def get(self):
@@ -308,26 +310,27 @@ def get_frame(owner, loc_ind_ele, timeout=None):
             xpath = f'xpath://*[(name()="iframe" or name()="frame") and (@name="{loc_ind_ele}" or @id="{loc_ind_ele}")]'
         ele = owner._ele(xpath, timeout=timeout)
         if ele and ele._type != 'ChromiumFrame':
-            raise TypeError('该定位符不是指向frame元素。')
+            raise LocatorError(_S._lang.LOC_NOT_FOR_FRAME, LOCATOR=loc_ind_ele)
         r = ele
 
     elif isinstance(loc_ind_ele, tuple):
         ele = owner._ele(loc_ind_ele, timeout=timeout)
         if ele and ele._type != 'ChromiumFrame':
-            raise TypeError('该定位符不是指向frame元素。')
+            raise LocatorError(_S._lang.LOC_NOT_FOR_FRAME, LOCATOR=loc_ind_ele)
         r = ele
 
     elif isinstance(loc_ind_ele, int):
         ele = owner._ele('@|tag():iframe@|tag():frame', timeout=timeout, index=loc_ind_ele)
         if ele and ele._type != 'ChromiumFrame':
-            raise TypeError('该定位符不是指向frame元素。')
+            raise LocatorError(_S._lang.LOC_NOT_FOR_FRAME, LOCATOR=loc_ind_ele)
         r = ele
 
     elif getattr(loc_ind_ele, '_type', None) == 'ChromiumFrame':
         r = loc_ind_ele
 
     else:
-        raise TypeError('必须传入定位符、iframe序号、id、name、ChromiumFrame对象其中之一。')
+        raise ValueError(_S._lang.join(_S._lang.INCORRECT_VAL_, 'loc_ind_ele',
+                                       ALLOW_VAL=_S._lang.FRAME_LOC_FORMAT, CURR_VAL=loc_ind_ele))
 
     if isinstance(r, NoneElement):
         r.method = 'get_frame()'

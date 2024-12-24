@@ -5,7 +5,10 @@
 @Website  : https://DrissionPage.cn
 @Copyright: (c) 2020 by g1879, Inc. All Rights Reserved.
 """
+from locale import getlocale
 from pathlib import Path
+
+from .texts import get_txt_class
 
 
 class Settings(object):
@@ -16,12 +19,41 @@ class Settings(object):
     cdp_timeout = 30
     browser_connect_timeout = 30
     auto_handle_alert = None
-    _suffixes_list = str(Path(__file__).parent.absolute() / 'suffixes.dat').replace('\\', '/')
+    _lang = get_txt_class('zh_cn' if 'chinese' in getlocale()[0].lower() else 'en')
+    suffixes_list = str(Path(__file__).parent.absolute() / 'suffixes.dat').replace('\\', '/')
 
-    @property
-    def suffixes_list_path(self):
-        return Settings._suffixes_list
+    @classmethod
+    def set_raise_when_ele_not_found(cls, on_off=True):
+        cls.raise_when_ele_not_found = on_off
 
-    @suffixes_list_path.setter
-    def suffixes_list_path(self, path):
-        Settings._suffixes_list = str(Path(path).absolute()).replace('\\', '/')
+    @classmethod
+    def set_raise_when_click_failed(cls, on_off=True):
+        cls.raise_when_click_failed = on_off
+
+    @classmethod
+    def set_raise_when_wait_failed(cls, on_off=True):
+        cls.raise_when_wait_failed = on_off
+
+    @classmethod
+    def set_singleton_tab_obj(cls, on_off=True):
+        cls.singleton_tab_obj = on_off
+
+    @classmethod
+    def set_cdp_timeout(cls, second):
+        cls.cdp_timeout = second
+
+    @classmethod
+    def set_browser_connect_timeout(cls, second):
+        cls.browser_connect_timeout = second
+
+    @classmethod
+    def set_auto_handle_alert(cls, accept=True):
+        cls.auto_handle_alert = accept
+
+    @classmethod
+    def set_language(cls, code):
+        cls._lang = get_txt_class(code)
+
+    @classmethod
+    def set_suffixes_list(cls, path):
+        cls.suffixes_list = str(Path(path).absolute()).replace('\\', '/')
