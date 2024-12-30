@@ -5,7 +5,6 @@
 @Website  : https://DrissionPage.cn
 @Copyright: (c) 2020 by g1879, Inc. All Rights Reserved.
 """
-from locale import getlocale
 from pathlib import Path
 
 from .texts import get_txt_class
@@ -19,7 +18,7 @@ class Settings(object):
     cdp_timeout = 30
     browser_connect_timeout = 30
     auto_handle_alert = None
-    _lang = get_txt_class('zh_cn' if 'chinese' in getlocale()[0].lower() else 'en')
+    _lang = get_txt_class(None)
     suffixes_list = str(Path(__file__).parent.absolute() / 'suffixes.dat').replace('\\', '/')
 
     @classmethod

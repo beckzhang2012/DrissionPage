@@ -5,15 +5,19 @@
 @Website  : https://DrissionPage.cn
 @Copyright: (c) 2020 by g1879, Inc. All Rights Reserved.
 """
+from locale import getlocale
+
 from ..version import __version__
 
 
-def get_txt_class(lang):
+def get_txt_class(lang=None):
     languages = {
         'zh_cn': Texts,
         'cn': Texts,
         'en': English,
     }
+    if lang is None:
+        lang = 'zh_cn' if 'chinese' in str(getlocale()[0]) else 'en'
     lang = languages.get(lang.lower(), None)
     if lang is None:
         raise ValueError(f'lang must be one of {languages.keys()}')
