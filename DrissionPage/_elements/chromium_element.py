@@ -17,7 +17,7 @@ from .none_element import NoneElement
 from .session_element import make_session_ele
 from .._base.base import DrissionElement, BaseElement
 from .._functions.elements import ChromiumElementsList, SessionElementsList
-from .._functions.keys import input_text_or_keys
+from .._functions.keys import input_text_or_keys, Keys
 from .._functions.locator import get_loc, locator_to_tuple
 from .._functions.settings import Settings as _S
 from .._functions.web import make_absolute_link, get_ele_txt, format_html, is_js_func, get_blob
@@ -557,7 +557,7 @@ class ChromiumElement(DrissionElement):
             return self
 
         self.wait.clickable(wait_moved=False, timeout=.5)
-        if clear and vals not in ('\n', '\ue007'):
+        if clear and vals not in ('\n', '\ue007', '\ue006'):
             self.clear(by_js=False)
         else:
             self._input_focus()
@@ -577,7 +577,7 @@ class ChromiumElement(DrissionElement):
             return self
 
         self._input_focus()
-        self.input(('\ue009', 'a', '\ue017'), clear=False)
+        self.input((Keys.CTRL_A, Keys.DEL), clear=False)
         return self
 
     def _input_focus(self):
