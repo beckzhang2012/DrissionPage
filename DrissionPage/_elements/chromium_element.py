@@ -8,6 +8,7 @@
 from json import loads
 from os.path import basename
 from pathlib import Path
+from platform import system
 from re import search
 from time import perf_counter, sleep
 
@@ -571,7 +572,7 @@ class ChromiumElement(DrissionElement):
         return self
 
     def clear(self, by_js=False):
-        if by_js:
+        if by_js or system().lower() in ('macos', 'darwin'):
             self._run_js("this.value='';")
             self._run_js('this.dispatchEvent(new Event("change", {bubbles: true}));')
             return self
@@ -984,8 +985,10 @@ def find_by_xpath(ele, xpath, index, timeout, relative=True):
                 res = ele.owner._run_cdp('Runtime.callFunctionOn', functionDeclaration=js1, objectId=ele._obj_id,
                                          returnByValue=False, awaitPromise=True, userGesture=True)
                 return res['result']['value']
+            elif 'is not a valid XPath expression' in res['result']['description']:
+                raise LocatorError(_S._lang.INVALID_XPATH_, xpath)
             else:
-                raise LocatorError(_S._lang.join(_S._lang.FIND_ELE_ERR, INFO=res))
+                raise LocatorError(_S._lang.FIND_ELE_ERR, INFO=res)
 
         if res['result']['subtype'] == 'null' or res['result']['description'] in ('NodeList(0)', 'Array(0)'):
             return None
@@ -1043,7 +1046,10 @@ def find_by_css(ele, selector, index, timeout):
                                  returnByValue=False, awaitPromise=True, userGesture=True)
 
         if 'exceptionDetails' in res:
-            raise LocatorError(_S._lang.join(_S._lang.FIND_ELE_ERR, INFO=res))
+            if 'is not a valid selector' in res['result']['description']:
+                raise LocatorError(_S._lang.INVALID_CSS_, selector)
+            else:
+                raise LocatorError(_S._lang.FIND_ELE_ERR, INFO=res)
         if res['result']['subtype'] == 'null' or res['result']['description'] in ('NodeList(0)', 'Array(0)'):
             return None
 
