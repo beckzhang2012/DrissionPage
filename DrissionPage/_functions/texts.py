@@ -17,7 +17,7 @@ def get_txt_class(lang=None):
         'en': English,
     }
     if lang is None:
-        lang = 'zh_cn' if 'chinese' in str(getlocale()[0]) else 'en'
+        lang = 'en' if 'english' in str(getlocale()[0]) else 'zh_cn'
     lang = languages.get(lang.lower(), None)
     if lang is None:
         raise ValueError(f'lang must be one of {languages.keys()}')
