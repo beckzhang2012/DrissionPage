@@ -25,11 +25,6 @@ class ChromiumFrame(ChromiumBase):
     _Frames = {}
 
     def __new__(cls, owner, ele, info=None):
-        """
-        :param owner: frame所在的页面对象
-        :param ele: frame所在元素
-        :param info: frame所在元素信息
-        """
         fid = info['node']['frameId'] if info else owner._run_cdp('DOM.describeNode',
                                                                   backendNodeId=ele._backend_id)['node']['frameId']
         if _S.singleton_tab_obj and fid in cls._Frames:
@@ -52,18 +47,23 @@ class ChromiumFrame(ChromiumBase):
         self._frame_ele = ele
         self._reloading = False
 
-        node = info['node'] if info else owner._run_cdp('DOM.describeNode', backendNodeId=ele._backend_id)['node']
-        self._frame_id = node['frameId']
-        if self._is_inner_frame():
-            self._is_diff_domain = False
-            self.doc_ele = ChromiumElement(self._target_page, backend_id=node['contentDocument']['backendNodeId'])
-            super().__init__(owner.browser, owner.driver.id)
-        else:
-            self._is_diff_domain = True
-            delattr(self, '_frame_id')
-            super().__init__(owner.browser, node['frameId'])
-            obj_id = super()._run_js('document;', as_expr=True)['objectId']
-            self.doc_ele = ChromiumElement(self, obj_id=obj_id)
+        try:
+            node = info['node'] if info else owner._run_cdp('DOM.describeNode', backendNodeId=ele._backend_id)['node']
+            self._frame_id = node['frameId']
+            if self._is_inner_frame():
+                self._is_diff_domain = False
+                self.doc_ele = ChromiumElement(self._target_page, backend_id=node['contentDocument']['backendNodeId'])
+                super().__init__(owner.browser, owner.driver.id)
+            else:
+                self._is_diff_domain = True
+                delattr(self, '_frame_id')
+                super().__init__(owner.browser, node['frameId'])
+                obj_id = super()._run_js('document;', as_expr=True)['objectId']
+                self.doc_ele = ChromiumElement(self, obj_id=obj_id)
+
+        except Exception as e:
+            ChromiumFrame._Frames.pop(self._frame_id, None)
+            raise e
 
         self._type = 'ChromiumFrame'
 
