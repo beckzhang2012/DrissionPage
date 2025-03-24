@@ -101,7 +101,7 @@ class Clicker(object):
 
     def middle(self, get_tab=True):
         self._ele.owner.scroll.to_see(self._ele)
-        curr_tid = self._ele.tab.browser.tab_ids[0]
+        curr_tid = self._ele.tab.browser._newest_tab_id
         self._click(*self._ele.rect.viewport_click_point, button='middle')
         if get_tab:
             tid = self._ele.tab.browser.wait.new_tab(curr_tab=curr_tid)
