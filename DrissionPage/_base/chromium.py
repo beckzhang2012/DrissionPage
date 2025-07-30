@@ -38,7 +38,7 @@ class Chromium(object):
 
     def __new__(cls, addr_or_opts=None, session_options=None):
         opt = handle_options(addr_or_opts)
-        is_headless, browser_id, is_exists = run_browser(opt)
+        is_headless, browser_id, is_exists, ws_only = run_browser(opt)
         with cls._lock:
             if browser_id in cls._BROWSERS:
                 r = cls._BROWSERS[browser_id]
@@ -49,6 +49,7 @@ class Chromium(object):
         r._chromium_options = opt
         r._is_headless = is_headless
         r._is_exists = is_exists
+        r._ws_only = ws_only
         r.id = browser_id
         cls._BROWSERS[browser_id] = r
         return r
@@ -77,19 +78,22 @@ class Chromium(object):
         self.retry_times = self._chromium_options.retry_times
         self.retry_interval = self._chromium_options.retry_interval
         self.address = self._chromium_options.address
+        self._ws_address = (self._chromium_options.ws_address if self._chromium_options.ws_address
+                            else f'ws://{self.address}/devtools/browser/{self.id}')
         self._disconnect_flag = False
-        self._driver = BrowserDriver(self.id, 'browser', self.address, self)
+        self._driver = BrowserDriver(self.id, self._ws_address, self)
 
-        if ((not self._chromium_options._ua_set and self._is_headless != self._chromium_options.is_headless)
+        if (not self._ws_only
+                and (not self._chromium_options._ua_set and self._is_headless != self._chromium_options.is_headless)
                 or (self._is_exists and self._chromium_options._new_env)):
             self.quit(3, True)
             connect_browser(self._chromium_options)
             s = Session()
             s.trust_env = False
             s.keep_alive = False
-            ws = s.get(f'http://{self._chromium_options.address}/json/version', headers={'Connection': 'close'})
+            ws = s.get(f'http://{self.address}/json/version', headers={'Connection': 'close'})
             self.id = ws.json()['webSocketDebuggerUrl'].split('/')[-1]
-            self._driver = BrowserDriver(self.id, 'browser', self.address, self)
+            self._driver = BrowserDriver(self.id, self._ws_address, self)
             ws.close()
             s.close()
             self._is_exists = False
@@ -165,8 +169,12 @@ class Chromium(object):
 
     @property
     def tab_ids(self):
-        j = self._driver.get(f'http://{self.address}/json').json()  # 不要改用cdp，因为顺序不对
-        return [i['id'] for i in j if i['type'] in ('page', 'webview') and not i['url'].startswith('devtools://')]
+        if self._ws_only:
+            return [i['targetId'] for i in self._run_cdp('Target.getTargets')['targetInfos']
+                    if i['type'] in ('page', 'webview') and not i['url'].startswith('devtools://')]
+        else:
+            return [i['id'] for i in self._driver.get(f'http://{self.address}/json').json()
+                    if i['type'] in ('page', 'webview') and not i['url'].startswith('devtools://')]
 
     @property
     def latest_tab(self):
@@ -229,7 +237,7 @@ class Chromium(object):
         self._disconnect_flag = True
         self._driver.stop()
         BrowserDriver.BROWSERS.pop(self.id)
-        self._driver = BrowserDriver(self.id, 'browser', self.address, self)
+        self._driver = BrowserDriver(self.id, self._ws_address, self)
         self._run_cdp('Target.setDiscoverTargets', discover=True)
         self._driver.set_callback('Target.targetDestroyed', self._onTargetDestroyed)
         self._driver.set_callback('Target.targetCreated', self._onTargetCreated)
@@ -253,6 +261,8 @@ class Chromium(object):
         for tab in drivers:
             for driver in tab:
                 driver.stop()
+        if not self.address.startswith('127.0.0.1'):
+            return
 
         if force:
             pids = None
@@ -331,8 +341,10 @@ class Chromium(object):
                 id_or_num = self.tab_ids[id_or_num - 1 if id_or_num > 0 else id_or_num]
             elif isinstance(id_or_num, ChromiumTab):
                 return id_or_num.tab_id if as_id else ChromiumTab(self, id_or_num.tab_id)
-            elif id_or_num not in [i['id'] for i in self._driver.get(f'http://{self.address}/json').json()]:
-                raise RuntimeError(_S._lang.join(_S._lang.NO_SUCH_TAB, ARG=id_or_num, ALL_TABS=self.tab_ids))
+            else:
+                j = self._run_cdp('Target.getTargets')['targetInfos']
+                if id_or_num not in [i['targetId'] for i in j]:
+                    raise RuntimeError(_S._lang.join(_S._lang.NO_SUCH_TAB, ARG=id_or_num, ALL_TABS=self.tab_ids))
 
         elif title == url is None and tab_type == 'page':
             id_or_num = self.tab_ids[0]
@@ -352,7 +364,12 @@ class Chromium(object):
             return MixTab(self, id_or_num) if mix else ChromiumTab(self, id_or_num)
 
     def _get_tabs(self, title=None, url=None, tab_type='page', mix=True, as_id=False):
-        tabs = self._driver.get(f'http://{self.address}/json').json()  # 不要改用cdp
+        if self._ws_only:
+            tabs = self._run_cdp('Target.getTargets')['targetInfos']
+            _id = 'targetId'
+        else:
+            tabs = self._driver.get(f'http://{self.address}/json').json()  # 不要改用cdp
+            _id = 'id'
 
         if isinstance(tab_type, str):
             tab_type = {tab_type}
@@ -366,12 +383,12 @@ class Chromium(object):
                                     and (tab_type is None or i['type'] in tab_type)
                                     and i['title'] != 'chrome-extension://neajdppkdcdipfabeoofebfddakdcjhd/audio.html')]
         if as_id:
-            return [tab['id'] for tab in tabs]
+            return [tab[_id] for tab in tabs]
         with self._lock:
             if mix:
-                return [MixTab(self, tab['id']) for tab in tabs]
+                return [MixTab(self, tab[_id]) for tab in tabs]
             else:
-                return [ChromiumTab(self, tab['id']) for tab in tabs]
+                return [ChromiumTab(self, tab[_id]) for tab in tabs]
 
     def _run_cdp(self, cmd, **cmd_args):
         ignore = cmd_args.pop('_ignore', None)
@@ -381,7 +398,11 @@ class Chromium(object):
     def _get_driver(self, tab_id, owner=None):
         d = self._drivers.pop(tab_id, None)
         if not d:
-            d = Driver(tab_id, 'page', self.address)
+            if self._ws_only:
+                d = Driver(tab_id, self._ws_address)
+                d.session_id = d.run('Target.attachToTarget', targetId=tab_id, flatten=True)['sessionId']
+            else:
+                d = Driver(tab_id, f'ws://{self.address}/devtools/page/{tab_id}')
         d.owner = owner
         self._all_drivers.setdefault(tab_id, set()).add(d)
         return d
@@ -393,7 +414,11 @@ class Chromium(object):
             try:
                 tab_id = kwargs['targetInfo']['targetId']
                 self._frames[tab_id] = tab_id
-                d = Driver(tab_id, 'page', self.address)
+                if self._ws_only:
+                    d = Driver(tab_id, self._ws_address)
+                    d.session_id = d.run('Target.attachToTarget', targetId=tab_id, flatten=True)['sessionId']
+                else:
+                    d = Driver(tab_id, f'ws://{self.address}/devtools/page/{tab_id}')
                 self._relation[tab_id] = kwargs['targetInfo'].get('openerId', None)
                 self._drivers[tab_id] = d
                 self._all_drivers.setdefault(tab_id, set()).add(d)
@@ -430,10 +455,6 @@ class Chromium(object):
 
 
 def handle_options(addr_or_opts):
-    """设置浏览器启动属性
-    :param addr_or_opts: 'ip:port'、ChromiumOptions、Driver
-    :return: 返回ChromiumOptions对象
-    """
     if not addr_or_opts:
         _chromium_options = ChromiumOptions(addr_or_opts)
         if _chromium_options.is_auto_port:
@@ -466,25 +487,42 @@ def handle_options(addr_or_opts):
 
 
 def run_browser(chromium_options):
-    """连接浏览器"""
-    is_exists = connect_browser(chromium_options)
+    if chromium_options.ws_address:
+        d = Driver('', chromium_options.ws_address)
+        browser_id = d.run('Target.getTargets')
+        if 'error' in browser_id:
+            raise BrowserConnectError(_S._lang.join(_S._lang.BROWSER_CONNECT_ERR2, INFO=browser_id['error']))
+        browser_id = browser_id['targetInfos'][0]['browserContextId']
+        is_headless = 'headless' in d.run('Browser.getVersion')['userAgent'].lower()
+        is_exists = True
+        d.stop()
+        if 'devtools/browser' not in chromium_options.ws_address:
+            return is_headless, browser_id, is_exists, True
+    else:
+        is_exists = connect_browser(chromium_options)
+
     try:
         s = Session()
         s.trust_env = False
         s.keep_alive = False
-        ws = s.get(f'http://{chromium_options.address}/json/version', headers={'Connection': 'close'})
-        if not ws:
+        ws = s.get(f'http://{chromium_options.address}/json/version', headers={'Connection': 'close'}, timeout=2)
+        if not ws and not chromium_options.ws_address:
             raise BrowserConnectError(_S._lang.BROWSER_CONNECT_ERR2)
         json = ws.json()
-        browser_id = json['webSocketDebuggerUrl'].split('/')[-1]
-        is_headless = 'headless' in json['User-Agent'].lower()
+        if not chromium_options.ws_address:
+            browser_id = json['webSocketDebuggerUrl'].split('/')[-1]
+            is_headless = 'headless' in json['User-Agent'].lower()
         ws.close()
         s.close()
+        ws_only = False
     except KeyError:
         raise BrowserConnectError(_S._lang.BROWSER_NOT_FOR_CONTROL)
     except:
-        raise BrowserConnectError(_S._lang.BROWSER_CONNECT_ERR2)
-    return is_headless, browser_id, is_exists
+        if chromium_options.ws_address:
+            ws_only = True
+        else:
+            raise BrowserConnectError(_S._lang.BROWSER_CONNECT_ERR2)
+    return is_headless, browser_id, is_exists, ws_only
 
 
 def _new_tab_by_js(browser: Chromium, url, tab_type, new_window):

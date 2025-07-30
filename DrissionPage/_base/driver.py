@@ -22,14 +22,12 @@ adapters.DEFAULT_RETRIES = 5
 
 
 class Driver(object):
-    def __init__(self, tab_id, tab_type, address, owner=None):
-        self.id = tab_id
+    def __init__(self, _id, address, owner=None):
+        self.id = _id
         self.address = address
-        self.type = tab_type
         self.owner = owner
         self.alert_flag = False  # 标记alert出现，跳过一条请求后复原
 
-        self._websocket_url = f'ws://{address}/devtools/{tab_type}/{tab_id}'
         self._cur_id = 0
         self._ws = None
 
@@ -40,6 +38,7 @@ class Driver(object):
         self._handle_immediate_event_th = None
 
         self.is_running = False
+        self.session_id = None
 
         self.event_handlers = {}
         self.immediate_event_handlers = {}
@@ -139,16 +138,14 @@ class Driver(object):
             self._handle_immediate_event_th.start()
 
     def run(self, _method, **kwargs):
-        """执行cdp方法
-        :param _method: cdp方法名
-        :param kwargs: cdp参数
-        :return: 执行结果
-        """
         if not self.is_running:
             return {'error': 'connection disconnected', 'type': 'connection_error'}
 
         timeout = kwargs.pop('_timeout', _S.cdp_timeout)
-        result = self._send({'method': _method, 'params': kwargs}, timeout=timeout)
+        if self.session_id:
+            result = self._send({'method': _method, 'params': kwargs, 'sessionId': self.session_id}, timeout=timeout)
+        else:
+            result = self._send({'method': _method, 'params': kwargs}, timeout=timeout)
         if 'result' not in result and 'error' in result:
             kwargs['_timeout'] = timeout
             return {'error': result['error']['message'], 'type': result.get('type', 'call_method_error'),
@@ -159,12 +156,12 @@ class Driver(object):
     def start(self):
         self.is_running = True
         try:
-            self._ws = create_connection(self._websocket_url, enable_multithread=True, suppress_origin=True)
+            self._ws = create_connection(self.address, enable_multithread=True, suppress_origin=True)
         except WebSocketBadStatusException as e:
             if 'Handshake status 403 Forbidden' in str(e):
                 raise EnvironmentError(_S._lang.join(_S._lang.UPGRADE_WS))
             else:
-                return
+                raise
         except ConnectionRefusedError:
             raise BrowserConnectError(_S._lang.BROWSER_NOT_EXIST)
         self._recv_th.start()
@@ -204,17 +201,17 @@ class Driver(object):
 class BrowserDriver(Driver):
     BROWSERS = {}
 
-    def __new__(cls, tab_id, tab_type, address, owner):
-        if tab_id in cls.BROWSERS:
-            return cls.BROWSERS[tab_id]
+    def __new__(cls, _id, address, owner):
+        if _id in cls.BROWSERS:
+            return cls.BROWSERS[_id]
         return object.__new__(cls)
 
-    def __init__(self, tab_id, tab_type, address, owner):
+    def __init__(self, _id, address, owner):
         if hasattr(self, '_created'):
             return
         self._created = True
-        BrowserDriver.BROWSERS[tab_id] = self
-        super().__init__(tab_id, tab_type, address, owner)
+        BrowserDriver.BROWSERS[_id] = self
+        super().__init__(_id, address, owner)
 
     def __repr__(self):
         return f'<BrowserDriver {self.id}>'
