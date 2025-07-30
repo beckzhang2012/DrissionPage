@@ -232,9 +232,9 @@ class Actions:
                 item['mimeType'] = 'text/uri-list'
             elif baseURL is not None:
                 item['baseURL'] = baseURL
-                item['text/html'] = 'text/uri-list'
+                item['mimeType'] = 'text/uri-list'
             else:
-                item['text/html'] = 'text/plain'
+                item['mimeType'] = 'text/plain'
             data = {'items': [item], 'dragOperationsMask': 1}
 
         else:
