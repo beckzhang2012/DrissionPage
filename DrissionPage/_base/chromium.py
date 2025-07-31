@@ -466,9 +466,8 @@ def handle_options(addr_or_opts):
     elif isinstance(addr_or_opts, ChromiumOptions):
         if addr_or_opts.is_auto_port:
             port, path = PortFinder(addr_or_opts.tmp_path).get_port(addr_or_opts.is_auto_port)
-            addr_or_opts.set_address(f'127.0.0.1:{port}')
+            addr_or_opts._address = f'127.0.0.1:{port}'
             addr_or_opts.set_user_data_path(path)
-            addr_or_opts.auto_port(scope=addr_or_opts.is_auto_port)
         _chromium_options = addr_or_opts
 
     elif isinstance(addr_or_opts, str) and ':' in addr_or_opts:
