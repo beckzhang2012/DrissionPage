@@ -25,5 +25,4 @@ from ._configs.session_options import SessionOptions
 from ._pages.chromium_page import ChromiumPage
 from ._pages.session_page import SessionPage
 from ._pages.web_page import WebPage
-from ._functions.task_executor import TaskExecutor
 from .version import __version__
