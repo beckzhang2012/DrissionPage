@@ -1,0 +1,13 @@
+{
+  "execution_id": "task_2_exec_20251130204250",
+  "task_id": "task_2",
+  "task_name": "定时执行任务",
+  "status": "failed",
+  "start_time": "2025-11-30T20:42:50.460487",
+  "end_time": "2025-11-30T20:42:54.658509",
+  "duration": 4,
+  "result": null,
+  "error_message": "Script execution failed with return code 1. STDERR: ",
+  "retry_count": 1,
+  "log_path": "logs\\task_2_exec_20251130204250.log"
+}

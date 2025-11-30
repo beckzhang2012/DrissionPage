@@ -1,0 +1,13 @@
+{
+  "execution_id": "task_2_exec_20251130204658",
+  "task_id": "task_2",
+  "task_name": "定时执行任务",
+  "status": "completed",
+  "start_time": "2025-11-30T20:46:58.853007",
+  "end_time": "2025-11-30T20:47:01.080740",
+  "duration": 2,
+  "result": "Script executed successfully. Return code: 0",
+  "error_message": null,
+  "retry_count": 0,
+  "log_path": "logs\\task_2_exec_20251130204658.log"
+}
