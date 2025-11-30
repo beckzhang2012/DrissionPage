@@ -1,0 +1,22 @@
+[
+  {
+    "record_id": "d8194679-1ca9-4265-878f-77dfab9ab993",
+    "task_id": "984e9e3f-1d47-4788-abe2-19dd4d7bf0b1",
+    "task_name": "正常任务",
+    "execution_time": "2025-11-30T20:39:57.810751",
+    "status": "completed",
+    "execution_duration": 2.0015242099761963,
+    "error_message": "",
+    "retry_count": 0
+  },
+  {
+    "record_id": "2148c417-2744-4bfa-991c-4a3dfd7a4125",
+    "task_id": "975bf61a-59c5-4a49-9644-9d6299cc6906",
+    "task_name": "失败任务",
+    "execution_time": "2025-11-30T20:39:59.819312",
+    "status": "failed",
+    "execution_duration": 7.007093191146851,
+    "error_message": "这是一个故意的错误",
+    "retry_count": 3
+  }
+]
