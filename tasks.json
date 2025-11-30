@@ -1,0 +1,26 @@
+[
+  {
+    "task_id": "task_1",
+    "name": "立即执行任务",
+    "script_path": "test_script.py",
+    "params": {
+      "arg1": "value1",
+      "arg2": "value2"
+    },
+    "cron_expr": null,
+    "max_retries": 2,
+    "retry_interval": 5
+  },
+  {
+    "task_id": "task_2",
+    "name": "定时执行任务",
+    "script_path": "test_script.py",
+    "params": {
+      "arg1": "value3",
+      "arg2": "value4"
+    },
+    "cron_expr": "*/2 * * * *",
+    "max_retries": 1,
+    "retry_interval": 3
+  }
+]
