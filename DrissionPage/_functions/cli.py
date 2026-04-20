@@ -29,13 +29,8 @@ WARN = 'WARN'
 @option("-u", "--set-user-path", help="设置用户数据路径")
 @option("-c", "--configs-to-here", is_flag=True, help="复制默认配置文件到当前路径")
 @option("-l", "--launch-browser", default=-1, help="启动浏览器，传入端口号，0表示用配置文件中的值")
-@option("-v", "--version", is_flag=True, help="显示版本号")
 @pass_context
-def main(ctx, set_browser_path, set_user_path, configs_to_here, launch_browser, version):
-    if version:
-        print(f'DrissionPage {__version__}')
-        return
-
+def main(ctx, set_browser_path, set_user_path, configs_to_here, launch_browser):
     if ctx.invoked_subcommand is not None:
         return
 
@@ -71,7 +66,8 @@ def set_paths(browser_path=None, user_data_path=None):
 
 
 @main.command(help='环境诊断命令：检查 Python 版本、依赖、配置、浏览器路径')
-def doctor():
+@pass_context
+def doctor(ctx):
     results = []
 
     print('=' * 50)
@@ -96,7 +92,7 @@ def doctor():
     print(f'汇总: {PASS}: {pass_count}, {WARN}: {warn_count}, {FAIL}: {fail_count}')
     print('=' * 50)
 
-    sys.exit(1 if fail_count > 0 else 0)
+    ctx.exit(1 if fail_count > 0 else 0)
 
 
 def check_python_version():
@@ -186,30 +182,49 @@ def check_browser_path():
     results = []
     from os import access, X_OK
 
+    def _is_explicit_file_path(path_str):
+        if not path_str:
+            return False
+        path_str = path_str.strip()
+        if '/' in path_str or '\\' in path_str:
+            return True
+        if path_str.lower().endswith('.exe'):
+            return True
+        if len(path_str) >= 2 and path_str[1] == ':':
+            return True
+        return False
+
+    def _check_actual_file(path_str, desc_prefix):
+        p = Path(path_str)
+        try:
+            if p.exists():
+                if p.is_file():
+                    if access(str(p), X_OK):
+                        return (PASS, f'{desc_prefix}: {path_str}')
+                    else:
+                        return (WARN, f'{desc_prefix}存在但无执行权限: {path_str}')
+                elif p.is_dir():
+                    return (WARN, f'{desc_prefix}是目录，需要指定到具体可执行文件: {path_str}')
+                else:
+                    return (WARN, f'{desc_prefix}不是常规文件: {path_str}')
+            else:
+                return (WARN, f'{desc_prefix}不存在: {path_str}')
+        except (PermissionError, OSError) as e:
+            return (WARN, f'无法访问{desc_prefix.lower()}: {path_str}, 错误: {e}')
+
     try:
         co = ChromiumOptions()
         configured_path = co.browser_path
 
-        if configured_path and configured_path.strip() and configured_path != 'chrome':
+        if configured_path and configured_path.strip():
             configured_path = configured_path.strip()
-            p = Path(configured_path)
-            try:
-                if p.exists():
-                    if p.is_file():
-                        if access(str(p), X_OK):
-                            results.append(('浏览器路径', PASS, f'配置路径: {configured_path}'))
-                        else:
-                            results.append(('浏览器路径', WARN, f'配置路径存在但无执行权限: {configured_path}'))
-                    elif p.is_dir():
-                        results.append(('浏览器路径', WARN, f'配置路径是目录，需要指定到具体可执行文件: {configured_path}'))
-                    else:
-                        results.append(('浏览器路径', WARN, f'配置路径不是常规文件: {configured_path}'))
-                else:
-                    results.append(('浏览器路径', WARN, f'配置路径不存在: {configured_path}'))
-            except (PermissionError, OSError) as e:
-                results.append(('浏览器路径', WARN, f'无法访问配置路径: {configured_path}, 错误: {e}'))
+            if _is_explicit_file_path(configured_path):
+                status, msg = _check_actual_file(configured_path, '配置路径')
+                results.append(('浏览器路径', status, msg))
+            else:
+                results.append(('浏览器路径', PASS, f'配置命令名: {configured_path}（将通过 PATH 查找）'))
         else:
-            results.append(('浏览器路径', WARN, f'未配置具体路径，将使用系统默认查找'))
+            results.append(('浏览器路径', PASS, '未配置具体路径，将使用系统默认查找'))
 
     except Exception as e:
         results.append(('浏览器路径', FAIL, f'读取浏览器配置失败: {e}'))
@@ -218,20 +233,8 @@ def check_browser_path():
         found_path = get_chrome_path(None)
         if found_path:
             found_path = found_path.strip()
-            p = Path(found_path)
-            try:
-                if p.exists():
-                    if p.is_file():
-                        if access(str(p), X_OK):
-                            results.append(('浏览器路径', PASS, f'找到浏览器: {found_path}'))
-                        else:
-                            results.append(('浏览器路径', WARN, f'找到的浏览器无执行权限: {found_path}'))
-                    else:
-                        results.append(('浏览器路径', WARN, f'找到的路径不是文件: {found_path}'))
-                else:
-                    results.append(('浏览器路径', WARN, f'找到的路径不存在: {found_path}'))
-            except (PermissionError, OSError) as e:
-                results.append(('浏览器路径', WARN, f'无法访问找到的浏览器路径: {found_path}, 错误: {e}'))
+            status, msg = _check_actual_file(found_path, '找到浏览器')
+            results.append(('浏览器路径', status, msg))
         else:
             results.append(('浏览器路径', FAIL, '未找到 Chrome/Chromium 浏览器'))
 
