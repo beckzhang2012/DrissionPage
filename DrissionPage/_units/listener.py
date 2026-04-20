@@ -5,17 +5,23 @@
 @Website  : https://DrissionPage.cn
 @Copyright: (c) 2020 by g1879, Inc. All Rights Reserved.
 """
-from base64 import b64decode
-from json import JSONDecodeError, loads
+from base64 import b64decode, b64encode
+from datetime import datetime, timedelta, timezone
+from json import JSONDecodeError, dumps, loads
+from math import ceil
+from os.path import dirname, exists
+from os import makedirs
 from queue import Queue
 from re import search
 from time import perf_counter, sleep
+from typing import Any, Optional
 
 from requests.structures import CaseInsensitiveDict
 
 from .._base.driver import Driver
 from .._functions.settings import Settings as _S
 from ..errors import WaitTimeoutError
+from ..version import __version__ as DP_VERSION
 
 
 class Listener(object):
@@ -342,6 +348,68 @@ class Listener(object):
             self._caught.put(data_packet)
             self._running_targets -= 1
 
+    def export_har(self,
+                   path: str,
+                   include_body: bool = False,
+                   max_body_kb: int = 64,
+                   clear_exported: bool = False) -> dict:
+        har = {
+            'log': {
+                'version': '1.2',
+                'creator': {
+                    'name': 'DrissionPage',
+                    'version': DP_VERSION
+                },
+                'browser': {
+                    'name': 'Chromium',
+                    'version': 'unknown'
+                },
+                'pages': [],
+                'entries': [],
+                'comment': ''
+            }
+        }
+
+        entries: list = []
+        errors: list = []
+
+        if self._caught is None:
+            pass
+        else:
+            while not self._caught.empty():
+                try:
+                    packet = self._caught.get_nowait()
+                    entry = packet.to_har_entry(include_body=include_body, max_body_kb=max_body_kb)
+                    entries.append(entry)
+
+                    if not clear_exported:
+                        self._caught.put(packet)
+
+                except Exception as e:
+                    errors.append({
+                        'index': len(entries),
+                        'error': str(e),
+                        'errorType': type(e).__name__
+                    })
+
+        har['log']['entries'] = entries
+
+        if errors:
+            har['log']['_exportErrors'] = errors
+
+        parent_dir = dirname(path)
+        if parent_dir and not exists(parent_dir):
+            makedirs(parent_dir, exist_ok=True)
+
+        try:
+            with open(path, 'w', encoding='utf-8') as f:
+                dumps(har, f, ensure_ascii=False, indent=2, default=str)
+        except Exception as e:
+            har['log']['_writeError'] = str(e)
+            raise
+
+        return har
+
 
 class FrameListener(Listener):
     def _requestWillBeSent(self, **kwargs):
@@ -437,6 +505,159 @@ class DataPacket(object):
                 sleep(.01)
             else:
                 return False
+
+    def to_har_entry(self, include_body: bool = False, max_body_kb: int = 64) -> dict:
+        entry: dict = {'request': {}, 'response': {}, 'cache': {}, 'timings': {}}
+
+        try:
+            wall_time = self._raw_request.get('wallTime', 0)
+            if wall_time > 0:
+                dt = datetime(1970, 1, 1, tzinfo=timezone.utc) + timedelta(seconds=wall_time)
+                entry['startedDateTime'] = dt.isoformat(timespec='milliseconds')
+            else:
+                entry['startedDateTime'] = datetime.now(timezone.utc).isoformat(timespec='milliseconds')
+
+            entry['time'] = 0
+            entry['timings'] = {
+                'blocked': -1,
+                'dns': -1,
+                'connect': -1,
+                'send': -1,
+                'wait': -1,
+                'receive': -1,
+                'ssl': -1
+            }
+
+            response_timing = self._raw_response.get('timing') if self._raw_response else None
+            if response_timing:
+                request_time = response_timing.get('requestTime', 0)
+                send_start = response_timing.get('sendStart', -1)
+                send_end = response_timing.get('sendEnd', -1)
+                receive_headers_end = response_timing.get('receiveHeadersEnd', -1)
+
+                if send_start >= 0:
+                    entry['timings']['send'] = max(0, send_end - send_start) if send_end >= 0 else 0
+                if receive_headers_end >= 0 and send_end >= 0:
+                    entry['timings']['wait'] = max(0, receive_headers_end - send_end)
+
+                dns_start = response_timing.get('dnsStart', -1)
+                dns_end = response_timing.get('dnsEnd', -1)
+                if dns_start >= 0 and dns_end >= 0:
+                    entry['timings']['dns'] = max(0, dns_end - dns_start)
+
+                connect_start = response_timing.get('connectStart', -1)
+                connect_end = response_timing.get('connectEnd', -1)
+                if connect_start >= 0 and connect_end >= 0:
+                    entry['timings']['connect'] = max(0, connect_end - connect_start)
+
+                ssl_start = response_timing.get('sslStart', -1)
+                ssl_end = response_timing.get('sslEnd', -1)
+                if ssl_start >= 0 and ssl_end >= 0:
+                    entry['timings']['ssl'] = max(0, ssl_end - ssl_start)
+
+                total_time = 0
+                for key in ['dns', 'connect', 'send', 'wait', 'receive']:
+                    val = entry['timings'].get(key, 0)
+                    if val > 0:
+                        total_time += val
+                entry['time'] = total_time
+
+            raw_req = self._raw_request.get('request', {}) if self._raw_request else {}
+            entry['request'] = {
+                'method': raw_req.get('method', 'GET'),
+                'url': raw_req.get('url', ''),
+                'httpVersion': 'HTTP/1.1',
+                'cookies': [],
+                'headers': [],
+                'queryString': [],
+                'headersSize': -1,
+                'bodySize': 0
+            }
+
+            headers = raw_req.get('headers', {})
+            if isinstance(headers, dict):
+                entry['request']['headers'] = [{'name': k, 'value': str(v)} for k, v in headers.items()]
+
+            post_data = None
+            if self._raw_post_data:
+                post_data = self._raw_post_data
+            elif raw_req.get('postData'):
+                post_data = raw_req['postData']
+
+            if post_data and include_body:
+                max_bytes = max_body_kb * 1024
+                post_data_str = str(post_data)
+                if len(post_data_str) > max_bytes:
+                    post_data_str = post_data_str[:max_bytes] + '... [truncated]'
+                entry['request']['postData'] = {
+                    'mimeType': 'application/octet-stream',
+                    'text': post_data_str
+                }
+                entry['request']['bodySize'] = len(post_data_str)
+
+            entry['response'] = {
+                'status': 0,
+                'statusText': '',
+                'httpVersion': 'HTTP/1.1',
+                'cookies': [],
+                'headers': [],
+                'content': {'size': 0, 'mimeType': 'text/plain'},
+                'redirectURL': '',
+                'headersSize': -1,
+                'bodySize': 0
+            }
+
+            if self.is_failed:
+                entry['response']['status'] = 0
+                entry['response']['statusText'] = self._raw_fail_info.get('errorText', 'Failed') if self._raw_fail_info else 'Failed'
+                entry['_errorType'] = self._raw_fail_info.get('blockedReason', 'unknown') if self._raw_fail_info else 'unknown'
+                entry['_failed'] = True
+            elif self._raw_response:
+                entry['response']['status'] = self._raw_response.get('status', 0)
+                entry['response']['statusText'] = self._raw_response.get('statusText', '')
+                entry['response']['headersSize'] = -1
+
+                resp_headers = self._raw_response.get('headers', {})
+                if isinstance(resp_headers, dict):
+                    entry['response']['headers'] = [{'name': k, 'value': str(v)} for k, v in resp_headers.items()]
+
+                entry['response']['content']['mimeType'] = self._raw_response.get('mimeType', 'text/plain')
+
+                if include_body and self._raw_body is not None:
+                    max_bytes = max_body_kb * 1024
+                    is_binary = self._base64_body
+
+                    if is_binary:
+                        try:
+                            body_bytes = b64decode(self._raw_body)
+                            if len(body_bytes) > max_bytes:
+                                body_bytes = body_bytes[:max_bytes]
+                                entry['response']['content']['_truncated'] = True
+                            entry['response']['content']['text'] = b64encode(body_bytes).decode('ascii')
+                            entry['response']['content']['encoding'] = 'base64'
+                            entry['response']['content']['size'] = len(body_bytes)
+                            entry['response']['bodySize'] = len(body_bytes)
+                        except Exception:
+                            entry['response']['content']['text'] = '[binary data]'
+                            entry['response']['content']['size'] = 0
+                    else:
+                        body_str = str(self._raw_body)
+                        if len(body_str) > max_bytes:
+                            body_str = body_str[:max_bytes] + '... [truncated]'
+                            entry['response']['content']['_truncated'] = True
+                        entry['response']['content']['text'] = body_str
+                        entry['response']['content']['size'] = len(body_str)
+                        entry['response']['bodySize'] = len(body_str)
+
+            entry['_resourceType'] = self._resource_type
+            entry['_tabId'] = self.tab_id
+            entry['_target'] = self.target
+
+        except Exception as e:
+            entry['_error'] = str(e)
+            entry['_errorType'] = type(e).__name__
+
+        return entry
 
 
 class Request(object):

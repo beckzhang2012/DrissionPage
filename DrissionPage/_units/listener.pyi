@@ -132,6 +132,20 @@ class Listener(object):
         """
         ...
 
+    def export_har(self,
+                   path: str,
+                   include_body: bool = False,
+                   max_body_kb: int = 64,
+                   clear_exported: bool = False) -> dict:
+        """导出监听到的数据包为HAR格式文件
+        :param path: 导出的文件路径
+        :param include_body: 是否包含请求体和响应体
+        :param max_body_kb: 单个body的最大大小（KB），超出则截断
+        :param clear_exported: 是否清空已导出的数据包
+        :return: 返回HAR格式的字典数据
+        """
+        ...
+
     def _to_target(self, target_id: str, address: str, owner: ChromiumBase) -> None:
         """切换监听的页面对象
         :param target_id: 新页面对象_target_id
@@ -232,6 +246,14 @@ class DataPacket(object):
         """等待额外的信息加载完成
         :param timeout: 超时时间（秒），None为无限等待
         :return: 是否等待成功
+        """
+        ...
+
+    def to_har_entry(self, include_body: bool = False, max_body_kb: int = 64) -> dict:
+        """将数据包转换为HAR entry格式
+        :param include_body: 是否包含请求体和响应体
+        :param max_body_kb: 单个body的最大大小（KB），超出则截断
+        :return: HAR entry格式的字典
         """
         ...
 
