@@ -149,15 +149,22 @@ class Listener(object):
         if not self.listening:
             raise RuntimeError(_S._lang.join(_S._lang.NOT_LISTENING))
         
-        effective_count = count
         if self._max_packets > 0 and count > self._max_packets:
-            effective_count = self._max_packets
+            if self._overflow_strategy == 'drop_newest':
+                if raise_err is True or (_S.raise_when_wait_failed is True and raise_err is None):
+                    raise WaitTimeoutError(
+                        _S._lang.join(_S._lang.WAITING_FAILED_, _S._lang.DATA_PACKET, timeout) +
+                        f' (count={count} > max_packets={self._max_packets}, '
+                        f'strategy=drop_newest cannot collect enough packets)'
+                    )
+                else:
+                    return False
         
         initial_dropped = self._dropped_count
         
         if not timeout:
             while self._driver.is_running and self.listening:
-                if self._caught.qsize() >= effective_count:
+                if self._caught.qsize() >= count:
                     fail = False
                     break
                 
@@ -170,7 +177,7 @@ class Listener(object):
                 
                 sleep(.03)
             else:
-                fail = self._caught.qsize() < effective_count
+                fail = self._caught.qsize() < count
 
         else:
             end = perf_counter() + timeout
@@ -178,7 +185,7 @@ class Listener(object):
             while self._driver.is_running and self.listening:
                 if perf_counter() > end:
                     break
-                if self._caught.qsize() >= effective_count:
+                if self._caught.qsize() >= count:
                     fail = False
                     break
                 
@@ -200,30 +207,28 @@ class Listener(object):
             else:
                 return [self._caught.get_nowait() for _ in range(self._caught.qsize())]
 
-        if count == 1 and self._max_packets == 0:
+        if count == 1:
             return self._caught.get_nowait()
 
-        return_count = min(count, self._caught.qsize()) if self._max_packets > 0 else count
-        if return_count == 1:
-            return self._caught.get_nowait()
-        return [self._caught.get_nowait() for _ in range(return_count)]
+        return [self._caught.get_nowait() for _ in range(count)]
 
     def steps(self, count=None, timeout=None, gap=1):
         if not self.listening:
             raise RuntimeError(_S._lang.join(_S._lang.NOT_LISTENING))
         caught = 0
-        effective_gap = gap
+        
         if self._max_packets > 0 and gap > self._max_packets:
-            effective_gap = self._max_packets
+            if self._overflow_strategy == 'drop_newest':
+                return
         
         initial_dropped = self._dropped_count
         
         if timeout is None:
             while self._driver.is_running and self.listening:
-                if self._caught.qsize() >= effective_gap:
-                    yield self._caught.get_nowait() if effective_gap == 1 else [self._caught.get_nowait() for _ in range(effective_gap)]
+                if self._caught.qsize() >= gap:
+                    yield self._caught.get_nowait() if gap == 1 else [self._caught.get_nowait() for _ in range(gap)]
                     if count:
-                        caught += effective_gap
+                        caught += gap
                         if caught >= count:
                             return
                     initial_dropped = self._dropped_count
@@ -238,11 +243,11 @@ class Listener(object):
         else:
             end = perf_counter() + timeout
             while self._driver.is_running and self.listening and perf_counter() < end:
-                if self._caught.qsize() >= effective_gap:
-                    yield self._caught.get_nowait() if effective_gap == 1 else [self._caught.get_nowait() for _ in range(effective_gap)]
+                if self._caught.qsize() >= gap:
+                    yield self._caught.get_nowait() if gap == 1 else [self._caught.get_nowait() for _ in range(gap)]
                     end = perf_counter() + timeout
                     if count:
-                        caught += effective_gap
+                        caught += gap
                         if caught >= count:
                             return
                     initial_dropped = self._dropped_count

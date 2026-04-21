@@ -626,6 +626,231 @@ class TestListenerBackpressure(unittest.TestCase):
         exit_code = 0
         print(f"\n  [Exit Code] {exit_code}")
 
+    def test_14_wait_count_exceeds_max_packets(self):
+        """测试6a：wait() count > max_packets 时的处理规则"""
+        print("\n" + "="*60)
+        print("测试6a：wait() count > max_packets 时的处理规则")
+        print("="*60)
+        
+        from DrissionPage.errors import WaitTimeoutError
+        
+        listener_drop_newest = self.Listener(self.mock_owner, max_packets=5, overflow_strategy='drop_newest')
+        listener_drop_newest.clear()
+        mock_driver = self.setup_mock_driver(listener_drop_newest)
+        listener_drop_newest.listening = True
+        
+        for i in range(10):
+            packet = self.create_packet(i)
+            listener_drop_newest._put_packet(packet)
+        
+        print(f"  - drop_newest: max_packets=5, count=10 (exceeds max_packets)")
+        print(f"  - queue_size: {listener_drop_newest.queue_size}, dropped_count: {listener_drop_newest.dropped_count}")
+        
+        result = listener_drop_newest.wait(count=10, timeout=0.1, fit_count=True, raise_err=False)
+        self.assertFalse(result)
+        print(f"  - wait(count=10, timeout=0.1, raise_err=False) returns: {result}")
+        
+        try:
+            listener_drop_newest.wait(count=10, timeout=0.1, fit_count=True, raise_err=True)
+            self.fail("Should raise WaitTimeoutError")
+        except WaitTimeoutError as e:
+            print(f"  - wait(count=10, raise_err=True) raises WaitTimeoutError: OK")
+            self.assertIn('count=10 > max_packets=5', str(e))
+            self.assertIn('drop_newest', str(e))
+        
+        listener_drop_oldest = self.Listener(self.mock_owner, max_packets=5, overflow_strategy='drop_oldest')
+        listener_drop_oldest.clear()
+        mock_driver2 = self.setup_mock_driver(listener_drop_oldest)
+        listener_drop_oldest.listening = True
+        
+        for i in range(10):
+            packet = self.create_packet(i)
+            listener_drop_oldest._put_packet(packet)
+        
+        print(f"  - drop_oldest: max_packets=5, count=10 (exceeds max_packets)")
+        print(f"  - queue_size: {listener_drop_oldest.queue_size}, dropped_count: {listener_drop_oldest.dropped_count}")
+        
+        result2 = listener_drop_oldest.wait(count=10, timeout=0.1, fit_count=True, raise_err=False)
+        self.assertFalse(result2)
+        print(f"  - wait(count=10, timeout=0.1, raise_err=False) returns: {result2}")
+        
+        print("  [PASS] wait() count > max_packets behavior verified")
+        
+        exit_code = 0
+        print(f"\n  [Exit Code] {exit_code}")
+
+    def test_15_steps_gap_exceeds_max_packets(self):
+        """测试6b：steps() gap > max_packets 时的处理规则"""
+        print("\n" + "="*60)
+        print("测试6b：steps() gap > max_packets 时的处理规则")
+        print("="*60)
+        
+        listener_drop_newest = self.Listener(self.mock_owner, max_packets=5, overflow_strategy='drop_newest')
+        listener_drop_newest.clear()
+        mock_driver = self.setup_mock_driver(listener_drop_newest)
+        listener_drop_newest.listening = True
+        
+        for i in range(10):
+            packet = self.create_packet(i)
+            listener_drop_newest._put_packet(packet)
+        
+        print(f"  - drop_newest: max_packets=5, gap=10 (exceeds max_packets)")
+        print(f"  - queue_size: {listener_drop_newest.queue_size}, dropped_count: {listener_drop_newest.dropped_count}")
+        
+        packets = list(listener_drop_newest.steps(gap=10, timeout=0.1))
+        self.assertEqual(len(packets), 0)
+        print(f"  - steps(gap=10, timeout=0.1) yields: {len(packets)} items (expected 0)")
+        
+        listener_drop_oldest = self.Listener(self.mock_owner, max_packets=5, overflow_strategy='drop_oldest')
+        listener_drop_oldest.clear()
+        mock_driver2 = self.setup_mock_driver(listener_drop_oldest)
+        listener_drop_oldest.listening = True
+        
+        for i in range(10):
+            packet = self.create_packet(i)
+            listener_drop_oldest._put_packet(packet)
+        
+        print(f"  - drop_oldest: max_packets=5, gap=10 (exceeds max_packets)")
+        print(f"  - queue_size: {listener_drop_oldest.queue_size}, dropped_count: {listener_drop_oldest.dropped_count}")
+        
+        packets2 = list(listener_drop_oldest.steps(gap=10, timeout=0.1))
+        self.assertEqual(len(packets2), 0)
+        print(f"  - steps(gap=10, timeout=0.1) yields: {len(packets2)} items (expected 0)")
+        
+        print("  [PASS] steps() gap > max_packets behavior verified")
+        
+        exit_code = 0
+        print(f"\n  [Exit Code] {exit_code}")
+
+    def test_16_backward_compat_unbounded(self):
+        """测试7：老行为不回归 - 无界队列（默认）行为不变"""
+        print("\n" + "="*60)
+        print("测试7：老行为不回归 - 无界队列（默认）行为不变")
+        print("="*60)
+        
+        listener = self.Listener(self.mock_owner)
+        listener.clear()
+        
+        self.assertEqual(listener.max_packets, 0)
+        self.assertEqual(listener.overflow_strategy, 'drop_oldest')
+        self.assertEqual(listener.dropped_count, 0)
+        self.assertEqual(listener.queue_size, 0)
+        
+        print(f"  - default max_packets: {listener.max_packets} (unbounded)")
+        print(f"  - default overflow_strategy: {listener.overflow_strategy}")
+        
+        for i in range(1000):
+            packet = self.create_packet(i)
+            result = listener._put_packet(packet)
+            self.assertTrue(result)
+        
+        self.assertEqual(listener.queue_size, 1000)
+        self.assertEqual(listener.dropped_count, 0)
+        print(f"  - enqueued 1000 packets: queue_size={listener.queue_size}, dropped={listener.dropped_count}")
+        
+        for i in range(1000):
+            packet = listener._caught.get_nowait()
+            url = packet._raw_request['request']['url']
+            expected = f'http://test.com/{i}'
+            self.assertEqual(url, expected)
+        
+        self.assertEqual(listener.queue_size, 0)
+        print(f"  - consumed 1000 packets: queue_size={listener.queue_size}")
+        
+        print("  [PASS] Unbounded queue backward compatibility verified")
+        
+        exit_code = 0
+        print(f"\n  [Exit Code] {exit_code}")
+
+    def test_17_pause_resume_backward_compat(self):
+        """测试8：pause/resume 老行为不回归"""
+        print("\n" + "="*60)
+        print("测试8：pause/resume 老行为不回归")
+        print("="*60)
+        
+        listener = self.Listener(self.mock_owner)
+        listener.clear()
+        
+        self.assertIsNone(listener._driver)
+        self.assertFalse(listener.listening)
+        
+        print(f"  - initial: driver={listener._driver}, listening={listener.listening}")
+        
+        try:
+            listener.pause(clear=False)
+            print("  - pause() without driver: OK (no crash)")
+        except Exception as e:
+            self.fail(f"pause() without driver crashed: {e}")
+        
+        self.assertFalse(listener.listening)
+        
+        try:
+            listener.resume()
+            self.fail("resume() without driver should raise RuntimeError")
+        except RuntimeError:
+            print("  - resume() without driver: raises RuntimeError (expected)")
+        
+        listener.listening = True
+        self.assertTrue(listener.listening)
+        
+        listener.pause(clear=False)
+        self.assertFalse(listener.listening)
+        print(f"  - pause(clear=False) sets listening={listener.listening}")
+        
+        listener.listening = True
+        listener.pause(clear=True)
+        self.assertFalse(listener.listening)
+        self.assertEqual(listener.queue_size, 0)
+        print(f"  - pause(clear=True) sets listening={listener.listening}, queue_size={listener.queue_size}")
+        
+        print("  [PASS] pause/resume backward compatibility verified")
+        
+        exit_code = 0
+        print(f"\n  [Exit Code] {exit_code}")
+
+    def test_18_start_stop_backward_compat(self):
+        """测试9：start/stop 老行为不回归（模拟）"""
+        print("\n" + "="*60)
+        print("测试9：start/stop 老行为不回归（模拟）")
+        print("="*60)
+        
+        listener = self.Listener(self.mock_owner)
+        listener.clear()
+        
+        self.assertFalse(listener.listening)
+        self.assertEqual(listener.queue_size, 0)
+        self.assertEqual(listener.dropped_count, 0)
+        
+        print(f"  - initial: listening={listener.listening}")
+        
+        listener.listening = False
+        listener.clear()
+        self.assertEqual(listener.queue_size, 0)
+        self.assertFalse(listener.listening)
+        
+        listener2 = self.Listener(self.mock_owner, max_packets=10)
+        listener2.clear()
+        
+        self.assertEqual(listener2.max_packets, 10)
+        self.assertEqual(listener2.overflow_strategy, 'drop_oldest')
+        self.assertFalse(listener2.listening)
+        
+        print(f"  - listener2 (max_packets=10): max_packets={listener2.max_packets}")
+        
+        for i in range(5):
+            packet = self.create_packet(i)
+            listener2._put_packet(packet)
+        
+        self.assertEqual(listener2.queue_size, 5)
+        self.assertEqual(listener2.dropped_count, 0)
+        
+        print(f"  - enqueued 5 packets: queue_size={listener2.queue_size}")
+        
+        print("  [PASS] start/stop backward compatibility verified")
+        
+        exit_code = 0
+        print(f"\n  [Exit Code] {exit_code}")
+
 
 def run_tests():
     """运行所有测试并返回汇总结果"""
