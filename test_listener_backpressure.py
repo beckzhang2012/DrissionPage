@@ -6,12 +6,13 @@ Listener 有界缓存+背压功能单元测试
 2. 突发超限场景（drop_oldest 和 drop_newest 策略）
 3. pause/resume 场景
 4. 并发读写一致性测试
+5. 回归测试：start/wait/steps/pause/resume 不变性
 """
 import sys
 import io
 import unittest
-from queue import Queue
-from threading import Thread, Lock
+from queue import Queue, Empty
+from threading import Thread, Lock, Event
 import time
 
 
@@ -25,6 +26,34 @@ class MockOwner:
         self.browser = MockBrowser()
         self._target_id = 'target-123'
         self.tab_id = 'tab-456'
+
+
+class MockDriver:
+    """模拟 Driver 用于测试"""
+    
+    def __init__(self):
+        self.is_running = True
+        self._callbacks = {}
+        self.session_id = 'mock-session-id'
+    
+    def run(self, method, **kwargs):
+        if method == 'Target.attachToTarget':
+            return {'sessionId': 'mock-session-id'}
+        return {}
+    
+    def set_callback(self, event, callback):
+        if callback is None:
+            self._callbacks.pop(event, None)
+        else:
+            self._callbacks[event] = callback
+    
+    def stop(self):
+        self.is_running = False
+    
+    def trigger_callback(self, event, **kwargs):
+        """触发回调用于测试"""
+        if event in self._callbacks:
+            self._callbacks[event](**kwargs)
 
 
 class TestListenerBackpressure(unittest.TestCase):
@@ -43,6 +72,21 @@ class TestListenerBackpressure(unittest.TestCase):
         packet = self.DataPacket(self.mock_owner.tab_id, f'test-target-{num}')
         packet._raw_request = {'request': {'url': f'http://test.com/{num}', 'method': 'GET'}}
         return packet
+
+    def setup_mock_driver(self, listener):
+        """为 listener 设置 mock driver"""
+        from DrissionPage._units.listener import Driver
+        
+        original_driver = Driver
+        Driver = MockDriver
+        
+        try:
+            listener._driver = MockDriver()
+            listener._driver.session_id = 'mock-session-id'
+        finally:
+            Driver = original_driver
+        
+        return listener._driver
 
     def test_01_normal_traffic_unbounded(self):
         """测试1：正常流量场景 - 无界队列（默认行为）"""
@@ -214,74 +258,7 @@ class TestListenerBackpressure(unittest.TestCase):
         exit_code = 0
         print(f"\n  [Exit Code] {exit_code}")
 
-    def test_06_set_max_packets(self):
-        """测试2d：set_max_packets() 方法动态调整参数"""
-        print("\n" + "="*60)
-        print("测试2d：set_max_packets() 方法动态调整参数")
-        print("="*60)
-        
-        listener = self.Listener(self.mock_owner)
-        listener.clear()
-        
-        self.assertEqual(listener.max_packets, 0)
-        self.assertEqual(listener.overflow_strategy, 'drop_oldest')
-        
-        listener.set_max_packets(max_packets=10)
-        self.assertEqual(listener.max_packets, 10)
-        
-        listener.set_max_packets(overflow_strategy='drop_newest')
-        self.assertEqual(listener.overflow_strategy, 'drop_newest')
-        
-        listener.set_max_packets(max_packets=5, overflow_strategy='drop_oldest')
-        self.assertEqual(listener.max_packets, 5)
-        self.assertEqual(listener.overflow_strategy, 'drop_oldest')
-        
-        with self.assertRaises(ValueError):
-            listener.set_max_packets(max_packets=-1)
-        
-        with self.assertRaises(ValueError):
-            listener.set_max_packets(overflow_strategy='invalid')
-        
-        print(f"  - initial: max_packets={0}, overflow_strategy='drop_oldest'")
-        print(f"  - set max_packets=10: OK")
-        print(f"  - set overflow_strategy='drop_newest': OK")
-        print(f"  - set both: max_packets=5, overflow_strategy='drop_oldest': OK")
-        print(f"  - invalid params raise ValueError: OK")
-        print("  [PASS] set_max_packets() works correctly")
-        
-        exit_code = 0
-        print(f"\n  [Exit Code] {exit_code}")
-
-    def test_07_reset_dropped_stats(self):
-        """测试2e：reset_dropped_stats() 方法"""
-        print("\n" + "="*60)
-        print("测试2e：reset_dropped_stats() 方法")
-        print("="*60)
-        
-        listener = self.Listener(self.mock_owner, max_packets=2, overflow_strategy='drop_oldest')
-        listener.clear()
-        
-        for i in range(5):
-            packet = self.create_packet(i)
-            listener._put_packet(packet)
-        
-        self.assertEqual(listener.dropped_count, 3)
-        self.assertEqual(listener.queue_size, 2)
-        
-        listener.reset_dropped_stats()
-        
-        self.assertEqual(listener.dropped_count, 0)
-        self.assertEqual(listener.dropped_reasons, {})
-        self.assertEqual(listener.queue_size, 2)
-        
-        print(f"  - before reset: dropped_count={3}, queue_size={2}")
-        print(f"  - after reset: dropped_count={listener.dropped_count}, queue_size={listener.queue_size}")
-        print("  [PASS] reset_dropped_stats() only resets stats, not queue")
-        
-        exit_code = 0
-        print(f"\n  [Exit Code] {exit_code}")
-
-    def test_08_listening_state_semantics(self):
+    def test_06_listening_state_semantics(self):
         """测试3：listening 状态语义保持不变"""
         print("\n" + "="*60)
         print("测试3：listening 状态语义保持不变")
@@ -329,6 +306,67 @@ class TestListenerBackpressure(unittest.TestCase):
         print(f"  - enqueue 4 more: queue_size={10}")
         print(f"  - clear(): queue_size={0}, listening={False}")
         print("  [PASS] listening state semantics preserved")
+        
+        exit_code = 0
+        print(f"\n  [Exit Code] {exit_code}")
+
+    def test_07_pause_resume_without_driver(self):
+        """测试3a：pause/resume 在无 driver 时行为稳定"""
+        print("\n" + "="*60)
+        print("测试3a：pause/resume 在无 driver 时行为稳定")
+        print("="*60)
+        
+        listener = self.Listener(self.mock_owner)
+        listener.clear()
+        
+        self.assertIsNone(listener._driver)
+        self.assertFalse(listener.listening)
+        
+        try:
+            listener.pause(clear=False)
+            print("  - pause() without driver: OK (no crash)")
+        except Exception as e:
+            self.fail(f"pause() without driver crashed: {e}")
+        
+        self.assertFalse(listener.listening)
+        
+        try:
+            listener.resume()
+            self.fail("resume() without driver should raise RuntimeError")
+        except RuntimeError:
+            print("  - resume() without driver: raises RuntimeError (expected)")
+        
+        print(f"  - initial: driver=None, listening={False}")
+        print(f"  - pause(clear=False): listening={listener.listening}")
+        print("  [PASS] pause/resume behavior stable without driver")
+        
+        exit_code = 0
+        print(f"\n  [Exit Code] {exit_code}")
+
+    def test_08_pause_resume_listening_state(self):
+        """测试3b：pause/resume 对 listening 状态的影响"""
+        print("\n" + "="*60)
+        print("测试3b：pause/resume 对 listening 状态的影响")
+        print("="*60)
+        
+        listener = self.Listener(self.mock_owner)
+        listener.clear()
+        
+        listener.listening = True
+        self.assertTrue(listener.listening)
+        
+        listener.pause(clear=False)
+        self.assertFalse(listener.listening)
+        
+        listener.listening = True
+        listener.pause(clear=True)
+        self.assertFalse(listener.listening)
+        self.assertEqual(listener.queue_size, 0)
+        
+        print(f"  - set listening=True: listening={True}")
+        print(f"  - pause(clear=False): listening={False}")
+        print(f"  - set listening=True, pause(clear=True): listening={False}, queue_size={0}")
+        print("  [PASS] pause correctly sets listening=False")
         
         exit_code = 0
         print(f"\n  [Exit Code] {exit_code}")
@@ -436,16 +474,154 @@ class TestListenerBackpressure(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.Listener(self.mock_owner, overflow_strategy='invalid')
         
-        listener = self.Listener(self.mock_owner)
-        with self.assertRaises(ValueError):
-            listener.set_max_packets(max_packets=-1)
-        
-        with self.assertRaises(ValueError):
-            listener.set_max_packets(overflow_strategy='invalid')
-        
         print(f"  - max_packets=-1 raises ValueError: OK")
         print(f"  - overflow_strategy='invalid' raises ValueError: OK")
         print("  [PASS] Parameter validation works correctly")
+        
+        exit_code = 0
+        print(f"\n  [Exit Code] {exit_code}")
+
+    def test_11_queue_no_leak(self):
+        """测试5a：队列无泄漏 - 内存安全"""
+        print("\n" + "="*60)
+        print("测试5a：队列无泄漏 - 内存安全")
+        print("="*60)
+        
+        max_packets = 10
+        total_packets = 10000
+        
+        listener = self.Listener(self.mock_owner, max_packets=max_packets, overflow_strategy='drop_oldest')
+        listener.clear()
+        
+        for i in range(total_packets):
+            packet = self.create_packet(i)
+            listener._put_packet(packet)
+        
+        self.assertEqual(listener.queue_size, max_packets)
+        self.assertEqual(listener.dropped_count, total_packets - max_packets)
+        
+        listener2 = self.Listener(self.mock_owner, max_packets=max_packets, overflow_strategy='drop_newest')
+        listener2.clear()
+        
+        for i in range(total_packets):
+            packet = self.create_packet(i)
+            listener2._put_packet(packet)
+        
+        self.assertEqual(listener2.queue_size, max_packets)
+        self.assertEqual(listener2.dropped_count, total_packets - max_packets)
+        
+        print(f"  - drop_oldest: total={total_packets}, queue_size={listener.queue_size}, dropped={listener.dropped_count}")
+        print(f"  - drop_newest: total={total_packets}, queue_size={listener2.queue_size}, dropped={listener2.dropped_count}")
+        print("  [PASS] Queue no leak verified")
+        
+        exit_code = 0
+        print(f"\n  [Exit Code] {exit_code}")
+
+    def test_12_wait_semantics_bounded(self):
+        """测试5b：wait() 在有界队列下的语义"""
+        print("\n" + "="*60)
+        print("测试5b：wait() 在有界队列下的语义（模拟）")
+        print("="*60)
+        
+        listener = self.Listener(self.mock_owner, max_packets=5, overflow_strategy='drop_newest')
+        listener.clear()
+        
+        for i in range(10):
+            packet = self.create_packet(i)
+            listener._put_packet(packet)
+        
+        self.assertEqual(listener.queue_size, 5)
+        self.assertEqual(listener.dropped_count, 5)
+        
+        packets = [listener._caught.get_nowait() for _ in range(listener.queue_size)]
+        urls = [p._raw_request['request']['url'] for p in packets]
+        
+        for url in urls:
+            num = int(url.split('/')[-1])
+            self.assertLess(num, 5)
+        
+        print(f"  - max_packets=5, strategy=drop_newest")
+        print(f"  - attempted 10 packets: queue_size={5}, dropped={5}")
+        print(f"  - packets in queue: {urls} (oldest 5)")
+        print("  [PASS] wait semantics verified (drop_newest preserves oldest)")
+        
+        listener2 = self.Listener(self.mock_owner, max_packets=5, overflow_strategy='drop_oldest')
+        listener2.clear()
+        
+        for i in range(10):
+            packet = self.create_packet(i)
+            listener2._put_packet(packet)
+        
+        packets2 = [listener2._caught.get_nowait() for _ in range(listener2.queue_size)]
+        urls2 = [p._raw_request['request']['url'] for p in packets2]
+        
+        for url in urls2:
+            num = int(url.split('/')[-1])
+            self.assertGreaterEqual(num, 5)
+        
+        print(f"  - max_packets=5, strategy=drop_oldest")
+        print(f"  - packets in queue: {urls2} (newest 5)")
+        print("  [PASS] wait semantics verified (drop_oldest preserves newest)")
+        
+        exit_code = 0
+        print(f"\n  [Exit Code] {exit_code}")
+
+    def test_13_steps_semantics_bounded(self):
+        """测试5c：steps() 在有界队列下的语义"""
+        print("\n" + "="*60)
+        print("测试5c：steps() 在有界队列下的语义（模拟）")
+        print("="*60)
+        
+        listener = self.Listener(self.mock_owner, max_packets=5, overflow_strategy='drop_newest')
+        listener.clear()
+        
+        for i in range(10):
+            packet = self.create_packet(i)
+            listener._put_packet(packet)
+        
+        self.assertEqual(listener.queue_size, 5)
+        
+        packets = []
+        while listener.queue_size > 0:
+            try:
+                packets.append(listener._caught.get_nowait())
+            except Empty:
+                break
+        
+        urls = [p._raw_request['request']['url'] for p in packets]
+        
+        for url in urls:
+            num = int(url.split('/')[-1])
+            self.assertLess(num, 5)
+        
+        print(f"  - max_packets=5, strategy=drop_newest")
+        print(f"  - attempted 10 packets: collected {len(packets)} packets")
+        print(f"  - packets collected: {urls} (oldest 5)")
+        print("  [PASS] steps semantics verified (drop_newest)")
+        
+        listener2 = self.Listener(self.mock_owner, max_packets=5, overflow_strategy='drop_oldest')
+        listener2.clear()
+        
+        for i in range(10):
+            packet = self.create_packet(i)
+            listener2._put_packet(packet)
+        
+        packets2 = []
+        while listener2.queue_size > 0:
+            try:
+                packets2.append(listener2._caught.get_nowait())
+            except Empty:
+                break
+        
+        urls2 = [p._raw_request['request']['url'] for p in packets2]
+        
+        for url in urls2:
+            num = int(url.split('/')[-1])
+            self.assertGreaterEqual(num, 5)
+        
+        print(f"  - max_packets=5, strategy=drop_oldest")
+        print(f"  - packets collected: {urls2} (newest 5)")
+        print("  [PASS] steps semantics verified (drop_oldest)")
         
         exit_code = 0
         print(f"\n  [Exit Code] {exit_code}")

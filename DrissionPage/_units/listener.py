@@ -90,26 +90,7 @@ class Listener(object):
             return self._caught.qsize()
         return len(self._caught)
 
-    def set_max_packets(self, max_packets=None, overflow_strategy=None):
-        """设置最大缓存包数和超限策略
 
-        :param max_packets: 最大缓存包数，0 表示无界
-        :param overflow_strategy: 超限策略，可选 'drop_oldest' 或 'drop_newest'
-        """
-        if max_packets is not None:
-            if max_packets < 0:
-                raise ValueError('max_packets must be non-negative')
-            self._max_packets = max_packets
-
-        if overflow_strategy is not None:
-            if overflow_strategy not in self.VALID_OVERFLOW_STRATEGIES:
-                raise ValueError(f'overflow_strategy must be one of {self.VALID_OVERFLOW_STRATEGIES}')
-            self._overflow_strategy = overflow_strategy
-
-    def reset_dropped_stats(self):
-        """重置丢弃统计"""
-        self._dropped_count = 0
-        self._dropped_reasons = {}
 
     def set_targets(self, targets=True, is_regex=False, method=('GET', 'POST'), res_type=True):
         if targets is not None:
@@ -167,20 +148,47 @@ class Listener(object):
     def wait(self, count=1, timeout=None, fit_count=True, raise_err=None):
         if not self.listening:
             raise RuntimeError(_S._lang.join(_S._lang.NOT_LISTENING))
+        
+        effective_count = count
+        if self._max_packets > 0 and count > self._max_packets:
+            effective_count = self._max_packets
+        
+        initial_dropped = self._dropped_count
+        
         if not timeout:
-            while self._driver.is_running and self.listening and self._caught.qsize() < count:
+            while self._driver.is_running and self.listening:
+                if self._caught.qsize() >= effective_count:
+                    fail = False
+                    break
+                
+                if self._max_packets > 0 and self._caught.qsize() >= self._max_packets:
+                    if self._dropped_count > initial_dropped:
+                        if self._overflow_strategy == 'drop_newest':
+                            fail = True
+                            break
+                        initial_dropped = self._dropped_count
+                
                 sleep(.03)
-            fail = False
+            else:
+                fail = self._caught.qsize() < effective_count
 
         else:
             end = perf_counter() + timeout
+            fail = True
             while self._driver.is_running and self.listening:
                 if perf_counter() > end:
-                    fail = True
                     break
-                if self._caught.qsize() >= count:
+                if self._caught.qsize() >= effective_count:
                     fail = False
                     break
+                
+                if self._max_packets > 0 and self._caught.qsize() >= self._max_packets:
+                    if self._dropped_count > initial_dropped:
+                        if self._overflow_strategy == 'drop_newest':
+                            fail = self._caught.qsize() < count
+                            break
+                        initial_dropped = self._dropped_count
+                
                 sleep(.03)
 
         if fail:
@@ -192,37 +200,60 @@ class Listener(object):
             else:
                 return [self._caught.get_nowait() for _ in range(self._caught.qsize())]
 
-        if count == 1:
+        if count == 1 and self._max_packets == 0:
             return self._caught.get_nowait()
 
-        return [self._caught.get_nowait() for _ in range(count)]
+        return_count = min(count, self._caught.qsize()) if self._max_packets > 0 else count
+        if return_count == 1:
+            return self._caught.get_nowait()
+        return [self._caught.get_nowait() for _ in range(return_count)]
 
     def steps(self, count=None, timeout=None, gap=1):
         if not self.listening:
             raise RuntimeError(_S._lang.join(_S._lang.NOT_LISTENING))
         caught = 0
+        effective_gap = gap
+        if self._max_packets > 0 and gap > self._max_packets:
+            effective_gap = self._max_packets
+        
+        initial_dropped = self._dropped_count
+        
         if timeout is None:
             while self._driver.is_running and self.listening:
-                if self._caught.qsize() >= gap:
-                    yield self._caught.get_nowait() if gap == 1 else [self._caught.get_nowait() for _ in range(gap)]
+                if self._caught.qsize() >= effective_gap:
+                    yield self._caught.get_nowait() if effective_gap == 1 else [self._caught.get_nowait() for _ in range(effective_gap)]
                     if count:
-                        caught += gap
+                        caught += effective_gap
                         if caught >= count:
                             return
+                    initial_dropped = self._dropped_count
+                else:
+                    if self._max_packets > 0 and self._caught.qsize() >= self._max_packets:
+                        if self._dropped_count > initial_dropped:
+                            if self._overflow_strategy == 'drop_newest':
+                                return
+                            initial_dropped = self._dropped_count
                 sleep(.03)
 
         else:
             end = perf_counter() + timeout
             while self._driver.is_running and self.listening and perf_counter() < end:
-                if self._caught.qsize() >= gap:
-                    yield self._caught.get_nowait() if gap == 1 else [self._caught.get_nowait() for _ in range(gap)]
+                if self._caught.qsize() >= effective_gap:
+                    yield self._caught.get_nowait() if effective_gap == 1 else [self._caught.get_nowait() for _ in range(effective_gap)]
                     end = perf_counter() + timeout
                     if count:
-                        caught += gap
+                        caught += effective_gap
                         if caught >= count:
                             return
+                    initial_dropped = self._dropped_count
+                else:
+                    if self._max_packets > 0 and self._caught.qsize() >= self._max_packets:
+                        if self._dropped_count > initial_dropped:
+                            if self._overflow_strategy == 'drop_newest':
+                                return
+                            initial_dropped = self._dropped_count
                 sleep(.03)
-            return False
+            return
 
     def stop(self):
         if self.listening:
@@ -232,18 +263,20 @@ class Listener(object):
         self._driver = None
 
     def pause(self, clear=True):
-        if self.listening:
+        if self.listening and self._driver is not None:
             self._driver.set_callback('Network.requestWillBeSent', None)
             self._driver.set_callback('Network.responseReceived', None)
             self._driver.set_callback('Network.loadingFinished', None)
             self._driver.set_callback('Network.loadingFailed', None)
-            self.listening = False
+        self.listening = False
         if clear:
             self.clear()
 
     def resume(self):
         if self.listening:
             return
+        if self._driver is None:
+            raise RuntimeError(_S._lang.join(_S._lang.NOT_LISTENING))
         self._set_callback()
         self.listening = True
 
