@@ -372,25 +372,30 @@ class Listener(object):
 
         entries: list = []
         errors: list = []
+        packets: list = []
 
-        if self._caught is None:
-            pass
-        else:
+        if self._caught is not None:
             while not self._caught.empty():
                 try:
                     packet = self._caught.get_nowait()
-                    entry = packet.to_har_entry(include_body=include_body, max_body_kb=max_body_kb)
-                    entries.append(entry)
+                    packets.append(packet)
+                except Exception:
+                    break
 
-                    if not clear_exported:
-                        self._caught.put(packet)
+        for idx, packet in enumerate(packets):
+            try:
+                entry = packet.to_har_entry(include_body=include_body, max_body_kb=max_body_kb)
+                entries.append(entry)
+            except Exception as e:
+                errors.append({
+                    'index': idx,
+                    'error': str(e),
+                    'errorType': type(e).__name__
+                })
 
-                except Exception as e:
-                    errors.append({
-                        'index': len(entries),
-                        'error': str(e),
-                        'errorType': type(e).__name__
-                    })
+        if not clear_exported:
+            for packet in packets:
+                self._caught.put(packet)
 
         har['log']['entries'] = entries
 
@@ -403,7 +408,7 @@ class Listener(object):
 
         try:
             with open(path, 'w', encoding='utf-8') as f:
-                dumps(har, f, ensure_ascii=False, indent=2, default=str)
+                f.write(dumps(har, ensure_ascii=False, indent=2, default=str))
         except Exception as e:
             har['log']['_writeError'] = str(e)
             raise
@@ -608,8 +613,16 @@ class DataPacket(object):
             }
 
             if self.is_failed:
-                entry['response']['status'] = 0
-                entry['response']['statusText'] = self._raw_fail_info.get('errorText', 'Failed') if self._raw_fail_info else 'Failed'
+                if self._raw_response and self._raw_response.get('status') is not None:
+                    entry['response']['status'] = self._raw_response.get('status', 0)
+                    entry['response']['statusText'] = self._raw_response.get('statusText', '')
+                    resp_headers = self._raw_response.get('headers', {})
+                    if isinstance(resp_headers, dict):
+                        entry['response']['headers'] = [{'name': k, 'value': str(v)} for k, v in resp_headers.items()]
+                    entry['response']['content']['mimeType'] = self._raw_response.get('mimeType', 'text/plain')
+                else:
+                    entry['response']['status'] = 0
+                    entry['response']['statusText'] = self._raw_fail_info.get('errorText', 'Failed') if self._raw_fail_info else 'Failed'
                 entry['_errorType'] = self._raw_fail_info.get('blockedReason', 'unknown') if self._raw_fail_info else 'unknown'
                 entry['_failed'] = True
             elif self._raw_response:
