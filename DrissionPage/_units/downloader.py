@@ -71,6 +71,13 @@ class DownloadManager(object):
     def get_tab_missions(self, tab_id):
         return self._tab_missions.get(tab_id, set())
 
+    def _clean_flags_for_mission(self, mission):
+        for tab_id, flag in list(self._flags.items()):
+            if flag is mission:
+                self._flags.pop(tab_id, None)
+            elif isinstance(flag, list) and len(flag) >= 2 and flag[1] is mission:
+                self._flags.pop(tab_id, None)
+
     def set_done(self, mission, state, final_path=None):
         if mission._is_done:
             return
@@ -82,11 +89,16 @@ class DownloadManager(object):
         mission.final_path = final_path
         if mission.tab_id in self._tab_missions:
             self._tab_missions[mission.tab_id].discard(mission)
+            if not self._tab_missions[mission.tab_id]:
+                self._tab_missions.pop(mission.tab_id, None)
         if mission.from_tab and mission.from_tab in self._tab_missions:
             self._tab_missions[mission.from_tab].discard(mission)
+            if not self._tab_missions[mission.from_tab]:
+                self._tab_missions.pop(mission.from_tab, None)
+        self._clean_flags_for_mission(mission)
 
     def cancel(self, mission):
-        if mission._is_done:
+        if mission.state == 'canceled':
             return
         mission.state = 'canceled'
         try:
@@ -98,7 +110,7 @@ class DownloadManager(object):
         self.set_done(mission, 'canceled')
 
     def skip(self, mission):
-        if mission._is_done:
+        if mission.state == 'skipped':
             return
         mission.state = 'skipped'
         try:
@@ -110,9 +122,16 @@ class DownloadManager(object):
     def clear_tab_info(self, tab_id):
         tab_missions = self._tab_missions.pop(tab_id, set())
         for mission in tab_missions:
+            if mission.state not in ('canceled', 'skipped'):
+                mission.state = 'canceled'
             if not mission._is_done:
                 self._missions.pop(mission.id, None)
                 mission._is_done = True
+                if mission.from_tab and mission.from_tab in self._tab_missions:
+                    self._tab_missions[mission.from_tab].discard(mission)
+                    if not self._tab_missions[mission.from_tab]:
+                        self._tab_missions.pop(mission.from_tab, None)
+                self._clean_flags_for_mission(mission)
         self._flags.pop(tab_id, None)
         TabDownloadSettings.TABS.pop(tab_id, None)
         self._waiting_tab.discard(tab_id)
