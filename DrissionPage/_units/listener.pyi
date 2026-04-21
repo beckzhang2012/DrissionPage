@@ -18,6 +18,9 @@ __RES_TYPE__ = Literal['Document', 'Stylesheet', 'Image', 'Media', 'Font', 'Scri
 'Prefetch', 'EventSource', 'WebSocket', 'Manifest', 'SignedExchange', 'Ping', 'CSPViolationReport', 'Preflight', 'Other']
 
 
+from typing import Dict
+
+
 class Listener(object):
     _owner: ChromiumBase = ...
     _address: str = ...
@@ -34,14 +37,50 @@ class Listener(object):
     _running_targets: int = ...
     listening: bool = ...
 
-    def __init__(self, owner: ChromiumBase):
+    _max_packets: int = ...
+    _overflow_strategy: str = ...
+    _dropped_count: int = ...
+    _dropped_reasons: Dict[str, int] = ...
+
+    VALID_OVERFLOW_STRATEGIES: tuple = ...
+
+    def __init__(self, owner: ChromiumBase, max_packets: int = 0, overflow_strategy: str = 'drop_oldest'):
         """
         :param owner: 页面对象
+        :param max_packets: 最大缓存包数，0 表示无界
+        :param overflow_strategy: 缓存超限策略，可选 'drop_oldest' 或 'drop_newest'
         """
         ...
 
     @property
     def targets(self) -> Optional[set]: ...
+
+    @property
+    def max_packets(self) -> int: ...
+
+    @property
+    def overflow_strategy(self) -> str: ...
+
+    @property
+    def dropped_count(self) -> int: ...
+
+    @property
+    def dropped_reasons(self) -> Dict[str, int]: ...
+
+    @property
+    def queue_size(self) -> int: ...
+
+    def set_max_packets(self, max_packets: int = None, overflow_strategy: str = None) -> None:
+        """设置最大缓存包数和超限策略
+
+        :param max_packets: 最大缓存包数，0 表示无界
+        :param overflow_strategy: 超限策略，可选 'drop_oldest' 或 'drop_newest'
+        """
+        ...
+
+    def reset_dropped_stats(self) -> None:
+        """重置丢弃统计"""
+        ...
 
     def set_targets(self,
                     targets: Union[str, list, tuple, set, bool, None] = True,

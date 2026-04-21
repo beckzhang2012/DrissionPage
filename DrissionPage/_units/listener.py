@@ -18,16 +18,31 @@ from .._functions.settings import Settings as _S
 from ..errors import WaitTimeoutError
 
 
+from collections import deque
+
+
 class Listener(object):
     """监听器基类"""
 
-    def __init__(self, owner):
+    VALID_OVERFLOW_STRATEGIES = ('drop_oldest', 'drop_newest')
+
+    def __init__(self, owner, max_packets=0, overflow_strategy='drop_oldest'):
+        if max_packets < 0:
+            raise ValueError('max_packets must be non-negative')
+        if overflow_strategy not in self.VALID_OVERFLOW_STRATEGIES:
+            raise ValueError(f'overflow_strategy must be one of {self.VALID_OVERFLOW_STRATEGIES}')
+
         self._owner = owner
         self._address = owner.browser._ws_address
         self._target_id = owner._target_id
         self._driver = None
         self._running_requests = 0
         self._running_targets = 0
+
+        self._max_packets = max_packets
+        self._overflow_strategy = overflow_strategy
+        self._dropped_count = 0
+        self._dropped_reasons = {}
 
         self._caught = None
         self._request_ids = None
@@ -45,6 +60,56 @@ class Listener(object):
     def targets(self):
         """返回监听目标"""
         return self._targets
+
+    @property
+    def max_packets(self):
+        """返回最大缓存包数，0 表示无界"""
+        return self._max_packets
+
+    @property
+    def overflow_strategy(self):
+        """返回缓存超限策略"""
+        return self._overflow_strategy
+
+    @property
+    def dropped_count(self):
+        """返回被丢弃的数据包总数"""
+        return self._dropped_count
+
+    @property
+    def dropped_reasons(self):
+        """返回被丢弃的数据包原因统计字典"""
+        return self._dropped_reasons.copy()
+
+    @property
+    def queue_size(self):
+        """返回当前缓存队列中的数据包数量"""
+        if self._caught is None:
+            return 0
+        if isinstance(self._caught, Queue):
+            return self._caught.qsize()
+        return len(self._caught)
+
+    def set_max_packets(self, max_packets=None, overflow_strategy=None):
+        """设置最大缓存包数和超限策略
+
+        :param max_packets: 最大缓存包数，0 表示无界
+        :param overflow_strategy: 超限策略，可选 'drop_oldest' 或 'drop_newest'
+        """
+        if max_packets is not None:
+            if max_packets < 0:
+                raise ValueError('max_packets must be non-negative')
+            self._max_packets = max_packets
+
+        if overflow_strategy is not None:
+            if overflow_strategy not in self.VALID_OVERFLOW_STRATEGIES:
+                raise ValueError(f'overflow_strategy must be one of {self.VALID_OVERFLOW_STRATEGIES}')
+            self._overflow_strategy = overflow_strategy
+
+    def reset_dropped_stats(self):
+        """重置丢弃统计"""
+        self._dropped_count = 0
+        self._dropped_reasons = {}
 
     def set_targets(self, targets=True, is_regex=False, method=('GET', 'POST'), res_type=True):
         if targets is not None:
@@ -185,9 +250,44 @@ class Listener(object):
     def clear(self):
         self._request_ids = {}
         self._extra_info_ids = {}
-        self._caught = Queue(maxsize=0)
+        if self._max_packets == 0:
+            self._caught = Queue(maxsize=0)
+        else:
+            self._caught = Queue(maxsize=self._max_packets)
         self._running_requests = 0
         self._running_targets = 0
+        self._dropped_count = 0
+        self._dropped_reasons = {}
+
+    def _put_packet(self, packet):
+        """将数据包放入缓存队列，处理有界缓存和背压策略
+
+        :param packet: 要放入的数据包
+        :return: True 如果成功放入，False 如果被丢弃
+        """
+        if self._max_packets == 0:
+            self._caught.put(packet)
+            return True
+
+        if self._caught.qsize() < self._max_packets:
+            self._caught.put(packet)
+            return True
+
+        if self._overflow_strategy == 'drop_oldest':
+            try:
+                self._caught.get_nowait()
+                self._dropped_count += 1
+                reason = 'drop_oldest:queue_full'
+                self._dropped_reasons[reason] = self._dropped_reasons.get(reason, 0) + 1
+                self._caught.put(packet)
+                return True
+            except Exception:
+                pass
+
+        reason = 'drop_newest:queue_full' if self._overflow_strategy == 'drop_newest' else 'drop_oldest:queue_full'
+        self._dropped_count += 1
+        self._dropped_reasons[reason] = self._dropped_reasons.get(reason, 0) + 1
+        return False
 
     def wait_silent(self, timeout=None, targets_only=False, limit=0):
         if not self.listening:
@@ -312,7 +412,7 @@ class Listener(object):
         self._request_ids.pop(rid, None)
 
         if packet:
-            self._caught.put(packet)
+            self._put_packet(packet)
             self._running_targets -= 1
 
     def _loading_failed(self, **kwargs):
@@ -339,7 +439,7 @@ class Listener(object):
         self._request_ids.pop(r_id, None)
 
         if data_packet:
-            self._caught.put(data_packet)
+            self._put_packet(data_packet)
             self._running_targets -= 1
 
 
