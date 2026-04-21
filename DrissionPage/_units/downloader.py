@@ -72,18 +72,22 @@ class DownloadManager(object):
         return self._tab_missions.get(tab_id, set())
 
     def set_done(self, mission, state, final_path=None):
+        if mission._is_done:
+            return
+        if self._missions.pop(mission.id, None) is None:
+            return
+        mission._is_done = True
         if mission.state not in ('canceled', 'skipped'):
             mission.state = state
         mission.final_path = final_path
-        if mission.tab_id in self._tab_missions and mission in self._tab_missions[mission.tab_id]:
+        if mission.tab_id in self._tab_missions:
             self._tab_missions[mission.tab_id].discard(mission)
-        if (mission.from_tab and mission.from_tab in self._tab_missions
-                and mission in self._tab_missions[mission.from_tab]):
+        if mission.from_tab and mission.from_tab in self._tab_missions:
             self._tab_missions[mission.from_tab].discard(mission)
-        self._missions.pop(mission.id, None)
-        mission._is_done = True
 
     def cancel(self, mission):
+        if mission._is_done:
+            return
         mission.state = 'canceled'
         try:
             self._browser._run_cdp('Browser.cancelDownload', guid=mission.id)
@@ -91,16 +95,24 @@ class DownloadManager(object):
             pass
         if mission.final_path:
             Path(mission.final_path).unlink(True)
+        self.set_done(mission, 'canceled')
 
     def skip(self, mission):
+        if mission._is_done:
+            return
         mission.state = 'skipped'
         try:
             self._browser._run_cdp('Browser.cancelDownload', guid=mission.id)
         except:
             pass
+        self.set_done(mission, 'skipped')
 
     def clear_tab_info(self, tab_id):
-        self._tab_missions.pop(tab_id, None)
+        tab_missions = self._tab_missions.pop(tab_id, set())
+        for mission in tab_missions:
+            if not mission._is_done:
+                self._missions.pop(mission.id, None)
+                mission._is_done = True
         self._flags.pop(tab_id, None)
         TabDownloadSettings.TABS.pop(tab_id, None)
         self._waiting_tab.discard(tab_id)
