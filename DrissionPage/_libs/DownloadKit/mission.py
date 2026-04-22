@@ -5,7 +5,7 @@
 """
 from pathlib import Path
 from time import sleep, perf_counter
-from threading import Lock
+from threading import Lock, RLock
 from typing import Optional, Tuple
 from urllib.parse import quote, urlparse
 
@@ -56,7 +56,7 @@ class BaseTask(object):
         self.state = 'waiting'
         self.result = None
         self.info = '等待下载'
-        self._state_lock = Lock()
+        self._state_lock = RLock()
 
     @property
     def id(self):
@@ -318,70 +318,72 @@ class Mission(BaseTask):
         with self._state_lock:
             if self.state in ('done', 'cancel'):
                 return
+        
+        self._record_state('completing', f'准备完成: result={result}')
+        
+        final_result = result
+        final_info = info
+        
+        if result == 'skipped':
+            pass
+        
+        elif result in ('canceled', 'failed', 'integrity_failed') or result is False:
+            self.recorder.clear()
+            self.del_file()
+            final_result = 'failed' if result is False else result
+        
+        elif result == 'success':
+            self.recorder.record()
             
-            self._record_state('done', info)
-            
-            if result == 'skipped':
-                self.set_states(result=result, info=info, state=self._DONE)
-
-            elif result in ('canceled', 'failed', 'integrity_failed') or result is False:
-                self.recorder.clear()
-                self.del_file()
-                actual_result = 'failed' if result is False else result
-                self.set_states(result=actual_result, info=info, state=self._DONE)
-
-            elif result == 'success':
-                self.recorder.record()
-                
-                if self.size:
-                    if self._part_path and self._part_path.exists():
-                        actual_size = self._part_path.stat().st_size
-                    elif self._path and self._path.exists():
-                        actual_size = self._path.stat().st_size
-                    else:
-                        actual_size = 0
-                    
-                    if actual_size < self.size:
-                        self._record_state('failed', f'文件不完整: {actual_size} < {self.size}')
-                        self.del_file()
-                        self.set_states('failed', '下载失败：文件不完整', self._DONE)
-                        self.download_kit._when_mission_done(self)
-                        return
-                
+            if self.size:
+                actual_size = 0
                 if self._part_path and self._part_path.exists():
-                    from shutil import move
-                    try:
-                        move(str(self._part_path), str(self._path))
-                    except Exception as e:
-                        self._record_state('failed', f'移动文件失败: {e}')
-                        self.del_file()
-                        self.set_states('failed', f'移动临时文件失败: {e}', self._DONE)
-                        self.download_kit._when_mission_done(self)
-                        return
+                    actual_size = self._part_path.stat().st_size
+                elif self._path and self._path.exists():
+                    actual_size = self._path.stat().st_size
                 
-                if self.data.integrity_algorithm and self.data.expected_hash:
-                    self._record_state('verifying', f'开始{self.data.integrity_algorithm}校验')
-                    passed, actual_hash = verify_file_integrity(
-                        str(self._path), 
-                        self.data.expected_hash,
-                        self.data.integrity_algorithm
-                    )
-                    
-                    if not passed:
-                        self._record_state('integrity_failed', 
-                                          f'期望: {self.data.expected_hash}, 实际: {actual_hash}')
-                        self.del_file()
-                        self.set_states('integrity_failed', 
-                                       f'{self.data.integrity_algorithm}校验失败，期望:{self.data.expected_hash}，实际:{actual_hash}', 
-                                       self._DONE)
-                        self.download_kit._when_mission_done(self)
-                        return
-                    
+                if actual_size < self.size:
+                    self._record_state('failed', f'文件不完整: {actual_size} < {self.size}')
+                    self.del_file()
+                    final_result = 'failed'
+                    final_info = '下载失败：文件不完整'
+            
+            if final_result == 'success' and self._part_path and self._part_path.exists():
+                from shutil import move
+                try:
+                    move(str(self._part_path), str(self._path))
+                except Exception as e:
+                    self._record_state('failed', f'移动文件失败: {e}')
+                    self.del_file()
+                    final_result = 'failed'
+                    final_info = f'移动临时文件失败: {e}'
+            
+            if final_result == 'success' and self.data.integrity_algorithm and self.data.expected_hash:
+                self._record_state('verifying', f'开始{self.data.integrity_algorithm}校验')
+                passed, actual_hash = verify_file_integrity(
+                    str(self._path), 
+                    self.data.expected_hash,
+                    self.data.integrity_algorithm
+                )
+                
+                if not passed:
+                    self._record_state('integrity_failed', 
+                                      f'期望: {self.data.expected_hash}, 实际: {actual_hash}')
+                    self.del_file()
+                    final_result = 'integrity_failed'
+                    final_info = f'{self.data.integrity_algorithm}校验失败，期望:{self.data.expected_hash}，实际:{actual_hash}'
+                else:
                     self._record_state('verified', f'校验通过: {actual_hash}')
-                
-                self.set_states('success', info, self._DONE)
-
-            self.download_kit._when_mission_done(self)
+        
+        with self._state_lock:
+            if self.state in ('done', 'cancel'):
+                return
+            self._record_state('done', final_info)
+            self.result = final_result
+            self.info = final_info
+            self.state = self._DONE
+        
+        self.download_kit._when_mission_done(self)
 
     def _a_task_done(self, is_success, info):
         """当一个task完成时调用（原子操作）
