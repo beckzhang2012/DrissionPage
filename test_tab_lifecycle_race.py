@@ -8,16 +8,103 @@ Test Cases:
 2. test_concurrent_switch: 并发切换 - 验证事件不会在切换时串线
 3. test_stale_events_after_reconnect: 重连后旧事件到达 - 验证旧连接的事件被丢弃
 4. test_abort_recovery: 异常中断恢复 - 验证中断后状态正确恢复
+5. test_backward_compatibility: 旧行为不回归检查 - start/wait/steps/pause/resume
 """
 import json
 import sys
 import threading
+from pathlib import Path
+from platform import system
 from time import sleep, perf_counter
 from typing import Dict, List, Optional
 
 sys.path.insert(0, 'd:\\work\\solo-coder\\task\\20260422-drissionpage-3314-tab-lifecycle-race-fix\\repo\\DrissionPage')
 
 from DrissionPage._units.lifecycle_stats import lifecycle_stats
+
+_CHROME_PATH = None
+
+
+def find_chrome_path() -> str:
+    """Find Chrome browser executable path."""
+    global _CHROME_PATH
+    if _CHROME_PATH:
+        return _CHROME_PATH
+    
+    sys_name = system().lower()
+    
+    if sys_name == 'windows':
+        possible_paths = [
+            r'C:\Program Files\Google\Chrome\Application\chrome.exe',
+            r'C:\Program Files (x86)\Google\Chrome\Application\chrome.exe',
+            str(Path.home() / r'AppData\Local\Google\Chrome\Application\chrome.exe'),
+        ]
+        
+        for path in possible_paths:
+            if Path(path).exists():
+                _CHROME_PATH = path
+                return _CHROME_PATH
+        
+        try:
+            from winreg import OpenKey, EnumValue, CloseKey, HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, KEY_READ
+            for root in [HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE]:
+                try:
+                    key = OpenKey(root, r'SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\chrome.exe', 
+                                  reserved=0, access=KEY_READ)
+                    k = EnumValue(key, 0)
+                    CloseKey(key)
+                    if k[1] and Path(k[1]).exists():
+                        _CHROME_PATH = k[1]
+                        return _CHROME_PATH
+                except Exception:
+                    pass
+        except Exception:
+            pass
+    
+    elif sys_name in ('darwin', 'macos'):
+        mac_paths = [
+            '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+        ]
+        for path in mac_paths:
+            if Path(path).exists():
+                _CHROME_PATH = path
+                return _CHROME_PATH
+    
+    else:
+        linux_paths = [
+            '/usr/bin/google-chrome',
+            '/opt/google/chrome/google-chrome',
+            '/usr/bin/chromium',
+            '/usr/bin/chromium-browser',
+        ]
+        for path in linux_paths:
+            if Path(path).exists():
+                _CHROME_PATH = path
+                return _CHROME_PATH
+    
+    from shutil import which
+    for name in ['chrome', 'chromium', 'google-chrome', 'google-chrome-stable']:
+        path = which(name)
+        if path:
+            _CHROME_PATH = path
+            return _CHROME_PATH
+    
+    raise RuntimeError("Could not find Chrome browser. Please set browser path manually.")
+
+
+def create_test_options():
+    """Create ChromiumOptions with proper settings for testing."""
+    from DrissionPage import ChromiumOptions
+    
+    co = ChromiumOptions(read_file=False)
+    co.set_browser_path(find_chrome_path())
+    co.set_argument('--headless=new')
+    co.set_argument('--disable-gpu')
+    co.set_argument('--no-sandbox')
+    co.set_argument('--disable-dev-shm-usage')
+    co.auto_port()
+    
+    return co
 
 
 class TestResult:
@@ -54,14 +141,9 @@ def run_test_rapid_close_reopen() -> TestResult:
     lifecycle_stats.reset()
     
     try:
-        from DrissionPage import ChromiumOptions, Chromium
+        from DrissionPage import Chromium
         
-        co = ChromiumOptions()
-        co.set_argument('--headless=new')
-        co.set_argument('--disable-gpu')
-        co.set_argument('--no-sandbox')
-        co.set_argument('--disable-dev-shm-usage')
-        
+        co = create_test_options()
         browser = Chromium(co)
         try:
             tab1 = browser.latest_tab
@@ -136,14 +218,9 @@ def run_test_concurrent_switch() -> TestResult:
     lifecycle_stats.reset()
     
     try:
-        from DrissionPage import ChromiumOptions, Chromium
+        from DrissionPage import Chromium
         
-        co = ChromiumOptions()
-        co.set_argument('--headless=new')
-        co.set_argument('--disable-gpu')
-        co.set_argument('--no-sandbox')
-        co.set_argument('--disable-dev-shm-usage')
-        
+        co = create_test_options()
         browser = Chromium(co)
         try:
             tabs = []
@@ -218,14 +295,9 @@ def run_test_stale_events_after_reconnect() -> TestResult:
     lifecycle_stats.reset()
     
     try:
-        from DrissionPage import ChromiumOptions, Chromium
+        from DrissionPage import Chromium
         
-        co = ChromiumOptions()
-        co.set_argument('--headless=new')
-        co.set_argument('--disable-gpu')
-        co.set_argument('--no-sandbox')
-        co.set_argument('--disable-dev-shm-usage')
-        
+        co = create_test_options()
         browser = Chromium(co)
         try:
             tab = browser.latest_tab
@@ -291,14 +363,9 @@ def run_test_abort_recovery() -> TestResult:
     lifecycle_stats.reset()
     
     try:
-        from DrissionPage import ChromiumOptions, Chromium
+        from DrissionPage import Chromium
         
-        co = ChromiumOptions()
-        co.set_argument('--headless=new')
-        co.set_argument('--disable-gpu')
-        co.set_argument('--no-sandbox')
-        co.set_argument('--disable-dev-shm-usage')
-        
+        co = create_test_options()
         browser = Chromium(co)
         try:
             tab = browser.latest_tab
@@ -356,6 +423,116 @@ def run_test_abort_recovery() -> TestResult:
     return result
 
 
+def run_test_backward_compatibility() -> TestResult:
+    """
+    Test 5: 旧行为不回归检查
+    场景：验证 start/wait/steps/pause/resume 相关链路没有被修改
+    验证：监听器的基本功能不受生命周期防护的影响
+    """
+    result = TestResult('test_backward_compatibility')
+    lifecycle_stats.reset()
+    
+    try:
+        from DrissionPage import Chromium
+        
+        co = create_test_options()
+        browser = Chromium(co)
+        try:
+            tab = browser.latest_tab
+            tab_id = tab.tab_id
+            
+            print("    Testing: listen.start()...")
+            tab.listen.start('https://httpbin.org')
+            if not tab.listen.listening:
+                result.error = "listen.start() did not set listening=True"
+                return result
+            
+            tab.get('https://httpbin.org/get')
+            
+            print("    Testing: listen.wait()...")
+            packet1 = tab.listen.wait(timeout=5)
+            if not packet1:
+                result.error = "listen.wait() did not return a packet"
+                return result
+            if packet1.tab_id != tab_id:
+                result.error = f"Packet tab_id mismatch: expected {tab_id}, got {packet1.tab_id}"
+                return result
+            result.tab_hits[tab_id] = result.tab_hits.get(tab_id, 0) + 1
+            
+            print("    Testing: listen.pause()...")
+            tab.listen.pause()
+            if not tab.listen.is_paused:
+                result.error = "listen.pause() did not set is_paused=True"
+                return result
+            
+            tab.get('https://httpbin.org/headers')
+            sleep(0.5)
+            
+            queue_size_before_resume = len(tab.listen.steps())
+            print(f"    Queue size while paused: {queue_size_before_resume}")
+            
+            print("    Testing: listen.resume()...")
+            tab.listen.resume()
+            if tab.listen.is_paused:
+                result.error = "listen.resume() did not set is_paused=False"
+                return result
+            
+            print("    Testing: listen.steps()...")
+            steps = tab.listen.steps()
+            print(f"    Steps count: {len(steps)}")
+            if steps:
+                for step in steps:
+                    if hasattr(step, 'tab_id') and step.tab_id != tab_id:
+                        result.error = f"Steps tab_id mismatch: expected {tab_id}, got {step.tab_id}"
+                        return result
+            
+            print("    Testing: listen.clear()...")
+            tab.listen.clear()
+            steps_after_clear = tab.listen.steps()
+            if steps_after_clear:
+                result.error = "listen.clear() did not clear the queue"
+                return result
+            
+            print("    Testing: listen.stop()...")
+            tab.listen.stop()
+            if tab.listen.listening:
+                result.error = "listen.stop() did not set listening=False"
+                return result
+            
+            sleep(0.5)
+            
+            stats = lifecycle_stats.get_summary()
+            result.dropped_count = stats['events']['total_dropped']
+            
+            result.passed = True
+            result.metrics = {
+                'start_works': True,
+                'wait_works': True,
+                'pause_works': True,
+                'resume_works': True,
+                'steps_works': True,
+                'clear_works': True,
+                'stop_works': True,
+                'events_dropped': result.dropped_count,
+                'events_received': sum(result.tab_hits.values())
+            }
+            
+            result.exit_code = 0
+            
+        finally:
+            try:
+                browser.quit()
+            except:
+                pass
+                
+    except Exception as e:
+        result.error = str(e)
+        result.exit_code = 1
+        result.passed = False
+    
+    return result
+
+
 def run_all_tests() -> Dict:
     """Run all tests and return aggregated results"""
     tests = [
@@ -363,6 +540,7 @@ def run_all_tests() -> Dict:
         ('test_concurrent_switch', run_test_concurrent_switch),
         ('test_stale_events_after_reconnect', run_test_stale_events_after_reconnect),
         ('test_abort_recovery', run_test_abort_recovery),
+        ('test_backward_compatibility', run_test_backward_compatibility),
     ]
     
     results = []

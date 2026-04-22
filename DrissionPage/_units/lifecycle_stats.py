@@ -63,9 +63,9 @@ class TabLifecycleStats:
             }
             self.tab_state_transitions[tab_id].append(transition)
             
-            if state == 'created':
+            if state in ('created', 'target_created', 'listener_bound', 'bound'):
                 self.tab_alive_status[tab_id] = True
-            elif state in ('closed', 'destroyed', 'disconnected'):
+            elif state in ('closed', 'destroyed', 'disconnected', 'target_destroyed', 'listener_unbound', 'context_invalidated'):
                 self.tab_alive_status[tab_id] = False
 
     def is_tab_alive(self, tab_id: str) -> bool:
