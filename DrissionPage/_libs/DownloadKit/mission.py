@@ -81,7 +81,7 @@ class BaseTask(object):
         :return: None
         """
         with self._state_lock:
-            if self.state == 'done' and state == 'done':
+            if self.state in ('done', 'cancel'):
                 return
             self.result = result
             self.info = info

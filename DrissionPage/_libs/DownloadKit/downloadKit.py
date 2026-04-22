@@ -429,7 +429,7 @@ class DownloadKit(object):
             if r:
                 content_range = r.headers.get('Content-Range', '')
                 
-                if requested_end != '':
+                if content_range:
                     match_ok, match_reason = verify_range_match(
                         requested_start, requested_end, content_range
                     )
