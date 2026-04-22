@@ -316,7 +316,7 @@ class Mission(BaseTask):
         :return: None
         """
         with self._state_lock:
-            if self.state == 'done':
+            if self.state in ('done', 'cancel'):
                 return
             
             self._record_state('done', info)
