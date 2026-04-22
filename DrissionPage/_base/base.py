@@ -11,7 +11,10 @@ from pathlib import Path
 from re import sub
 from urllib.parse import quote
 
-from DownloadKit import DownloadKit
+try:
+    from .._libs.DownloadKit import DownloadKit
+except ImportError:
+    from DownloadKit import DownloadKit
 from requests import Session
 
 from .._configs.session_options import SessionOptions
