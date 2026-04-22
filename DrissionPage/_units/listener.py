@@ -51,11 +51,7 @@ class Listener(object):
         self._method = {'GET', 'POST'}
         self._res_type = True
 
-    def __del__(self):
-        try:
-            self._cleanup()
-        except Exception:
-            pass
+
 
     @property
     def targets(self):
