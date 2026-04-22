@@ -18,6 +18,16 @@ from .._functions.settings import Settings as _S
 from ..errors import WaitTimeoutError
 
 
+_NETWORK_EVENTS = (
+    'Network.requestWillBeSent',
+    'Network.requestWillBeSentExtraInfo',
+    'Network.responseReceived',
+    'Network.responseReceivedExtraInfo',
+    'Network.loadingFinished',
+    'Network.loadingFailed',
+)
+
+
 class Listener(object):
     """监听器基类"""
 
@@ -40,6 +50,12 @@ class Listener(object):
         self._is_regex = False
         self._method = {'GET', 'POST'}
         self._res_type = True
+
+    def __del__(self):
+        try:
+            self._cleanup()
+        except Exception:
+            pass
 
     @property
     def targets(self):
@@ -82,15 +98,14 @@ class Listener(object):
                                                ALLOW_TYPE='str, list, tuple, set, True', CURR_TYPE=type(res_type)))
 
     def start(self, targets=None, is_regex=None, method=None, res_type=None):
+        if self.listening:
+            return
         if targets is not None:
             if is_regex is None:
                 is_regex = False
         if targets or is_regex is not None or method or res_type:
             self.set_targets(targets, is_regex, method, res_type)
         self.clear()
-
-        if self.listening:
-            return
 
         self._driver = Driver(self._target_id, self._address)
         self._driver.session_id = self._driver.run('Target.attachToTarget', targetId=self._target_id, flatten=True)['sessionId']
@@ -103,13 +118,14 @@ class Listener(object):
         if not self.listening:
             raise RuntimeError(_S._lang.join(_S._lang.NOT_LISTENING))
         if not timeout:
-            while self._driver.is_running and self.listening and self._caught.qsize() < count:
+            while (self._driver and self._driver.is_running) and self.listening and self._caught.qsize() < count:
                 sleep(.03)
             fail = False
 
         else:
+            fail = True
             end = perf_counter() + timeout
-            while self._driver.is_running and self.listening:
+            while (self._driver and self._driver.is_running) and self.listening:
                 if perf_counter() > end:
                     fail = True
                     break
@@ -117,6 +133,9 @@ class Listener(object):
                     fail = False
                     break
                 sleep(.03)
+            else:
+                if not (self._driver and self._driver.is_running) or not self.listening:
+                    fail = self._caught.qsize() < count
 
         if fail:
             if fit_count or not self._caught.qsize():
@@ -137,7 +156,7 @@ class Listener(object):
             raise RuntimeError(_S._lang.join(_S._lang.NOT_LISTENING))
         caught = 0
         if timeout is None:
-            while self._driver.is_running and self.listening:
+            while (self._driver and self._driver.is_running) and self.listening:
                 if self._caught.qsize() >= gap:
                     yield self._caught.get_nowait() if gap == 1 else [self._caught.get_nowait() for _ in range(gap)]
                     if count:
@@ -148,7 +167,7 @@ class Listener(object):
 
         else:
             end = perf_counter() + timeout
-            while self._driver.is_running and self.listening and perf_counter() < end:
+            while (self._driver and self._driver.is_running) and self.listening and perf_counter() < end:
                 if self._caught.qsize() >= gap:
                     yield self._caught.get_nowait() if gap == 1 else [self._caught.get_nowait() for _ in range(gap)]
                     end = perf_counter() + timeout
@@ -160,25 +179,39 @@ class Listener(object):
             return False
 
     def stop(self):
-        if self.listening:
-            self.pause()
-            self.clear()
-        self._driver.stop()
-        self._driver = None
+        if not self._driver and not self.listening:
+            return
+        self.pause(clear=False)
+        self._cleanup()
+
+    def _cleanup(self):
+        if self._driver:
+            try:
+                self._driver.stop()
+            except Exception:
+                pass
+            self._driver = None
+        self.clear()
+        self.listening = False
 
     def pause(self, clear=True):
-        if self.listening:
-            self._driver.set_callback('Network.requestWillBeSent', None)
-            self._driver.set_callback('Network.responseReceived', None)
-            self._driver.set_callback('Network.loadingFinished', None)
-            self._driver.set_callback('Network.loadingFailed', None)
+        if self.listening and self._driver:
+            self._clear_callbacks()
             self.listening = False
         if clear:
             self.clear()
 
+    def _clear_callbacks(self):
+        if not self._driver:
+            return
+        for event in _NETWORK_EVENTS:
+            self._driver.set_callback(event, None)
+
     def resume(self):
         if self.listening:
             return
+        if not self._driver:
+            raise RuntimeError(_S._lang.join(_S._lang.NOT_LISTENING))
         self._set_callback()
         self.listening = True
 

@@ -184,8 +184,10 @@ class Driver(object):
             self._ws = None
 
         self.event_handlers.clear()
+        self.immediate_event_handlers.clear()
         self.method_results.clear()
         self.event_queue.queue.clear()
+        self.immediate_event_queue.queue.clear()
 
         if hasattr(self.owner, '_on_disconnect'):
             self.owner._on_disconnect()
