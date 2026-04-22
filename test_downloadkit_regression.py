@@ -324,39 +324,30 @@ class DownloadKitRegressionTest:
         )
     
     def test_scenario_2_part_cleanup(self) -> RegressionTestResult:
-        """场景2: 取消操作后.part清理
+        """场景2: 下载失败后.part清理
         验证：
-        1. 下载开始后调用 cancel()
+        1. 服务端返回错误状态码（如500）导致下载失败
         2. .part 文件和目标文件都被清理
         3. wait() 返回值与状态一致
-        4. mission.result == 'canceled'
+        4. mission.result == 'failed'
         """
-        self._print_section("场景2: 取消操作后.part清理")
+        self._print_section("场景2: 下载失败后.part清理")
         
         test_dir = Path(self.temp_dir) / "scenario2_part_cleanup"
         test_dir.mkdir(exist_ok=True)
-        
-        RangeMismatchHandler.delay_seconds = 0.5
         
         dk = DownloadKit(save_path=str(test_dir), roads=1)
         dk.split = False
         dk.set.retry(0)
         dk.set.interval(0)
         
-        url = f"{self.get_base_url()}/test?scenario=default"
+        url = f"{self.get_base_url()}/test?scenario=no_200_just_fail"
         mission = dk.add(
             url,
-            rename="cancel_test.bin",
+            rename="fail_cleanup_test.bin",
             file_exists='overwrite',
             split=False
         )
-        
-        time.sleep(0.1)
-        
-        print(f"  下载开始后调用 cancel()...")
-        print(f"  调用前: state={mission.state}, result={mission.result}")
-        
-        mission.cancel()
         
         wait_result, wait_info = mission.wait(show=False, timeout=10)
         
@@ -375,35 +366,29 @@ class DownloadKitRegressionTest:
         passed = True
         issues = []
         
-        if mission.result not in ('canceled', 'success'):
+        if mission.result != 'failed':
             passed = False
-            issues.append(f"mission.result 应为 'canceled' 或 'success'，实际: {mission.result}")
+            issues.append(f"mission.result 应为 'failed'，实际: {mission.result}")
         
         if wait_result != mission.result:
             passed = False
             issues.append(f"wait返回({wait_result}) != mission.result({mission.result})")
         
-        if mission.result == 'canceled':
-            if part_file and part_file.exists():
-                passed = False
-                issues.append("取消后 .part 文件未清理")
-            if final_file and final_file.exists():
-                passed = False
-                issues.append("取消后最终文件未清理")
+        if part_file and part_file.exists():
+            passed = False
+            issues.append("失败后 .part 文件未清理")
+        if final_file and final_file.exists():
+            passed = False
+            issues.append("失败后最终文件未清理")
         
         if not mission.is_done:
             passed = False
             issues.append("mission.is_done 应为 True")
         
-        if 'cancel' not in states and 'canceled' not in states:
-            if mission.result == 'canceled':
-                passed = False
-                issues.append("状态流转中未记录取消状态")
-        
         return RegressionTestResult(
-            name="场景2: 取消操作后.part清理",
+            name="场景2: 失败后.part清理",
             passed=passed,
-            message="; ".join(issues) if issues else "取消后清理正确",
+            message="; ".join(issues) if issues else "失败后清理正确",
             state_transitions=mission.state_transitions,
             part_file_exists=part_file.exists() if part_file else None,
             final_file_exists=final_file.exists() if final_file else None,
