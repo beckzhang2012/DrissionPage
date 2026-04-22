@@ -14,7 +14,7 @@ from time import sleep, perf_counter
 from requests import Session
 from websocket import WebSocketBadStatusException
 
-from .driver import BrowserDriver, Driver
+from .._base.driver import BrowserDriver, Driver
 from .._configs.chromium_options import ChromiumOptions
 from .._functions.browser import connect_browser
 from .._functions.cookies import CookiesList
@@ -24,6 +24,7 @@ from .._pages.chromium_base import Timeout
 from .._pages.chromium_tab import ChromiumTab
 from .._pages.mix_tab import MixTab
 from .._units.downloader import DownloadManager
+from .._units.lifecycle_stats import lifecycle_stats
 from .._units.setter import BrowserSetter
 from .._units.states import BrowserStates
 from .._units.waiter import BrowserWaiter
@@ -403,7 +404,9 @@ class Chromium(object):
                 d.session_id = d.run('Target.attachToTarget', targetId=tab_id, flatten=True)['sessionId']
             else:
                 d = Driver(tab_id, f'ws://{self.address}/devtools/page/{tab_id}')
+        
         d.owner = owner
+        d.bind_to_tab(tab_id, d.session_id)
         self._all_drivers.setdefault(tab_id, set()).add(d)
         return d
 
@@ -414,11 +417,24 @@ class Chromium(object):
             try:
                 tab_id = kwargs['targetInfo']['targetId']
                 self._frames[tab_id] = tab_id
+                
+                lifecycle_stats.record_tab_state_change(
+                    tab_id, 
+                    'target_created',
+                    {
+                        'type': kwargs['targetInfo']['type'],
+                        'url': kwargs['targetInfo']['url'],
+                        'openerId': kwargs['targetInfo'].get('openerId', None)
+                    }
+                )
+                
                 if self._ws_only:
                     d = Driver(tab_id, self._ws_address)
                     d.session_id = d.run('Target.attachToTarget', targetId=tab_id, flatten=True)['sessionId']
                 else:
                     d = Driver(tab_id, f'ws://{self.address}/devtools/page/{tab_id}')
+                
+                d.bind_to_tab(tab_id, d.session_id)
                 self._relation[tab_id] = kwargs['targetInfo'].get('openerId', None)
                 self._drivers[tab_id] = d
                 self._all_drivers.setdefault(tab_id, set()).add(d)
@@ -428,6 +444,16 @@ class Chromium(object):
 
     def _onTargetDestroyed(self, **kwargs):
         tab_id = kwargs['targetId']
+        
+        lifecycle_stats.record_tab_state_change(
+            tab_id, 
+            'target_destroyed',
+            {'browser_id': self.id}
+        )
+        
+        for d in self._all_drivers.get(tab_id, tuple()):
+            d.invalidate_context()
+        
         self._dl_mgr.clear_tab_info(tab_id)
         for key in [k for k, i in self._frames.items() if i == tab_id]:
             self._frames.pop(key, None)

@@ -16,6 +16,7 @@ from websocket import (WebSocketTimeoutException, WebSocketConnectionClosedExcep
                        WebSocketException, WebSocketBadStatusException)
 
 from .._functions.settings import Settings as _S
+from .._units.lifecycle_stats import lifecycle_stats
 from ..errors import PageDisconnectedError, BrowserConnectError
 
 adapters.DEFAULT_RETRIES = 5
@@ -45,6 +46,10 @@ class Driver(object):
         self.method_results = {}
         self.event_queue = Queue()
         self.immediate_event_queue = Queue()
+
+        self._bound_tab_id = None
+        self._bound_session_id = None
+        self._context_valid = True
 
         self.start()
 
@@ -116,17 +121,46 @@ class Driver(object):
             except Empty:
                 continue
 
+            if not self._is_context_valid():
+                lifecycle_stats.record_dropped_event(
+                    event_method=event.get('method', 'unknown'),
+                    tab_id=self._bound_tab_id,
+                    reason='context_invalid'
+                )
+                self.event_queue.task_done()
+                continue
+
             function = self.event_handlers.get(event['method'])
             if function:
-                function(**event['params'])
+                if self._bound_tab_id:
+                    lifecycle_stats.record_event_hit(self._bound_tab_id)
+                try:
+                    function(**event['params'])
+                    if self._bound_tab_id:
+                        lifecycle_stats.record_event_validated(self._bound_tab_id)
+                except PageDisconnectedError:
+                    pass
 
             self.event_queue.task_done()
 
     def _handle_immediate_event_loop(self):
         while not self.immediate_event_queue.empty():
             function, kwargs = self.immediate_event_queue.get(timeout=1)
+            
+            if not self._is_context_valid():
+                lifecycle_stats.record_dropped_event(
+                    event_method='immediate_event',
+                    tab_id=self._bound_tab_id,
+                    reason='context_invalid'
+                )
+                continue
+            
             try:
+                if self._bound_tab_id:
+                    lifecycle_stats.record_event_hit(self._bound_tab_id)
                 function(**kwargs)
+                if self._bound_tab_id:
+                    lifecycle_stats.record_event_validated(self._bound_tab_id)
             except PageDisconnectedError:
                 pass
 
@@ -196,6 +230,53 @@ class Driver(object):
             handler[event] = callback
         else:
             handler.pop(event, None)
+
+    def bind_to_tab(self, tab_id: str, session_id: str = None):
+        self._bound_tab_id = tab_id
+        self._bound_session_id = session_id
+        self._context_valid = True
+        if tab_id:
+            lifecycle_stats.record_tab_state_change(tab_id, 'bound')
+            if session_id:
+                lifecycle_stats.bind_session_to_tab(tab_id, session_id)
+
+    def unbind_from_tab(self):
+        old_tab_id = self._bound_tab_id
+        self._bound_tab_id = None
+        self._bound_session_id = None
+        self._context_valid = False
+        if old_tab_id:
+            lifecycle_stats.unbind_session_from_tab(old_tab_id)
+
+    def invalidate_context(self):
+        self._context_valid = False
+        if self._bound_tab_id:
+            lifecycle_stats.record_tab_state_change(
+                self._bound_tab_id, 
+                'context_invalidated',
+                {'session_id': self._bound_session_id}
+            )
+
+    def _is_context_valid(self) -> bool:
+        if not self._context_valid:
+            return False
+        if not self.is_running:
+            return False
+        if self._bound_tab_id and not lifecycle_stats.is_tab_alive(self._bound_tab_id):
+            return False
+        return True
+
+    @property
+    def bound_tab_id(self) -> str:
+        return self._bound_tab_id
+
+    @property
+    def bound_session_id(self) -> str:
+        return self._bound_session_id
+
+    @property
+    def is_context_valid(self) -> bool:
+        return self._is_context_valid()
 
 
 class BrowserDriver(Driver):

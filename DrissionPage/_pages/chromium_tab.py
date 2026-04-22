@@ -11,6 +11,7 @@ from time import sleep
 from .._functions.settings import Settings
 from .._functions.web import save_page
 from .._pages.chromium_base import ChromiumBase
+from .._units.lifecycle_stats import lifecycle_stats
 from .._units.setter import TabSetter
 from .._units.waiter import TabWaiter
 
@@ -36,6 +37,13 @@ class ChromiumTab(ChromiumBase):
         super().__init__(browser, tab_id)
         self._tab = self
         self._type = 'ChromiumTab'
+        self._is_alive = True
+        
+        lifecycle_stats.record_tab_state_change(
+            self.tab_id, 
+            'created',
+            {'browser_id': browser.id}
+        )
 
     def __repr__(self):
         return f'<ChromiumTab browser_id={self.browser.id} tab_id={self.tab_id}>'
@@ -68,9 +76,28 @@ class ChromiumTab(ChromiumBase):
             self._wait = TabWaiter(self)
         return self._wait
 
+    @property
+    def is_alive(self) -> bool:
+        return self._is_alive and self._driver is not None and self._driver.is_running
+
     def save(self, path=None, name=None, as_pdf=False, **kwargs):
         return save_page(self, path, name, as_pdf, kwargs)
 
+    def _mark_as_closed(self):
+        self._is_alive = False
+        lifecycle_stats.record_tab_state_change(
+            self.tab_id, 
+            'closed',
+            {'browser_id': self.browser.id if self.browser else None}
+        )
+        
+        if self._driver:
+            self._driver.invalidate_context()
+        
+        if self._listener:
+            self._listener._context_valid = False
+
     def _on_disconnect(self):
         if not self._disconnect_flag:
+            self._mark_as_closed()
             ChromiumTab._TABS.pop(self.tab_id, None)

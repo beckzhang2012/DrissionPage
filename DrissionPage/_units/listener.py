@@ -15,6 +15,7 @@ from requests.structures import CaseInsensitiveDict
 
 from .._base.driver import Driver
 from .._functions.settings import Settings as _S
+from .._units.lifecycle_stats import lifecycle_stats
 from ..errors import WaitTimeoutError
 
 
@@ -40,6 +41,10 @@ class Listener(object):
         self._is_regex = False
         self._method = {'GET', 'POST'}
         self._res_type = True
+
+        self._bound_tab_id = None
+        self._bound_session_id = None
+        self._context_valid = True
 
     @property
     def targets(self):
@@ -96,8 +101,54 @@ class Listener(object):
         self._driver.session_id = self._driver.run('Target.attachToTarget', targetId=self._target_id, flatten=True)['sessionId']
         self._driver.run('Network.enable')
 
+        self._bind_to_current_tab()
         self._set_callback()
         self.listening = True
+
+    def _bind_to_current_tab(self):
+        self._bound_tab_id = self._owner.tab_id
+        self._bound_session_id = self._driver.session_id if self._driver else None
+        self._context_valid = True
+        
+        if self._bound_tab_id:
+            lifecycle_stats.record_tab_state_change(
+                self._bound_tab_id, 
+                'listener_bound',
+                {'session_id': self._bound_session_id}
+            )
+            if self._bound_session_id:
+                lifecycle_stats.bind_session_to_tab(self._bound_tab_id, self._bound_session_id)
+        
+        if self._driver:
+            self._driver.bind_to_tab(self._bound_tab_id, self._bound_session_id)
+
+    def _unbind_from_tab(self):
+        old_tab_id = self._bound_tab_id
+        self._bound_tab_id = None
+        self._bound_session_id = None
+        self._context_valid = False
+        
+        if old_tab_id:
+            lifecycle_stats.unbind_session_from_tab(old_tab_id)
+            lifecycle_stats.record_tab_state_change(
+                old_tab_id, 
+                'listener_unbound'
+            )
+        
+        if self._driver:
+            self._driver.unbind_from_tab()
+
+    def _is_context_valid(self) -> bool:
+        if not self._context_valid:
+            return False
+        if not self._driver or not self._driver.is_running:
+            return False
+        if self._bound_tab_id and not lifecycle_stats.is_tab_alive(self._bound_tab_id):
+            return False
+        if self._owner and hasattr(self._owner, 'tab_id'):
+            if self._owner.tab_id != self._bound_tab_id:
+                return False
+        return True
 
     def wait(self, count=1, timeout=None, fit_count=True, raise_err=None):
         if not self.listening:
@@ -163,8 +214,10 @@ class Listener(object):
         if self.listening:
             self.pause()
             self.clear()
-        self._driver.stop()
-        self._driver = None
+        self._unbind_from_tab()
+        if self._driver:
+            self._driver.stop()
+            self._driver = None
 
     def pause(self, clear=True):
         if self.listening:
@@ -211,13 +264,19 @@ class Listener(object):
         self._target_id = target_id
         self._address = address
         self._owner = owner
+        
+        self._unbind_from_tab()
+        
         if self._driver:
+            self._driver.invalidate_context()
             self._driver.stop()
+        
         if self.listening:
             self._driver = Driver(self._target_id, self._address)
             self._driver.session_id = self._driver.run('Target.attachToTarget',
                                                        targetId=target_id, flatten=True)['sessionId']
             self._driver.run('Network.enable')
+            self._bind_to_current_tab()
             self._set_callback()
 
     def _set_callback(self):
@@ -228,7 +287,31 @@ class Listener(object):
         self._driver.set_callback('Network.loadingFinished', self._loading_finished)
         self._driver.set_callback('Network.loadingFailed', self._loading_failed)
 
+    def _validate_event_context(self, event_method: str) -> bool:
+        if not self._is_context_valid():
+            lifecycle_stats.record_dropped_event(
+                event_method=event_method,
+                tab_id=self._bound_tab_id,
+                reason='listener_context_invalid'
+            )
+            return False
+        
+        if self._owner and hasattr(self._owner, 'tab_id'):
+            owner_tab_id = self._owner.tab_id
+            if owner_tab_id != self._bound_tab_id:
+                lifecycle_stats.record_dropped_event(
+                    event_method=event_method,
+                    tab_id=self._bound_tab_id,
+                    reason='tab_id_mismatch'
+                )
+                return False
+        
+        return True
+
     def _requestWillBeSent(self, **kwargs):
+        if not self._validate_event_context('Network.requestWillBeSent'):
+            return
+        
         self._running_requests += 1
         p = None
         if self._targets is True:
@@ -257,16 +340,34 @@ class Listener(object):
         self._extra_info_ids.setdefault(kwargs['requestId'], {})['obj'] = p if p else False
 
     def _requestWillBeSentExtraInfo(self, **kwargs):
+        if not self._validate_event_context('Network.requestWillBeSentExtraInfo'):
+            return
+        
         self._running_requests += 1
         self._extra_info_ids.setdefault(kwargs['requestId'], {})['request'] = kwargs
 
     def _response_received(self, **kwargs):
+        if not self._validate_event_context('Network.responseReceived'):
+            return
+        
         request = self._request_ids.get(kwargs['requestId'], None)
         if request:
+            if hasattr(request, 'tab_id') and request.tab_id != self._bound_tab_id:
+                lifecycle_stats.record_dropped_event(
+                    event_method='Network.responseReceived',
+                    tab_id=self._bound_tab_id,
+                    reason='data_packet_tab_mismatch'
+                )
+                self._request_ids.pop(kwargs['requestId'], None)
+                return
+            
             request._raw_response = kwargs['response']
             request._resource_type = kwargs['type']
 
     def _responseReceivedExtraInfo(self, **kwargs):
+        if not self._validate_event_context('Network.responseReceivedExtraInfo'):
+            return
+        
         self._running_requests -= 1
         r = self._extra_info_ids.get(kwargs['requestId'], None)
         if r:
@@ -274,6 +375,15 @@ class Listener(object):
             if obj is False:
                 self._extra_info_ids.pop(kwargs['requestId'], None)
             elif isinstance(obj, DataPacket):
+                if hasattr(obj, 'tab_id') and obj.tab_id != self._bound_tab_id:
+                    lifecycle_stats.record_dropped_event(
+                        event_method='Network.responseReceivedExtraInfo',
+                        tab_id=self._bound_tab_id,
+                        reason='data_packet_tab_mismatch'
+                    )
+                    self._extra_info_ids.pop(kwargs['requestId'], None)
+                    return
+                
                 obj._requestExtraInfo = r.get('request', None)
                 obj._responseExtraInfo = kwargs
                 self._extra_info_ids.pop(kwargs['requestId'], None)
@@ -281,10 +391,23 @@ class Listener(object):
                 r['response'] = kwargs
 
     def _loading_finished(self, **kwargs):
+        if not self._validate_event_context('Network.loadingFinished'):
+            return
+        
         self._running_requests -= 1
         rid = kwargs['requestId']
         packet = self._request_ids.get(rid)
+        
         if packet:
+            if hasattr(packet, 'tab_id') and packet.tab_id != self._bound_tab_id:
+                lifecycle_stats.record_dropped_event(
+                    event_method='Network.loadingFinished',
+                    tab_id=self._bound_tab_id,
+                    reason='data_packet_tab_mismatch'
+                )
+                self._request_ids.pop(rid, None)
+                return
+            
             r = self._driver.run('Network.getResponseBody', requestId=rid)
             if 'body' in r:
                 packet._raw_body = r['body']
@@ -304,6 +427,16 @@ class Listener(object):
             if obj is False or (isinstance(obj, DataPacket) and not self._extra_info_ids.get('request')):
                 self._extra_info_ids.pop(kwargs['requestId'], None)
             elif isinstance(obj, DataPacket) and self._extra_info_ids.get('response'):
+                if hasattr(obj, 'tab_id') and obj.tab_id != self._bound_tab_id:
+                    lifecycle_stats.record_dropped_event(
+                        event_method='Network.loadingFinished',
+                        tab_id=self._bound_tab_id,
+                        reason='data_packet_tab_mismatch'
+                    )
+                    self._extra_info_ids.pop(kwargs['requestId'], None)
+                    self._request_ids.pop(rid, None)
+                    return
+                
                 response = r.get('response')
                 obj._requestExtraInfo = r['request']
                 obj._responseExtraInfo = response
@@ -316,10 +449,23 @@ class Listener(object):
             self._running_targets -= 1
 
     def _loading_failed(self, **kwargs):
+        if not self._validate_event_context('Network.loadingFailed'):
+            return
+        
         self._running_requests -= 1
         r_id = kwargs['requestId']
         data_packet = self._request_ids.get(r_id, None)
+        
         if data_packet:
+            if hasattr(data_packet, 'tab_id') and data_packet.tab_id != self._bound_tab_id:
+                lifecycle_stats.record_dropped_event(
+                    event_method='Network.loadingFailed',
+                    tab_id=self._bound_tab_id,
+                    reason='data_packet_tab_mismatch'
+                )
+                self._request_ids.pop(r_id, None)
+                return
+            
             data_packet._raw_fail_info = kwargs
             data_packet._resource_type = kwargs['type']
             data_packet.is_failed = True
@@ -330,6 +476,16 @@ class Listener(object):
             if obj is False and r.get('response'):
                 self._extra_info_ids.pop(kwargs['requestId'], None)
             elif isinstance(obj, DataPacket):
+                if hasattr(obj, 'tab_id') and obj.tab_id != self._bound_tab_id:
+                    lifecycle_stats.record_dropped_event(
+                        event_method='Network.loadingFailed',
+                        tab_id=self._bound_tab_id,
+                        reason='data_packet_tab_mismatch'
+                    )
+                    self._extra_info_ids.pop(kwargs['requestId'], None)
+                    self._request_ids.pop(r_id, None)
+                    return
+                
                 response = r.get('response')
                 if response:
                     obj._requestExtraInfo = r['request']
