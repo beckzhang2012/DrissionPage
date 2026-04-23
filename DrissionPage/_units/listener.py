@@ -99,17 +99,26 @@ class Listener(object):
         self._set_callback()
         self.listening = True
 
+    def _driver_ok(self):
+        return self._driver is not None and self._driver.is_running
+
     def wait(self, count=1, timeout=None, fit_count=True, raise_err=None):
         if not self.listening:
             raise RuntimeError(_S._lang.join(_S._lang.NOT_LISTENING))
+
         if not timeout:
-            while self._driver.is_running and self.listening and self._caught.qsize() < count:
+            while self._driver_ok() and self.listening and self._caught.qsize() < count:
                 sleep(.03)
-            fail = False
+
+            if self._driver_ok() and self.listening:
+                fail = False
+            else:
+                fail = self._caught.qsize() < count
 
         else:
             end = perf_counter() + timeout
-            while self._driver.is_running and self.listening:
+            fail = None
+            while self._driver_ok() and self.listening:
                 if perf_counter() > end:
                     fail = True
                     break
@@ -117,6 +126,12 @@ class Listener(object):
                     fail = False
                     break
                 sleep(.03)
+
+            if fail is None:
+                if not self._driver_ok() or not self.listening:
+                    fail = self._caught.qsize() < count
+                else:
+                    fail = perf_counter() > end
 
         if fail:
             if fit_count or not self._caught.qsize():
@@ -137,7 +152,7 @@ class Listener(object):
             raise RuntimeError(_S._lang.join(_S._lang.NOT_LISTENING))
         caught = 0
         if timeout is None:
-            while self._driver.is_running and self.listening:
+            while self._driver_ok() and self.listening:
                 if self._caught.qsize() >= gap:
                     yield self._caught.get_nowait() if gap == 1 else [self._caught.get_nowait() for _ in range(gap)]
                     if count:
@@ -145,10 +160,11 @@ class Listener(object):
                         if caught >= count:
                             return
                 sleep(.03)
+            return False
 
         else:
             end = perf_counter() + timeout
-            while self._driver.is_running and self.listening and perf_counter() < end:
+            while self._driver_ok() and self.listening and perf_counter() < end:
                 if self._caught.qsize() >= gap:
                     yield self._caught.get_nowait() if gap == 1 else [self._caught.get_nowait() for _ in range(gap)]
                     end = perf_counter() + timeout
@@ -193,13 +209,16 @@ class Listener(object):
         if not self.listening:
             raise RuntimeError(_S._lang.join(_S._lang.NOT_LISTENING))
         if timeout is None:
-            while ((not targets_only and self._running_requests > limit)
-                   or (targets_only and self._running_targets > limit)):
+            while (self._driver_ok() and self.listening and
+                   ((not targets_only and self._running_requests > limit)
+                    or (targets_only and self._running_targets > limit))):
                 sleep(.01)
+            if not self._driver_ok() or not self.listening:
+                return False
             return True
 
         end_time = perf_counter() + timeout
-        while perf_counter() < end_time:
+        while self._driver_ok() and self.listening and perf_counter() < end_time:
             if ((not targets_only and self._running_requests <= limit)
                     or (targets_only and self._running_targets <= limit)):
                 return True
