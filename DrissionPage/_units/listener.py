@@ -159,12 +159,47 @@ class Listener(object):
                 sleep(.03)
             return False
 
-    def stop(self):
-        if self.listening:
-            self.pause()
-            self.clear()
-        self._driver.stop()
-        self._driver = None
+    def stop(self, return_stats=False):
+        stats = {
+            'success': 0,
+            'skipped': 0,
+            'failed': 0,
+            'packets_cleared': 0,
+            'requests_cleared': 0,
+            'driver_stopped': False,
+            '_return_stats': return_stats
+        }
+
+        if self._driver is None and not self.listening:
+            stats['skipped'] = 1
+            return stats if return_stats else None
+
+        try:
+            if self.listening:
+                self.pause(clear=False)
+                stats['success'] += 1
+        except Exception:
+            stats['failed'] += 1
+
+        try:
+            clear_stats = self.clear(return_stats=True)
+            stats['packets_cleared'] = clear_stats.get('packets_cleared', 0)
+            stats['requests_cleared'] = clear_stats.get('requests_cleared', 0)
+            stats['success'] += clear_stats.get('success', 0)
+        except Exception:
+            stats['failed'] += 1
+
+        try:
+            if self._driver is not None:
+                self._driver.stop()
+                self._driver = None
+                stats['driver_stopped'] = True
+                stats['success'] += 1
+        except Exception:
+            stats['failed'] += 1
+
+        self.listening = False
+        return stats if return_stats else None
 
     def pause(self, clear=True):
         if self.listening:
@@ -182,12 +217,32 @@ class Listener(object):
         self._set_callback()
         self.listening = True
 
-    def clear(self):
-        self._request_ids = {}
-        self._extra_info_ids = {}
-        self._caught = Queue(maxsize=0)
-        self._running_requests = 0
-        self._running_targets = 0
+    def clear(self, return_stats=False):
+        stats = {
+            'success': 0,
+            'skipped': 0,
+            'failed': 0,
+            'packets_cleared': 0,
+            'requests_cleared': 0,
+            '_return_stats': return_stats
+        }
+
+        try:
+            if self._caught is not None:
+                stats['packets_cleared'] = self._caught.qsize()
+            if self._request_ids is not None:
+                stats['requests_cleared'] = len(self._request_ids)
+
+            self._request_ids = {}
+            self._extra_info_ids = {}
+            self._caught = Queue(maxsize=0)
+            self._running_requests = 0
+            self._running_targets = 0
+            stats['success'] = 1
+        except Exception:
+            stats['failed'] = 1
+
+        return stats if return_stats else None
 
     def wait_silent(self, timeout=None, targets_only=False, limit=0):
         if not self.listening:

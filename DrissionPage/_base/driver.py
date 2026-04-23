@@ -169,26 +169,75 @@ class Driver(object):
         return True
 
     def stop(self):
-        self._stop()
+        stats = self._stop()
         while self._handle_event_th.is_alive() or self._recv_th.is_alive():
             sleep(.01)
-        return True
+        if self._handle_immediate_event_th is not None and self._handle_immediate_event_th.is_alive():
+            while self._handle_immediate_event_th.is_alive():
+                sleep(.01)
+            stats['threads_joined'] += 1
+        return stats if stats.get('_return_stats', False) else True
 
-    def _stop(self):
+    def _stop(self, return_stats=False):
+        stats = {
+            'success': 0,
+            'skipped': 0,
+            'failed': 0,
+            'threads_joined': 0,
+            'handlers_cleared': 0,
+            'queues_cleared': 0,
+            '_return_stats': return_stats
+        }
+
         if not self.is_running:
-            return False
+            stats['skipped'] = 1
+            return stats if return_stats else False
 
         self.is_running = False
-        if self._ws:
-            self._ws.close()
-            self._ws = None
+        stats['success'] += 1
 
-        self.event_handlers.clear()
-        self.method_results.clear()
-        self.event_queue.queue.clear()
+        try:
+            if self._ws:
+                self._ws.close()
+                self._ws = None
+                stats['success'] += 1
+        except Exception:
+            stats['failed'] += 1
 
-        if hasattr(self.owner, '_on_disconnect'):
-            self.owner._on_disconnect()
+        try:
+            event_handlers_count = len(self.event_handlers)
+            immediate_handlers_count = len(self.immediate_event_handlers)
+            self.event_handlers.clear()
+            self.immediate_event_handlers.clear()
+            stats['handlers_cleared'] = event_handlers_count + immediate_handlers_count
+            stats['success'] += 1
+        except Exception:
+            stats['failed'] += 1
+
+        try:
+            self.method_results.clear()
+            stats['success'] += 1
+        except Exception:
+            stats['failed'] += 1
+
+        try:
+            event_queue_size = self.event_queue.qsize()
+            immediate_queue_size = self.immediate_event_queue.qsize()
+            self.event_queue.queue.clear()
+            self.immediate_event_queue.queue.clear()
+            stats['queues_cleared'] = event_queue_size + immediate_queue_size
+            stats['success'] += 1
+        except Exception:
+            stats['failed'] += 1
+
+        try:
+            if hasattr(self.owner, '_on_disconnect'):
+                self.owner._on_disconnect()
+                stats['success'] += 1
+        except Exception:
+            stats['failed'] += 1
+
+        return stats if return_stats else True
 
     def set_callback(self, event, callback, immediate=False):
         handler = self.immediate_event_handlers if immediate else self.event_handlers

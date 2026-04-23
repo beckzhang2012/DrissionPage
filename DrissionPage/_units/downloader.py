@@ -99,11 +99,76 @@ class DownloadManager(object):
         except:
             pass
 
-    def clear_tab_info(self, tab_id):
-        self._tab_missions.pop(tab_id, None)
-        self._flags.pop(tab_id, None)
-        TabDownloadSettings.TABS.pop(tab_id, None)
-        self._waiting_tab.discard(tab_id)
+    def clear_tab_info(self, tab_id, return_stats=False):
+        stats = {
+            'success': 0,
+            'skipped': 0,
+            'failed': 0,
+            'missions_cleared': 0,
+            'tab_missions_cleared': 0,
+            'flags_cleared': 0,
+            'settings_cleared': 0,
+            'waiting_cleared': 0,
+            '_return_stats': return_stats
+        }
+
+        tab_missions_existed = tab_id in self._tab_missions
+        flags_existed = tab_id in self._flags
+        settings_existed = tab_id in TabDownloadSettings.TABS
+        waiting_existed = tab_id in self._waiting_tab
+
+        if not any([tab_missions_existed, flags_existed, settings_existed, waiting_existed]):
+            stats['skipped'] = 1
+            return stats if return_stats else None
+
+        try:
+            if tab_missions_existed:
+                tab_missions = self._tab_missions.get(tab_id, set())
+                stats['tab_missions_cleared'] = len(tab_missions)
+
+                for mission in list(tab_missions):
+                    if mission.id in self._missions:
+                        self._missions.pop(mission.id, None)
+                        stats['missions_cleared'] += 1
+
+                self._tab_missions.pop(tab_id, None)
+                stats['success'] += 1
+        except Exception:
+            stats['failed'] += 1
+
+        try:
+            for guid, mission in list(self._missions.items()):
+                if mission.tab_id == tab_id or mission.from_tab == tab_id:
+                    self._missions.pop(guid, None)
+                    stats['missions_cleared'] += 1
+        except Exception:
+            stats['failed'] += 1
+
+        try:
+            if flags_existed:
+                self._flags.pop(tab_id, None)
+                stats['flags_cleared'] = 1
+                stats['success'] += 1
+        except Exception:
+            stats['failed'] += 1
+
+        try:
+            if settings_existed:
+                TabDownloadSettings.TABS.pop(tab_id, None)
+                stats['settings_cleared'] = 1
+                stats['success'] += 1
+        except Exception:
+            stats['failed'] += 1
+
+        try:
+            if waiting_existed:
+                self._waiting_tab.discard(tab_id)
+                stats['waiting_cleared'] = 1
+                stats['success'] += 1
+        except Exception:
+            stats['failed'] += 1
+
+        return stats if return_stats else None
 
     def _onDownloadWillBegin(self, **kwargs):
         guid = kwargs['guid']
