@@ -9,6 +9,7 @@ from json import dumps, loads, JSONDecodeError
 from queue import Queue, Empty
 from threading import Thread
 from time import perf_counter, sleep
+from typing import Any, Dict, Optional, Tuple
 
 from requests import Session
 from requests import adapters
@@ -17,6 +18,7 @@ from websocket import (WebSocketTimeoutException, WebSocketConnectionClosedExcep
 
 from .._functions.settings import Settings as _S
 from ..errors import PageDisconnectedError, BrowserConnectError
+from .event_queue import BackPressureEventQueue, EventPriority, QueueStats
 
 adapters.DEFAULT_RETRIES = 5
 
@@ -43,8 +45,16 @@ class Driver(object):
         self.event_handlers = {}
         self.immediate_event_handlers = {}
         self.method_results = {}
-        self.event_queue = Queue()
-        self.immediate_event_queue = Queue()
+        self.event_queue = BackPressureEventQueue(
+            capacity=_S.event_queue_capacity if hasattr(_S, 'event_queue_capacity') else 10000,
+            max_wait_time_seconds=_S.event_max_wait_time if hasattr(_S, 'event_max_wait_time') else 30.0,
+            drop_strategy='oldest_low_priority_first'
+        )
+        self.immediate_event_queue = BackPressureEventQueue(
+            capacity=_S.immediate_event_queue_capacity if hasattr(_S, 'immediate_event_queue_capacity') else 1000,
+            max_wait_time_seconds=5.0,
+            drop_strategy='oldest_first'
+        )
 
         self.start()
 
@@ -104,7 +114,7 @@ class Driver(object):
                 if function:
                     self._handle_immediate_event(function, msg['params'])
                 else:
-                    self.event_queue.put(msg)
+                    self.event_queue.put(msg, msg['method'])
 
             elif msg.get('id') in self.method_results:
                 self.method_results[msg['id']].put(msg)
@@ -112,7 +122,10 @@ class Driver(object):
     def _handle_event_loop(self):
         while self.is_running:
             try:
-                event = self.event_queue.get(timeout=1)
+                result = self.event_queue.get(timeout=1)
+                if result is None:
+                    continue
+                event, method = result
             except Empty:
                 continue
 
@@ -124,14 +137,18 @@ class Driver(object):
 
     def _handle_immediate_event_loop(self):
         while not self.immediate_event_queue.empty():
-            function, kwargs = self.immediate_event_queue.get(timeout=1)
+            result = self.immediate_event_queue.get(timeout=1)
+            if result is None:
+                continue
+            event, method = result
+            function, kwargs = event
             try:
                 function(**kwargs)
             except PageDisconnectedError:
                 pass
 
     def _handle_immediate_event(self, function, kwargs):
-        self.immediate_event_queue.put((function, kwargs))
+        self.immediate_event_queue.put((function, kwargs), '__immediate_event__')
         if self._handle_immediate_event_th is None or not self._handle_immediate_event_th.is_alive():
             self._handle_immediate_event_th = Thread(target=self._handle_immediate_event_loop)
             self._handle_immediate_event_th.daemon = True
@@ -185,7 +202,11 @@ class Driver(object):
 
         self.event_handlers.clear()
         self.method_results.clear()
-        self.event_queue.queue.clear()
+        self.event_queue.clear()
+        self.immediate_event_queue.clear()
+
+        self.event_queue.stop()
+        self.immediate_event_queue.stop()
 
         if hasattr(self.owner, '_on_disconnect'):
             self.owner._on_disconnect()
