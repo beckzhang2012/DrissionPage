@@ -6,6 +6,7 @@
 @Copyright: (c) 2020 by g1879, Inc. All Rights Reserved.
 """
 from base64 import b64decode
+from enum import Enum, auto
 from json import JSONDecodeError, loads
 from queue import Queue
 from re import search
@@ -16,6 +17,17 @@ from requests.structures import CaseInsensitiveDict
 from .._base.driver import Driver
 from .._functions.settings import Settings as _S
 from ..errors import WaitTimeoutError
+
+
+class RequestState(Enum):
+    """请求状态枚举"""
+    PENDING = auto()
+    ACTIVE = auto()
+    COMPLETED = auto()
+    FAILED = auto()
+
+
+_TERMINAL_STATES = {RequestState.COMPLETED, RequestState.FAILED}
 
 
 class Listener(object):
@@ -29,9 +41,16 @@ class Listener(object):
         self._running_requests = 0
         self._running_targets = 0
 
-        self._caught = None
-        self._request_ids = None
-        self._extra_info_ids = None
+        self._caught = Queue(maxsize=0)
+        self._request_ids = {}
+        self._extra_info_ids = {}
+        self._fsm_states = {}
+        self._pending_events = {}
+        self._fsm_stats = {
+            'out_of_order_count': 0,
+            'missing_events_count': 0,
+            'duplicate_terminal_count': 0,
+        }
 
         self.listening = False
         self.tab_id = None
@@ -185,6 +204,13 @@ class Listener(object):
     def clear(self):
         self._request_ids = {}
         self._extra_info_ids = {}
+        self._fsm_states = {}
+        self._pending_events = {}
+        self._fsm_stats = {
+            'out_of_order_count': 0,
+            'missing_events_count': 0,
+            'duplicate_terminal_count': 0,
+        }
         self._caught = Queue(maxsize=0)
         self._running_requests = 0
         self._running_targets = 0
@@ -229,13 +255,22 @@ class Listener(object):
         self._driver.set_callback('Network.loadingFailed', self._loading_failed)
 
     def _requestWillBeSent(self, **kwargs):
+        rid = kwargs['requestId']
+        current_state = self._fsm_states.get(rid)
+
+        if current_state in _TERMINAL_STATES:
+            self._fsm_stats['duplicate_terminal_count'] += 1
+            return
+
         self._running_requests += 1
         p = None
+        is_target = False
+
         if self._targets is True:
             if ((self._method is True or kwargs['request']['method'] in self._method)
                     and (self._res_type is True or kwargs.get('type', '').upper() in self._res_type)):
+                is_target = True
                 self._running_targets += 1
-                rid = kwargs['requestId']
                 p = self._request_ids.setdefault(rid, DataPacket(self._owner.tab_id, True))
                 p._raw_request = kwargs
                 if kwargs['request'].get('hasPostData', None) and not kwargs['request'].get('postData', None):
@@ -243,48 +278,147 @@ class Listener(object):
                                                         requestId=rid).get('postData', None)
 
         else:
-            rid = kwargs['requestId']
             for target in self._targets:
                 if (((self._is_regex and search(target, kwargs['request']['url']))
                      or (not self._is_regex and target in kwargs['request']['url']))
                         and (self._method is True or kwargs['request']['method'] in self._method)
                         and (self._res_type is True or kwargs.get('type', '').upper() in self._res_type)):
+                    is_target = True
                     self._running_targets += 1
                     p = self._request_ids.setdefault(rid, DataPacket(self._owner.tab_id, target))
                     p._raw_request = kwargs
                     break
 
-        self._extra_info_ids.setdefault(kwargs['requestId'], {})['obj'] = p if p else False
+        self._extra_info_ids.setdefault(rid, {})['obj'] = p if p else False
+        self._fsm_states[rid] = RequestState.ACTIVE
+
+        pending = self._pending_events.pop(rid, {})
+        if pending:
+            if 'responseReceived' in pending:
+                resp_kwargs = pending['responseReceived']
+                if p:
+                    p._raw_response = resp_kwargs['response']
+                    p._resource_type = resp_kwargs['type']
+            if 'requestExtraInfo' in pending:
+                req_info = pending['requestExtraInfo']
+                if p:
+                    p._requestExtraInfo = req_info
+                extra = self._extra_info_ids.get(rid, {})
+                extra['request'] = req_info
+            if 'responseExtraInfo' in pending:
+                resp_info = pending['responseExtraInfo']
+                if p:
+                    extra = self._extra_info_ids.get(rid, {})
+                    p._requestExtraInfo = extra.get('request', None)
+                    p._responseExtraInfo = resp_info
+                extra = self._extra_info_ids.get(rid, {})
+                extra['response'] = resp_info
 
     def _requestWillBeSentExtraInfo(self, **kwargs):
-        self._running_requests += 1
-        self._extra_info_ids.setdefault(kwargs['requestId'], {})['request'] = kwargs
+        rid = kwargs['requestId']
+        current_state = self._fsm_states.get(rid)
+
+        if current_state in _TERMINAL_STATES:
+            self._fsm_stats['duplicate_terminal_count'] += 1
+            return
+
+        if current_state is None or current_state == RequestState.PENDING:
+            if current_state is None:
+                self._fsm_stats['out_of_order_count'] += 1
+                self._fsm_states[rid] = RequestState.PENDING
+            pending = self._pending_events.setdefault(rid, {})
+            pending['requestExtraInfo'] = kwargs
+            return
+
+        packet = self._request_ids.get(rid)
+        if packet:
+            packet._requestExtraInfo = kwargs
+
+        r = self._extra_info_ids.get(rid, None)
+        if r:
+            r['request'] = kwargs
 
     def _response_received(self, **kwargs):
-        request = self._request_ids.get(kwargs['requestId'], None)
+        rid = kwargs['requestId']
+        current_state = self._fsm_states.get(rid)
+
+        if current_state in _TERMINAL_STATES:
+            self._fsm_stats['duplicate_terminal_count'] += 1
+            return
+
+        if current_state is None or current_state == RequestState.PENDING:
+            if current_state is None:
+                self._fsm_stats['out_of_order_count'] += 1
+                self._fsm_states[rid] = RequestState.PENDING
+            pending = self._pending_events.setdefault(rid, {})
+            pending['responseReceived'] = kwargs
+            return
+
+        request = self._request_ids.get(rid, None)
         if request:
             request._raw_response = kwargs['response']
             request._resource_type = kwargs['type']
 
     def _responseReceivedExtraInfo(self, **kwargs):
-        self._running_requests -= 1
-        r = self._extra_info_ids.get(kwargs['requestId'], None)
+        rid = kwargs['requestId']
+        current_state = self._fsm_states.get(rid)
+
+        if current_state in _TERMINAL_STATES:
+            self._fsm_stats['duplicate_terminal_count'] += 1
+            return
+
+        if current_state is None or current_state == RequestState.PENDING:
+            if current_state is None:
+                self._fsm_stats['out_of_order_count'] += 1
+                self._fsm_states[rid] = RequestState.PENDING
+            pending = self._pending_events.setdefault(rid, {})
+            pending['responseExtraInfo'] = kwargs
+            return
+
+        r = self._extra_info_ids.get(rid, None)
         if r:
             obj = r.get('obj', None)
             if obj is False:
-                self._extra_info_ids.pop(kwargs['requestId'], None)
+                self._extra_info_ids.pop(rid, None)
             elif isinstance(obj, DataPacket):
                 obj._requestExtraInfo = r.get('request', None)
                 obj._responseExtraInfo = kwargs
-                self._extra_info_ids.pop(kwargs['requestId'], None)
+                self._extra_info_ids.pop(rid, None)
             else:
                 r['response'] = kwargs
 
-    def _loading_finished(self, **kwargs):
-        self._running_requests -= 1
-        rid = kwargs['requestId']
         packet = self._request_ids.get(rid)
         if packet:
+            if packet._responseExtraInfo is None:
+                extra_info = self._extra_info_ids.get(rid, {})
+                packet._requestExtraInfo = extra_info.get('request', None)
+                packet._responseExtraInfo = kwargs
+
+    def _loading_finished(self, **kwargs):
+        rid = kwargs['requestId']
+        current_state = self._fsm_states.get(rid)
+
+        if current_state in _TERMINAL_STATES:
+            self._fsm_stats['duplicate_terminal_count'] += 1
+            return
+
+        self._running_requests -= 1
+
+        pending = self._pending_events.pop(rid, {})
+        if pending and current_state != RequestState.ACTIVE:
+            self._fsm_stats['missing_events_count'] += 1
+
+        packet = self._request_ids.get(rid)
+        if packet:
+            if 'responseReceived' in pending:
+                resp_kwargs = pending['responseReceived']
+                packet._raw_response = resp_kwargs['response']
+                packet._resource_type = resp_kwargs['type']
+            if 'requestExtraInfo' in pending:
+                packet._requestExtraInfo = pending['requestExtraInfo']
+            if 'responseExtraInfo' in pending:
+                packet._responseExtraInfo = pending['responseExtraInfo']
+
             r = self._driver.run('Network.getResponseBody', requestId=rid)
             if 'body' in r:
                 packet._raw_body = r['body']
@@ -293,50 +427,73 @@ class Listener(object):
                 packet._raw_body = ''
                 packet._base64_body = False
 
-            if (packet._raw_request['request'].get('hasPostData', None)
+            if (packet._raw_request and packet._raw_request['request'].get('hasPostData', None)
                     and not packet._raw_request['request'].get('postData', None)):
                 r = self._driver.run('Network.getRequestPostData', requestId=rid, _timeout=1)
                 packet._raw_post_data = r.get('postData', None)
 
-        r = self._extra_info_ids.get(kwargs['requestId'], None)
+        r = self._extra_info_ids.get(rid, None)
         if r:
             obj = r.get('obj', None)
-            if obj is False or (isinstance(obj, DataPacket) and not self._extra_info_ids.get('request')):
-                self._extra_info_ids.pop(kwargs['requestId'], None)
-            elif isinstance(obj, DataPacket) and self._extra_info_ids.get('response'):
+            if obj is False or (isinstance(obj, DataPacket) and not r.get('request')):
+                self._extra_info_ids.pop(rid, None)
+            elif isinstance(obj, DataPacket) and r.get('response'):
                 response = r.get('response')
                 obj._requestExtraInfo = r['request']
                 obj._responseExtraInfo = response
-                self._extra_info_ids.pop(kwargs['requestId'], None)
+                self._extra_info_ids.pop(rid, None)
 
         self._request_ids.pop(rid, None)
+        self._fsm_states[rid] = RequestState.COMPLETED
 
         if packet:
             self._caught.put(packet)
             self._running_targets -= 1
 
     def _loading_failed(self, **kwargs):
+        rid = kwargs['requestId']
+        current_state = self._fsm_states.get(rid)
+
+        if current_state in _TERMINAL_STATES:
+            self._fsm_stats['duplicate_terminal_count'] += 1
+            return
+
         self._running_requests -= 1
-        r_id = kwargs['requestId']
-        data_packet = self._request_ids.get(r_id, None)
+
+        pending = self._pending_events.pop(rid, {})
+        if pending and current_state != RequestState.ACTIVE:
+            self._fsm_stats['missing_events_count'] += 1
+
+        data_packet = self._request_ids.get(rid, None)
         if data_packet:
+            if 'responseReceived' in pending:
+                resp_kwargs = pending['responseReceived']
+                data_packet._raw_response = resp_kwargs['response']
+                data_packet._resource_type = resp_kwargs['type']
+            if 'requestExtraInfo' in pending:
+                data_packet._requestExtraInfo = pending['requestExtraInfo']
+            if 'responseExtraInfo' in pending:
+                data_packet._responseExtraInfo = pending['responseExtraInfo']
+
             data_packet._raw_fail_info = kwargs
-            data_packet._resource_type = kwargs['type']
+            if data_packet._resource_type is None:
+                data_packet._resource_type = kwargs.get('type')
             data_packet.is_failed = True
 
-        r = self._extra_info_ids.get(kwargs['requestId'], None)
+        r = self._extra_info_ids.get(rid, None)
         if r:
             obj = r.get('obj', None)
             if obj is False and r.get('response'):
-                self._extra_info_ids.pop(kwargs['requestId'], None)
+                self._extra_info_ids.pop(rid, None)
             elif isinstance(obj, DataPacket):
                 response = r.get('response')
                 if response:
                     obj._requestExtraInfo = r['request']
                     obj._responseExtraInfo = response
-                    self._extra_info_ids.pop(kwargs['requestId'], None)
+                    self._extra_info_ids.pop(rid, None)
 
-        self._request_ids.pop(r_id, None)
+        self._request_ids.pop(rid, None)
+        self._fsm_states[rid] = RequestState.FAILED
 
         if data_packet:
             self._caught.put(data_packet)
