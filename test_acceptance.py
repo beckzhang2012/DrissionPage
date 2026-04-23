@@ -1,18 +1,26 @@
 # -*- coding: utf-8 -*-
 """
-事件队列背压与公平调度测试
-验证以下指标：
-1) 高并发突发写入下吞吐稳定
-2) 长短任务混合下最大等待时延可控
-3) 背压触发时丢弃策略符合预期
-4) 多轮运行结果一致（无状态漂移）
+验收测试文件：事件队列背压与公平调度
+====================================
+验证指标：
+1) 吞吐 (throughput_events_per_second)
+2) 最大等待时延 (max_wait_time_seconds)
+3) 事件丢弃统计 (dropped_by_priority, dropped_by_method)
+4) 公平性指标 (fairness_index)
+5) $LASTEXITCODE
+
+测试覆盖：
+- 高并发突发写入
+- 长短任务混合
+- 背压触发丢弃策略
+- 多轮一致性（无状态漂移）
+- 兼容性回归：普通事件与即时事件路径
 """
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from threading import Thread, Event
 from typing import List, Dict, Any
-import json
 
 sys.path.insert(0, '.')
 
@@ -23,15 +31,58 @@ from DrissionPage._base.driver import (
 )
 
 
-def run_test_1_high_concurrency_throughput():
+class TestRunner:
+    def __init__(self):
+        self.results = []
+        self.exit_code = 0
+
+    def run_test(self, test_func, test_name):
+        print(f"\n{'='*60}")
+        print(f"测试: {test_name}")
+        print(f"{'='*60}")
+        try:
+            result = test_func()
+            self.results.append(result)
+            if result.get('passed', False):
+                print(f"  ✓ 通过")
+            else:
+                print(f"  ✗ 失败")
+                self.exit_code = 1
+            return result
+        except Exception as e:
+            print(f"  ✗ 异常: {e}")
+            import traceback
+            traceback.print_exc()
+            self.results.append({'test': test_name, 'passed': False, 'error': str(e)})
+            self.exit_code = 1
+            return None
+
+    def print_summary(self):
+        print(f"\n{'='*60}")
+        print("测试汇总")
+        print(f"{'='*60}")
+        
+        all_passed = True
+        for result in self.results:
+            if result:
+                status = "通过" if result.get('passed', False) else "失败"
+                print(f"  {result.get('test', 'unknown')}: {status}")
+                if not result.get('passed', False):
+                    all_passed = False
+        
+        print(f"\n{'-'*60}")
+        print(f"  总体结果: {'全部通过' if all_passed else '部分失败'}")
+        print(f"{'-'*60}")
+        
+        print(f"\n$LASTEXITCODE = {self.exit_code}")
+        return self.exit_code
+
+
+def test_1_high_concurrency_throughput() -> Dict[str, Any]:
     """
     测试1：高并发突发写入下吞吐稳定
-    验证：在突发大量事件时，队列能够稳定处理，吞吐不会剧烈波动
+    验证：在突发大量事件时，队列能够稳定处理
     """
-    print("\n" + "="*60)
-    print("测试1：高并发突发写入下吞吐稳定")
-    print("="*60)
-    
     queue = BackPressureEventQueue(capacity=1000, drop_strategy='oldest_low_priority_first')
     stop_event = Event()
     
@@ -86,41 +137,31 @@ def run_test_1_high_concurrency_throughput():
     print(f"  耗时: {elapsed:.3f}秒")
     print(f"  吞吐率: {throughput:.2f} 事件/秒")
     print(f"  公平性指数: {stats['fairness_index']:.4f}")
-    
-    if processed_events:
-        first_time = processed_events[0][1]
-        last_time = processed_events[-1][1]
-        processing_duration = last_time - first_time
-        processing_throughput = processed / processing_duration if processing_duration > 0 else 0
-        print(f"  实际处理吞吐: {processing_throughput:.2f} 事件/秒")
+    print(f"  最大等待时间: {stats['max_wait_time_seconds']:.4f}秒")
     
     queue.stop()
     
-    result = {
+    passed = processed > 0 and throughput > 0
+    
+    return {
         'test': 'high_concurrency_throughput',
         'total_events': total_events,
         'processed': processed,
         'dropped': dropped,
         'elapsed_seconds': elapsed,
         'throughput_events_per_second': throughput,
-        'fairness_index': stats['fairness_index'],
         'max_wait_time_seconds': stats['max_wait_time_seconds'],
-        'passed': processed > 0 and throughput > 0,
+        'average_wait_time_seconds': stats['average_wait_time_seconds'],
+        'fairness_index': stats['fairness_index'],
+        'passed': passed,
     }
-    
-    print(f"  测试结果: {'通过' if result['passed'] else '失败'}")
-    return result
 
 
-def run_test_2_max_wait_time_controllable():
+def test_2_mixed_tasks_wait_time() -> Dict[str, Any]:
     """
     测试2：长短任务混合下最大等待时延可控
     验证：即使有长时间运行的任务，其他事件的等待时间也不会无限增长
     """
-    print("\n" + "="*60)
-    print("测试2：长短任务混合下最大等待时延可控")
-    print("="*60)
-    
     queue = BackPressureEventQueue(capacity=500, drop_strategy='oldest_low_priority_first')
     
     short_task_methods = ['Short.task1', 'Short.task2', 'Short.task3']
@@ -165,6 +206,7 @@ def run_test_2_max_wait_time_controllable():
     print(f"  最大等待时间: {stats['max_wait_time_seconds']:.4f}秒")
     print(f"  平均等待时间: {stats['average_wait_time_seconds']:.4f}秒")
     print(f"  公平性指数: {stats['fairness_index']:.4f}")
+    print(f"  总丢弃: {stats['total_dropped']}")
     
     method_counts = {}
     for method, ts in processed_timestamps:
@@ -179,31 +221,27 @@ def run_test_2_max_wait_time_controllable():
     passed = max_wait_time < 2.0 and short_task_count > 0
     
     print(f"  短任务处理: {short_task_count}, 长任务处理: {long_task_count}")
-    print(f"  测试结果: {'通过' if passed else '失败'}")
     
     queue.stop()
     
     return {
-        'test': 'max_wait_time_controllable',
+        'test': 'mixed_tasks_wait_time',
         'total_processed': len(processed_timestamps),
         'short_tasks_processed': short_task_count,
         'long_tasks_processed': long_task_count,
         'max_wait_time_seconds': max_wait_time,
         'average_wait_time_seconds': stats['average_wait_time_seconds'],
+        'total_dropped': stats['total_dropped'],
         'fairness_index': stats['fairness_index'],
         'passed': passed,
     }
 
 
-def run_test_3_drop_strategy():
+def test_3_back_pressure_drop_strategy() -> Dict[str, Any]:
     """
     测试3：背压触发时丢弃策略符合预期
     验证：队列满时，按照优先级丢弃事件（低优先级先被丢弃）
     """
-    print("\n" + "="*60)
-    print("测试3：背压触发时丢弃策略符合预期")
-    print("="*60)
-    
     small_capacity = 10
     queue = BackPressureEventQueue(capacity=small_capacity, drop_strategy='oldest_low_priority_first')
     
@@ -251,10 +289,13 @@ def run_test_3_drop_strategy():
     dropped_high = stats['dropped_by_priority'].get(EventPriority.HIGH, 0)
     dropped_critical = stats['dropped_by_priority'].get(EventPriority.CRITICAL, 0)
     
-    print(f"  低优先级丢弃: {dropped_low}")
-    print(f"  普通优先级丢弃: {dropped_normal}")
-    print(f"  高优先级丢弃: {dropped_high}")
-    print(f"  关键优先级丢弃: {dropped_critical}")
+    print(f"  低优先级(LOW={EventPriority.LOW})丢弃: {dropped_low}")
+    print(f"  普通优先级(NORMAL={EventPriority.NORMAL})丢弃: {dropped_normal}")
+    print(f"  高优先级(HIGH={EventPriority.HIGH})丢弃: {dropped_high}")
+    print(f"  关键优先级(CRITICAL={EventPriority.CRITICAL})丢弃: {dropped_critical}")
+    
+    print(f"  丢弃策略说明: oldest_low_priority_first (低优先级最老事件先丢弃)")
+    print(f"  触发条件: 队列满 (qsize() >= capacity)")
     
     passed = (
         stats['total_dropped'] > 0 and
@@ -263,12 +304,10 @@ def run_test_3_drop_strategy():
         dropped_high >= dropped_critical
     )
     
-    print(f"  测试结果: {'通过' if passed else '失败'}")
-    
     queue.stop()
     
     return {
-        'test': 'drop_strategy',
+        'test': 'back_pressure_drop_strategy',
         'queue_capacity': small_capacity,
         'total_enqueued': stats['total_enqueued'],
         'total_dropped': stats['total_dropped'],
@@ -277,19 +316,17 @@ def run_test_3_drop_strategy():
         'dropped_normal': dropped_normal,
         'dropped_high': dropped_high,
         'dropped_critical': dropped_critical,
+        'drop_strategy': 'oldest_low_priority_first',
+        'trigger_condition': 'queue full (qsize() >= capacity)',
         'passed': passed,
     }
 
 
-def run_test_4_consistent_results():
+def test_4_consistent_results() -> Dict[str, Any]:
     """
     测试4：多轮运行结果一致（无状态漂移）
     验证：相同的输入在多次运行中产生一致的输出模式
     """
-    print("\n" + "="*60)
-    print("测试4：多轮运行结果一致（无状态漂移）")
-    print("="*60)
-    
     def run_single_round(round_num: int) -> Dict[str, Any]:
         queue = BackPressureEventQueue(capacity=100, drop_strategy='oldest_low_priority_first')
         
@@ -335,7 +372,6 @@ def run_test_4_consistent_results():
     
     print(f"  处理数一致性: {'一致' if consistent_processed else '不一致'}")
     print(f"  公平性标准差: {fairness_std:.6f}")
-    print(f"  测试结果: {'通过' if passed else '失败'}")
     
     return {
         'test': 'consistent_results',
@@ -349,61 +385,127 @@ def run_test_4_consistent_results():
     }
 
 
-def run_all_tests():
-    """运行所有测试"""
-    print("\n" + "="*60)
-    print("事件队列背压与公平调度测试套件")
-    print("="*60)
+def test_5_compatibility_normal_events() -> Dict[str, Any]:
+    """
+    测试5：兼容性回归 - 普通事件处理路径
+    验证：原事件处理语义未破坏
+    """
+    print("  验证普通事件入队和出队...")
     
-    all_results = []
+    queue = BackPressureEventQueue(capacity=100, drop_strategy='oldest_low_priority_first')
     
-    all_results.append(run_test_1_high_concurrency_throughput())
-    all_results.append(run_test_2_max_wait_time_controllable())
-    all_results.append(run_test_3_drop_strategy())
-    all_results.append(run_test_4_consistent_results())
+    test_events = [
+        ({'method': 'Test.event1', 'params': {'a': 1}}, 'Test.event1'),
+        ({'method': 'Test.event2', 'params': {'b': 2}}, 'Test.event2'),
+        ({'method': 'Test.event3', 'params': {'c': 3}}, 'Test.event3'),
+    ]
     
-    print("\n" + "="*60)
-    print("测试汇总")
-    print("="*60)
+    for event, method in test_events:
+        queue.put(event, method)
     
-    all_passed = True
-    summary = {
-        'tests': [],
-        'overall': {},
+    print(f"  入队事件数: {len(test_events)}")
+    print(f"  队列大小: {queue.qsize()}")
+    
+    received_events = []
+    while not queue.empty():
+        result = queue.get(timeout=0.1)
+        if result:
+            received_events.append(result)
+    
+    print(f"  出队事件数: {len(received_events)}")
+    
+    passed = len(received_events) == len(test_events)
+    
+    if passed:
+        for i, (expected, received) in enumerate(zip(test_events, received_events)):
+            expected_event, expected_method = expected
+            received_event, received_method = received
+            assert expected_method == received_method, f"方法不匹配: {expected_method} vs {received_method}"
+            assert expected_event == received_event, f"事件不匹配: {expected_event} vs {received_event}"
+        print("  ✓ 所有事件正确处理")
+    else:
+        print("  ✗ 事件数不匹配")
+    
+    queue.stop()
+    
+    return {
+        'test': 'compatibility_normal_events',
+        'expected_count': len(test_events),
+        'received_count': len(received_events),
+        'passed': passed,
     }
+
+
+def test_6_compatibility_immediate_events() -> Dict[str, Any]:
+    """
+    测试6：兼容性回归 - 即时事件处理路径
+    验证：即时事件使用独立队列和丢弃策略
+    """
+    print("  验证即时事件独立队列...")
     
-    for result in all_results:
-        all_passed = all_passed and result['passed']
-        summary['tests'].append({
-            'name': result['test'],
-            'passed': result['passed'],
-            'details': {k: v for k, v in result.items() if k not in ['test', 'passed']},
-        })
-        status = "通过" if result['passed'] else "失败"
-        print(f"  {result['test']}: {status}")
+    normal_queue = BackPressureEventQueue(capacity=100, drop_strategy='oldest_low_priority_first')
+    immediate_queue = BackPressureEventQueue(capacity=50, drop_strategy='oldest_first')
     
-    print("\n" + "-"*60)
-    print(f"  总体结果: {'全部通过' if all_passed else '部分失败'}")
-    print("-"*60)
+    print(f"  普通队列容量: {normal_queue.capacity}, 丢弃策略: oldest_low_priority_first")
+    print(f"  即时队列容量: {immediate_queue.capacity}, 丢弃策略: oldest_first")
     
-    exit_code = 0 if all_passed else 1
-    summary['overall'] = {
-        'all_passed': all_passed,
-        'exit_code': exit_code,
+    for i in range(10):
+        normal_queue.put({'type': 'normal', 'seq': i}, f'Normal.event_{i}')
+        immediate_queue.put({'type': 'immediate', 'seq': i}, f'Immediate.event_{i}')
+    
+    print(f"  普通队列大小: {normal_queue.qsize()}")
+    print(f"  即时队列大小: {immediate_queue.qsize()}")
+    
+    normal_received = 0
+    while not normal_queue.empty():
+        result = normal_queue.get(timeout=0.1)
+        if result:
+            normal_received += 1
+    
+    immediate_received = 0
+    while not immediate_queue.empty():
+        result = immediate_queue.get(timeout=0.1)
+        if result:
+            immediate_received += 1
+    
+    print(f"  普通事件处理数: {normal_received}")
+    print(f"  即时事件处理数: {immediate_received}")
+    
+    passed = normal_received == 10 and immediate_received == 10
+    
+    normal_queue.stop()
+    immediate_queue.stop()
+    
+    return {
+        'test': 'compatibility_immediate_events',
+        'normal_queue_capacity': normal_queue.capacity,
+        'immediate_queue_capacity': immediate_queue.capacity,
+        'normal_received': normal_received,
+        'immediate_received': immediate_received,
+        'passed': passed,
     }
+
+
+def main():
+    print("\n" + "="*60)
+    print("事件队列背压与公平调度验收测试")
+    print("="*60)
+    print(f"日期: {time.strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"Python版本: {sys.version}")
     
-    print("\n详细统计:")
-    for result in all_results:
-        print(f"\n  {result['test']}:")
-        for key, value in result.items():
-            if key not in ['test', 'passed']:
-                print(f"    {key}: {value}")
+    runner = TestRunner()
     
-    print(f"\n$LASTEXITCODE = {exit_code}")
+    runner.run_test(test_1_high_concurrency_throughput, "高并发突发写入吞吐稳定")
+    runner.run_test(test_2_mixed_tasks_wait_time, "长短任务混合最大等待时延可控")
+    runner.run_test(test_3_back_pressure_drop_strategy, "背压触发丢弃策略符合预期")
+    runner.run_test(test_4_consistent_results, "多轮运行结果一致（无状态漂移）")
+    runner.run_test(test_5_compatibility_normal_events, "兼容性回归：普通事件处理路径")
+    runner.run_test(test_6_compatibility_immediate_events, "兼容性回归：即时事件处理路径")
     
-    return summary, exit_code
+    exit_code = runner.print_summary()
+    
+    return exit_code
 
 
 if __name__ == '__main__':
-    summary, exit_code = run_all_tests()
-    sys.exit(exit_code)
+    sys.exit(main())

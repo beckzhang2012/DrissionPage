@@ -8,7 +8,7 @@ from threading import Thread
 
 sys.path.insert(0, '.')
 
-from DrissionPage._base.event_queue import (
+from DrissionPage._base.driver import (
     BackPressureEventQueue,
     EventPriority,
     PriorityBasedEventMethodMapper,
