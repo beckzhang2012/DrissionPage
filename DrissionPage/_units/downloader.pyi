@@ -111,10 +111,11 @@ class DownloadManager(object):
         """
         ...
 
-    def clear_tab_info(self, tab_id: str) -> None:
+    def clear_tab_info(self, tab_id: str, return_stats: bool = False) -> Union[None, dict]:
         """当tab关闭时清除有关信息
         :param tab_id: 标签页id
-        :return: None
+        :param return_stats: 是否返回清理统计信息
+        :return: return_stats为True时返回统计字典，否则返回None
         """
         ...
 

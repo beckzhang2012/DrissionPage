@@ -169,14 +169,14 @@ class Driver(object):
         return True
 
     def stop(self):
-        stats = self._stop()
+        stats = self._stop(return_stats=True)
         while self._handle_event_th.is_alive() or self._recv_th.is_alive():
             sleep(.01)
         if self._handle_immediate_event_th is not None and self._handle_immediate_event_th.is_alive():
             while self._handle_immediate_event_th.is_alive():
                 sleep(.01)
             stats['threads_joined'] += 1
-        return stats if stats.get('_return_stats', False) else True
+        return True
 
     def _stop(self, return_stats=False):
         stats = {

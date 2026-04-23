@@ -101,8 +101,11 @@ class Listener(object):
         """
         ...
 
-    def stop(self) -> None:
-        """停止监听，清空已监听到的列表"""
+    def stop(self, return_stats: bool = False) -> Union[None, dict]:
+        """停止监听，清空已监听到的列表
+        :param return_stats: 是否返回清理统计信息
+        :return: return_stats为True时返回统计字典，否则返回None
+        """
         ...
 
     def pause(self, clear: bool = True) -> None:
@@ -116,8 +119,11 @@ class Listener(object):
         """继续暂停的监听"""
         ...
 
-    def clear(self) -> None:
-        """清空监听到但还没返回的结果"""
+    def clear(self, return_stats: bool = False) -> Union[None, dict]:
+        """清空监听到但还没返回的结果
+        :param return_stats: 是否返回清理统计信息
+        :return: return_stats为True时返回统计字典，否则返回None
+        """
         ...
 
     def wait_silent(self,
