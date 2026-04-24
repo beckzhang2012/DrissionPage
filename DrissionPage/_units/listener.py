@@ -5,17 +5,55 @@
 @Website  : https://DrissionPage.cn
 @Copyright: (c) 2020 by g1879, Inc. All Rights Reserved.
 """
+from __future__ import annotations
+
 from base64 import b64decode
+from enum import Enum, auto
 from json import JSONDecodeError, loads
 from queue import Queue
 from re import search
 from time import perf_counter, sleep
+from typing import Optional, Dict, Any
 
 from requests.structures import CaseInsensitiveDict
 
 from .._base.driver import Driver
 from .._functions.settings import Settings as _S
 from ..errors import WaitTimeoutError
+
+
+class RequestState(Enum):
+    PENDING = auto()
+    HAS_RESPONSE = auto()
+    COMPLETED = auto()
+
+
+class RedirectInfo:
+    def __init__(self, request: dict, response: dict):
+        self.request = request
+        self.response = response
+
+
+class ListenerStats:
+    def __init__(self):
+        self.merge_success_count = 0
+        self.merge_attempt_count = 0
+        self.duplicate_completion_blocked = 0
+        self.degraded_count = 0
+        self.redirect_chains_handled = 0
+
+    def reset(self):
+        self.merge_success_count = 0
+        self.merge_attempt_count = 0
+        self.duplicate_completion_blocked = 0
+        self.degraded_count = 0
+        self.redirect_chains_handled = 0
+
+    @property
+    def merge_success_rate(self) -> float:
+        if self.merge_attempt_count == 0:
+            return 100.0
+        return (self.merge_success_count / self.merge_attempt_count) * 100
 
 
 class Listener(object):
@@ -31,6 +69,7 @@ class Listener(object):
 
         self._caught = None
         self._request_ids = None
+        self._request_states = None
         self._extra_info_ids = None
 
         self.listening = False
@@ -40,6 +79,8 @@ class Listener(object):
         self._is_regex = False
         self._method = {'GET', 'POST'}
         self._res_type = True
+
+        self._stats = ListenerStats()
 
     @property
     def targets(self):
@@ -184,10 +225,70 @@ class Listener(object):
 
     def clear(self):
         self._request_ids = {}
+        self._request_states = {}
         self._extra_info_ids = {}
         self._caught = Queue(maxsize=0)
         self._running_requests = 0
         self._running_targets = 0
+        self._stats.reset()
+
+    def _get_request_state(self, request_id: str) -> RequestState:
+        return self._request_states.get(request_id, RequestState.PENDING)
+
+    def _set_request_state(self, request_id: str, state: RequestState):
+        self._request_states[request_id] = state
+
+    def _is_redirect(self, kwargs: dict) -> bool:
+        return 'redirectResponse' in kwargs
+
+    def _handle_redirect(self, kwargs: dict, is_target: bool) -> Optional[DataPacket]:
+        rid = kwargs['requestId']
+        redirect_resp = kwargs.get('redirectResponse', {})
+        
+        existing_packet = self._request_ids.get(rid)
+        if existing_packet:
+            if not hasattr(existing_packet, '_redirect_chain'):
+                existing_packet._redirect_chain = []
+            
+            prev_request = existing_packet._raw_request
+            prev_response = existing_packet._raw_response
+            
+            if prev_request and prev_response:
+                existing_packet._redirect_chain.append(RedirectInfo(prev_request, prev_response))
+            
+            existing_packet._raw_request = kwargs
+            self._stats.redirect_chains_handled += 1
+            
+            if is_target:
+                return existing_packet
+            else:
+                return None
+        
+        return None
+
+    def _should_process_target(self, kwargs: dict) -> tuple:
+        request = kwargs['request']
+        request_method = request.get('method', '')
+        resource_type = kwargs.get('type', '').upper()
+        
+        if self._targets is True:
+            is_match = ((self._method is True or request_method in self._method)
+                       and (self._res_type is True or resource_type in self._res_type))
+            target_value = True
+        else:
+            is_match = False
+            target_value = None
+            url = request.get('url', '')
+            for target in self._targets:
+                if (((self._is_regex and search(target, url))
+                     or (not self._is_regex and target in url))
+                        and (self._method is True or request_method in self._method)
+                        and (self._res_type is True or resource_type in self._res_type)):
+                    is_match = True
+                    target_value = target
+                    break
+        
+        return is_match, target_value
 
     def wait_silent(self, timeout=None, targets_only=False, limit=0):
         if not self.listening:
@@ -229,42 +330,54 @@ class Listener(object):
         self._driver.set_callback('Network.loadingFailed', self._loading_failed)
 
     def _requestWillBeSent(self, **kwargs):
-        self._running_requests += 1
+        rid = kwargs['requestId']
+        current_state = self._get_request_state(rid)
+        
+        if current_state == RequestState.COMPLETED:
+            self._stats.duplicate_completion_blocked += 1
+            return
+        
+        is_redirect = self._is_redirect(kwargs)
+        is_match, target_value = self._should_process_target(kwargs)
+        
+        if not is_redirect:
+            self._running_requests += 1
+        
         p = None
-        if self._targets is True:
-            if ((self._method is True or kwargs['request']['method'] in self._method)
-                    and (self._res_type is True or kwargs.get('type', '').upper() in self._res_type)):
-                self._running_targets += 1
-                rid = kwargs['requestId']
-                p = self._request_ids.setdefault(rid, DataPacket(self._owner.tab_id, True))
-                p._raw_request = kwargs
+        if is_redirect:
+            p = self._handle_redirect(kwargs, is_match)
+            if p and is_match:
                 if kwargs['request'].get('hasPostData', None) and not kwargs['request'].get('postData', None):
                     p._raw_post_data = self._driver.run('Network.getRequestPostData',
                                                         requestId=rid).get('postData', None)
-
-        else:
-            rid = kwargs['requestId']
-            for target in self._targets:
-                if (((self._is_regex and search(target, kwargs['request']['url']))
-                     or (not self._is_regex and target in kwargs['request']['url']))
-                        and (self._method is True or kwargs['request']['method'] in self._method)
-                        and (self._res_type is True or kwargs.get('type', '').upper() in self._res_type)):
-                    self._running_targets += 1
-                    p = self._request_ids.setdefault(rid, DataPacket(self._owner.tab_id, target))
-                    p._raw_request = kwargs
-                    break
-
-        self._extra_info_ids.setdefault(kwargs['requestId'], {})['obj'] = p if p else False
+        elif is_match:
+            self._running_targets += 1
+            p = self._request_ids.setdefault(rid, DataPacket(self._owner.tab_id, target_value))
+            p._raw_request = kwargs
+            if kwargs['request'].get('hasPostData', None) and not kwargs['request'].get('postData', None):
+                p._raw_post_data = self._driver.run('Network.getRequestPostData',
+                                                    requestId=rid).get('postData', None)
+        
+        self._set_request_state(rid, RequestState.PENDING)
+        self._extra_info_ids.setdefault(rid, {})['obj'] = p if p else False
 
     def _requestWillBeSentExtraInfo(self, **kwargs):
         self._running_requests += 1
         self._extra_info_ids.setdefault(kwargs['requestId'], {})['request'] = kwargs
 
     def _response_received(self, **kwargs):
-        request = self._request_ids.get(kwargs['requestId'], None)
+        rid = kwargs['requestId']
+        current_state = self._get_request_state(rid)
+        
+        if current_state == RequestState.COMPLETED:
+            return
+        
+        request = self._request_ids.get(rid, None)
         if request:
             request._raw_response = kwargs['response']
             request._resource_type = kwargs['type']
+        
+        self._set_request_state(rid, RequestState.HAS_RESPONSE)
 
     def _responseReceivedExtraInfo(self, **kwargs):
         self._running_requests -= 1
@@ -281,64 +394,102 @@ class Listener(object):
                 r['response'] = kwargs
 
     def _loading_finished(self, **kwargs):
-        self._running_requests -= 1
         rid = kwargs['requestId']
+        current_state = self._get_request_state(rid)
+        
+        if current_state == RequestState.COMPLETED:
+            self._stats.duplicate_completion_blocked += 1
+            return
+        
+        self._running_requests -= 1
         packet = self._request_ids.get(rid)
+        
         if packet:
-            r = self._driver.run('Network.getResponseBody', requestId=rid)
-            if 'body' in r:
-                packet._raw_body = r['body']
-                packet._base64_body = r['base64Encoded']
-            else:
+            try:
+                r = self._driver.run('Network.getResponseBody', requestId=rid)
+                if 'body' in r:
+                    packet._raw_body = r['body']
+                    packet._base64_body = r['base64Encoded']
+                else:
+                    packet._raw_body = ''
+                    packet._base64_body = False
+            except Exception:
                 packet._raw_body = ''
                 packet._base64_body = False
+                self._stats.degraded_count += 1
 
             if (packet._raw_request['request'].get('hasPostData', None)
                     and not packet._raw_request['request'].get('postData', None)):
-                r = self._driver.run('Network.getRequestPostData', requestId=rid, _timeout=1)
-                packet._raw_post_data = r.get('postData', None)
+                try:
+                    r = self._driver.run('Network.getRequestPostData', requestId=rid, _timeout=1)
+                    packet._raw_post_data = r.get('postData', None)
+                except Exception:
+                    packet._raw_post_data = None
+                    self._stats.degraded_count += 1
 
-        r = self._extra_info_ids.get(kwargs['requestId'], None)
-        if r:
-            obj = r.get('obj', None)
-            if obj is False or (isinstance(obj, DataPacket) and not self._extra_info_ids.get('request')):
-                self._extra_info_ids.pop(kwargs['requestId'], None)
-            elif isinstance(obj, DataPacket) and self._extra_info_ids.get('response'):
-                response = r.get('response')
-                obj._requestExtraInfo = r['request']
-                obj._responseExtraInfo = response
-                self._extra_info_ids.pop(kwargs['requestId'], None)
+        extra_info = self._extra_info_ids.get(rid, None)
+        if extra_info:
+            obj = extra_info.get('obj', None)
+            if obj is False:
+                self._extra_info_ids.pop(rid, None)
+            elif isinstance(obj, DataPacket):
+                req_info = extra_info.get('request', None)
+                resp_info = extra_info.get('response', None)
+                if req_info:
+                    obj._requestExtraInfo = req_info
+                if resp_info:
+                    obj._responseExtraInfo = resp_info
+                self._extra_info_ids.pop(rid, None)
+            else:
+                self._stats.degraded_count += 1
 
         self._request_ids.pop(rid, None)
+        self._set_request_state(rid, RequestState.COMPLETED)
 
         if packet:
+            self._stats.merge_attempt_count += 1
+            self._stats.merge_success_count += 1
             self._caught.put(packet)
             self._running_targets -= 1
 
     def _loading_failed(self, **kwargs):
+        rid = kwargs['requestId']
+        current_state = self._get_request_state(rid)
+        
+        if current_state == RequestState.COMPLETED:
+            self._stats.duplicate_completion_blocked += 1
+            return
+        
         self._running_requests -= 1
-        r_id = kwargs['requestId']
-        data_packet = self._request_ids.get(r_id, None)
+        data_packet = self._request_ids.get(rid, None)
+        
         if data_packet:
             data_packet._raw_fail_info = kwargs
             data_packet._resource_type = kwargs['type']
             data_packet.is_failed = True
 
-        r = self._extra_info_ids.get(kwargs['requestId'], None)
-        if r:
-            obj = r.get('obj', None)
-            if obj is False and r.get('response'):
-                self._extra_info_ids.pop(kwargs['requestId'], None)
+        extra_info = self._extra_info_ids.get(rid, None)
+        if extra_info:
+            obj = extra_info.get('obj', None)
+            if obj is False:
+                self._extra_info_ids.pop(rid, None)
             elif isinstance(obj, DataPacket):
-                response = r.get('response')
-                if response:
-                    obj._requestExtraInfo = r['request']
-                    obj._responseExtraInfo = response
-                    self._extra_info_ids.pop(kwargs['requestId'], None)
+                req_info = extra_info.get('request', None)
+                resp_info = extra_info.get('response', None)
+                if req_info:
+                    obj._requestExtraInfo = req_info
+                if resp_info:
+                    obj._responseExtraInfo = resp_info
+                self._extra_info_ids.pop(rid, None)
+            else:
+                self._stats.degraded_count += 1
 
-        self._request_ids.pop(r_id, None)
+        self._request_ids.pop(rid, None)
+        self._set_request_state(rid, RequestState.COMPLETED)
 
         if data_packet:
+            self._stats.merge_attempt_count += 1
+            self._stats.merge_success_count += 1
             self._caught.put(data_packet)
             self._running_targets -= 1
 
