@@ -22,19 +22,19 @@ from .._functions.settings import Settings as _S
 from ..errors import WaitTimeoutError
 
 
-class RequestState(Enum):
+class _RequestState(Enum):
     PENDING = auto()
     HAS_RESPONSE = auto()
     COMPLETED = auto()
 
 
-class RedirectInfo:
+class _RedirectInfo:
     def __init__(self, request: dict, response: dict):
         self.request = request
         self.response = response
 
 
-class ListenerStats:
+class _ListenerStats:
     def __init__(self):
         self.merge_success_count = 0
         self.merge_attempt_count = 0
@@ -80,7 +80,7 @@ class Listener(object):
         self._method = {'GET', 'POST'}
         self._res_type = True
 
-        self._stats = ListenerStats()
+        self._stats = _ListenerStats()
 
     @property
     def targets(self):
@@ -232,10 +232,10 @@ class Listener(object):
         self._running_targets = 0
         self._stats.reset()
 
-    def _get_request_state(self, request_id: str) -> RequestState:
-        return self._request_states.get(request_id, RequestState.PENDING)
+    def _get_request_state(self, request_id: str) -> _RequestState:
+        return self._request_states.get(request_id, _RequestState.PENDING)
 
-    def _set_request_state(self, request_id: str, state: RequestState):
+    def _set_request_state(self, request_id: str, state: _RequestState):
         self._request_states[request_id] = state
 
     def _is_redirect(self, kwargs: dict) -> bool:
@@ -254,7 +254,7 @@ class Listener(object):
             prev_response = existing_packet._raw_response
             
             if prev_request and prev_response:
-                existing_packet._redirect_chain.append(RedirectInfo(prev_request, prev_response))
+                existing_packet._redirect_chain.append(_RedirectInfo(prev_request, prev_response))
             
             existing_packet._raw_request = kwargs
             self._stats.redirect_chains_handled += 1
@@ -333,7 +333,7 @@ class Listener(object):
         rid = kwargs['requestId']
         current_state = self._get_request_state(rid)
         
-        if current_state == RequestState.COMPLETED:
+        if current_state == _RequestState.COMPLETED:
             self._stats.duplicate_completion_blocked += 1
             return
         
@@ -358,7 +358,7 @@ class Listener(object):
                 p._raw_post_data = self._driver.run('Network.getRequestPostData',
                                                     requestId=rid).get('postData', None)
         
-        self._set_request_state(rid, RequestState.PENDING)
+        self._set_request_state(rid, _RequestState.PENDING)
         self._extra_info_ids.setdefault(rid, {})['obj'] = p if p else False
 
     def _requestWillBeSentExtraInfo(self, **kwargs):
@@ -369,7 +369,7 @@ class Listener(object):
         rid = kwargs['requestId']
         current_state = self._get_request_state(rid)
         
-        if current_state == RequestState.COMPLETED:
+        if current_state == _RequestState.COMPLETED:
             return
         
         request = self._request_ids.get(rid, None)
@@ -377,7 +377,7 @@ class Listener(object):
             request._raw_response = kwargs['response']
             request._resource_type = kwargs['type']
         
-        self._set_request_state(rid, RequestState.HAS_RESPONSE)
+        self._set_request_state(rid, _RequestState.HAS_RESPONSE)
 
     def _responseReceivedExtraInfo(self, **kwargs):
         self._running_requests -= 1
@@ -397,7 +397,7 @@ class Listener(object):
         rid = kwargs['requestId']
         current_state = self._get_request_state(rid)
         
-        if current_state == RequestState.COMPLETED:
+        if current_state == _RequestState.COMPLETED:
             self._stats.duplicate_completion_blocked += 1
             return
         
@@ -444,7 +444,7 @@ class Listener(object):
                 self._stats.degraded_count += 1
 
         self._request_ids.pop(rid, None)
-        self._set_request_state(rid, RequestState.COMPLETED)
+        self._set_request_state(rid, _RequestState.COMPLETED)
 
         if packet:
             self._stats.merge_attempt_count += 1
@@ -456,7 +456,7 @@ class Listener(object):
         rid = kwargs['requestId']
         current_state = self._get_request_state(rid)
         
-        if current_state == RequestState.COMPLETED:
+        if current_state == _RequestState.COMPLETED:
             self._stats.duplicate_completion_blocked += 1
             return
         
@@ -485,7 +485,7 @@ class Listener(object):
                 self._stats.degraded_count += 1
 
         self._request_ids.pop(rid, None)
-        self._set_request_state(rid, RequestState.COMPLETED)
+        self._set_request_state(rid, _RequestState.COMPLETED)
 
         if data_packet:
             self._stats.merge_attempt_count += 1

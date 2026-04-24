@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 sys.path.insert(0, r'd:\work\solo-coder\task\20260424-drissionpage-4179-listener-redirect-merge\repo\DrissionPage')
 
 from DrissionPage._units.listener import (
-    Listener, RequestState, ListenerStats, RedirectInfo, DataPacket
+    Listener, _RequestState, _ListenerStats, _RedirectInfo, DataPacket
 )
 
 
@@ -68,7 +68,7 @@ def create_listener():
     listener._extra_info_ids = {}
     listener._running_requests = 0
     listener._running_targets = 0
-    listener._stats = ListenerStats()
+    listener._stats = _ListenerStats()
     listener.listening = True
     return listener
 
@@ -102,7 +102,7 @@ def test_single_redirect():
         type='Document'
     )
     
-    assert listener._get_request_state(rid) == RequestState.PENDING
+    assert listener._get_request_state(rid) == _RequestState.PENDING
     assert listener._running_requests == 1
     
     listener._response_received(
@@ -120,7 +120,7 @@ def test_single_redirect():
         }
     )
     
-    assert listener._get_request_state(rid) == RequestState.HAS_RESPONSE
+    assert listener._get_request_state(rid) == _RequestState.HAS_RESPONSE
     
     listener._requestWillBeSent(
         requestId=rid,
@@ -173,7 +173,7 @@ def test_single_redirect():
         encodedDataLength=100
     )
     
-    assert listener._get_request_state(rid) == RequestState.COMPLETED
+    assert listener._get_request_state(rid) == _RequestState.COMPLETED
     assert listener._caught.qsize() == 1
     assert listener._stats.redirect_chains_handled == 1
     assert listener._stats.duplicate_completion_blocked == 0
@@ -352,7 +352,7 @@ def test_duplicate_completion():
     )
     
     assert listener._caught.qsize() == 1
-    assert listener._get_request_state(rid) == RequestState.COMPLETED
+    assert listener._get_request_state(rid) == _RequestState.COMPLETED
     
     listener._loading_finished(
         requestId=rid,
@@ -453,7 +453,7 @@ def test_midway_failure():
         canceled=False
     )
     
-    assert listener._get_request_state(rid) == RequestState.COMPLETED
+    assert listener._get_request_state(rid) == _RequestState.COMPLETED
     assert listener._caught.qsize() == 1
     
     packet = listener._caught.get_nowait()
@@ -587,8 +587,8 @@ def test_stop_pause_convergence():
         type='XHR'
     )
     
-    assert listener._get_request_state(rid1) == RequestState.PENDING
-    assert listener._get_request_state(rid2) == RequestState.PENDING
+    assert listener._get_request_state(rid1) == _RequestState.PENDING
+    assert listener._get_request_state(rid2) == _RequestState.PENDING
     assert listener._running_requests == 2
     
     listener._response_received(
@@ -606,8 +606,8 @@ def test_stop_pause_convergence():
         }
     )
     
-    assert listener._get_request_state(rid1) == RequestState.HAS_RESPONSE
-    assert listener._get_request_state(rid2) == RequestState.PENDING
+    assert listener._get_request_state(rid1) == _RequestState.HAS_RESPONSE
+    assert listener._get_request_state(rid2) == _RequestState.PENDING
     
     listener._driver._responses[f'body_{rid1}'] = {'body': '{}', 'base64Encoded': False}
     
@@ -617,8 +617,8 @@ def test_stop_pause_convergence():
         encodedDataLength=50
     )
     
-    assert listener._get_request_state(rid1) == RequestState.COMPLETED
-    assert listener._get_request_state(rid2) == RequestState.PENDING
+    assert listener._get_request_state(rid1) == _RequestState.COMPLETED
+    assert listener._get_request_state(rid2) == _RequestState.PENDING
     assert listener._caught.qsize() == 1
     
     print(f"状态流转 (rid1): PENDING -> HAS_RESPONSE -> COMPLETED")
@@ -706,6 +706,199 @@ def test_degraded_handling():
     print("[PASS] 降级收敛测试通过")
 
 
+def test_compat_start():
+    """兼容性回归: start 方法"""
+    print("\n" + "=" * 60)
+    print("兼容性回归: start 方法")
+    print("=" * 60)
+    
+    listener = create_listener()
+    listener._set_callback = MagicMock()
+    
+    assert listener.listening == True
+    assert listener._caught is not None
+    assert listener._request_ids == {}
+    assert listener._request_states == {}
+    assert listener._extra_info_ids == {}
+    
+    print("状态流转: 初始化 -> listening=True -> 队列清空")
+    print(f"归并成功率: {listener._stats.merge_success_rate:.1f}%")
+    print(f"重复完成拦截次数: {listener._stats.duplicate_completion_blocked}")
+    print(f"降级计数: {listener._stats.degraded_count}")
+    print(f"listening 状态: {listener.listening}")
+    print(f"_caught 队列是否为空: {listener._caught.empty()}")
+    
+    assert listener.listening == True
+    print("[PASS] start 兼容性测试通过")
+
+
+def test_compat_wait():
+    """兼容性回归: wait 方法"""
+    print("\n" + "=" * 60)
+    print("兼容性回归: wait 方法")
+    print("=" * 60)
+    
+    listener = create_listener()
+    listener._set_callback = MagicMock()
+    listener._driver = MockDriver()
+    listener._caught = Queue(maxsize=0)
+    
+    rid = 'request-wait-test'
+    
+    listener._requestWillBeSent(
+        requestId=rid,
+        frameId='frame-1',
+        loaderId='loader-1',
+        documentURL='http://example.com/page1',
+        request={
+            'url': 'http://example.com/api/wait',
+            'method': 'GET',
+            'headers': {}
+        },
+        timestamp=1000.0,
+        wallTime=2000000000.0,
+        initiator={'type': 'other'},
+        type='XHR'
+    )
+    
+    listener._response_received(
+        requestId=rid,
+        frameId='frame-1',
+        loaderId='loader-1',
+        timestamp=1001.0,
+        type='XHR',
+        response={
+            'url': 'http://example.com/api/wait',
+            'status': 200,
+            'statusText': 'OK',
+            'headers': {},
+            'mimeType': 'application/json'
+        }
+    )
+    
+    listener._driver._responses[f'body_{rid}'] = {'body': '{"wait": "ok"}', 'base64Encoded': False}
+    
+    listener._loading_finished(
+        requestId=rid,
+        timestamp=1002.0,
+        encodedDataLength=50
+    )
+    
+    assert listener._caught.qsize() == 1
+    
+    packet = listener._caught.get_nowait()
+    
+    print(f"状态流转: PENDING -> HAS_RESPONSE -> COMPLETED -> wait 获取")
+    print(f"归并成功率: {listener._stats.merge_success_rate:.1f}%")
+    print(f"重复完成拦截次数: {listener._stats.duplicate_completion_blocked}")
+    print(f"降级计数: {listener._stats.degraded_count}")
+    print(f"数据包 URL: {packet._raw_request['request']['url']}")
+    print(f"响应状态码: {packet._raw_response['status']}")
+    
+    assert packet._raw_response['status'] == 200
+    print("[PASS] wait 兼容性测试通过")
+
+
+def test_compat_steps():
+    """兼容性回归: steps 方法"""
+    print("\n" + "=" * 60)
+    print("兼容性回归: steps 方法")
+    print("=" * 60)
+    
+    listener = create_listener()
+    listener._set_callback = MagicMock()
+    listener._driver = MockDriver()
+    listener._caught = Queue(maxsize=0)
+    
+    for i in range(3):
+        rid = f'request-steps-{i}'
+        
+        listener._requestWillBeSent(
+            requestId=rid,
+            frameId='frame-1',
+            loaderId='loader-1',
+            documentURL='http://example.com/page1',
+            request={
+                'url': f'http://example.com/api/steps/{i}',
+                'method': 'GET',
+                'headers': {}
+            },
+            timestamp=1000.0 + i,
+            wallTime=2000000000.0 + i,
+            initiator={'type': 'other'},
+            type='XHR'
+        )
+        
+        listener._response_received(
+            requestId=rid,
+            frameId='frame-1',
+            loaderId='loader-1',
+            timestamp=1001.0 + i,
+            type='XHR',
+            response={
+                'url': f'http://example.com/api/steps/{i}',
+                'status': 200,
+                'statusText': 'OK',
+                'headers': {},
+                'mimeType': 'application/json'
+            }
+        )
+        
+        listener._driver._responses[f'body_{rid}'] = {'body': f'{{"step": {i}}}', 'base64Encoded': False}
+        
+        listener._loading_finished(
+            requestId=rid,
+            timestamp=1002.0 + i,
+            encodedDataLength=50
+        )
+    
+    assert listener._caught.qsize() == 3
+    
+    print(f"状态流转: 多次 PENDING -> HAS_RESPONSE -> COMPLETED 循环")
+    print(f"归并成功率: {listener._stats.merge_success_rate:.1f}%")
+    print(f"重复完成拦截次数: {listener._stats.duplicate_completion_blocked}")
+    print(f"降级计数: {listener._stats.degraded_count}")
+    print(f"队列中数据包数量: {listener._caught.qsize()}")
+    
+    for i in range(3):
+        packet = listener._caught.get_nowait()
+        assert packet._raw_response['status'] == 200
+        print(f"  数据包 {i+1} URL: {packet._raw_request['request']['url']}")
+    
+    print("[PASS] steps 兼容性测试通过")
+
+
+def test_compat_pause_resume():
+    """兼容性回归: pause/resume 方法"""
+    print("\n" + "=" * 60)
+    print("兼容性回归: pause/resume 方法")
+    print("=" * 60)
+    
+    listener = create_listener()
+    listener._set_callback = MagicMock()
+    listener._driver = MockDriver()
+    listener._caught = Queue(maxsize=0)
+    
+    assert listener.listening == True
+    print(f"初始状态: listening={listener.listening}")
+    
+    listener.pause(clear=False)
+    assert listener.listening == False
+    print(f"pause 后: listening={listener.listening}")
+    
+    listener.resume()
+    assert listener.listening == True
+    print(f"resume 后: listening={listener.listening}")
+    
+    print(f"状态流转: listening=True -> pause -> listening=False -> resume -> listening=True")
+    print(f"归并成功率: {listener._stats.merge_success_rate:.1f}%")
+    print(f"重复完成拦截次数: {listener._stats.duplicate_completion_blocked}")
+    print(f"降级计数: {listener._stats.degraded_count}")
+    
+    assert listener.listening == True
+    print("[PASS] pause/resume 兼容性测试通过")
+
+
 def main():
     print("\n" + "=" * 60)
     print("Listener 重定向链修复测试")
@@ -719,7 +912,11 @@ def main():
         test_midway_failure,
         test_extra_info_missing,
         test_stop_pause_convergence,
-        test_degraded_handling
+        test_degraded_handling,
+        test_compat_start,
+        test_compat_wait,
+        test_compat_steps,
+        test_compat_pause_resume
     ]
     
     passed = 0
