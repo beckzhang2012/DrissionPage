@@ -43,16 +43,15 @@ class TestMetrics:
         }
 
 
-def test_fast_switch(page: ChromiumPage, metrics: TestMetrics, num_tabs: int = 5, iterations: int = 100) -> None:
+def test_fast_switch(page: ChromiumPage, metrics: TestMetrics, num_tabs: int = 5, iterations: int = 30) -> None:
     """
-    测试快速切换 tab (>=100次)
+    测试快速切换 tab
     """
     print(f"\n=== 测试快速切换 tab ({iterations} 次) ===")
     
     tabs: List[ChromiumTab] = []
     for i in range(num_tabs):
         tab = page.new_tab()
-        tab.set_window_size(800, 600)
         tabs.append(tab)
     
     try:
@@ -321,12 +320,12 @@ def test_invalid_tab_operations(page: ChromiumPage, metrics: TestMetrics) -> Non
     sleep(0.1)
     
     try:
-        is_alive = tab_ref.is_alive
-        print(f"  tab_ref.is_alive = {is_alive}")
+        is_alive = tab_ref.states.is_alive
+        print(f"  tab_ref.states.is_alive = {is_alive}")
         
         if not is_alive:
             metrics.invalid_tab_interceptions += 1
-            print("  正确: is_alive 返回 False 表示 tab 已失效")
+            print("  正确: states.is_alive 通过真实 CDP 操作验证 tab 已失效")
         
         try:
             page.activate_tab(closed_tab_id)

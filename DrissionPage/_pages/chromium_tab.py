@@ -40,12 +40,6 @@ class ChromiumTab(ChromiumBase):
     def __repr__(self):
         return f'<ChromiumTab browser_id={self.browser.id} tab_id={self.tab_id}>'
 
-    @property
-    def is_alive(self):
-        return (self.tab_id in self.browser._all_drivers 
-                and self._driver is not None 
-                and self._driver.is_running)
-
     def _d_set_runtime_settings(self):
         self._timeouts = copy(self.browser.timeouts)
         self.retry_times = self.browser.retry_times

@@ -83,7 +83,7 @@ class ChromiumPage(ChromiumBase):
 
     @property
     def latest_tab(self):
-        return self.browser._get_tab(id_or_num=self.tab_ids[0], as_id=not Settings.singleton_tab_obj)
+        return self.browser.latest_tab
 
     @property
     def process_id(self):
