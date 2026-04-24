@@ -156,14 +156,6 @@ class Driver(object):
             elif msg.get('id') is not None:
                 msg_id = msg['id']
                 with self._lock:
-                    if msg_id in self._completed_ids:
-                        self._stats['duplicate_final_states'] += 1
-                        continue
-
-                    if msg_id in self._received_ids:
-                        self._stats['duplicate_final_states'] += 1
-                        continue
-
                     msg_gen = self._id_generation.get(msg_id)
                     if msg_gen is not None and msg_gen != self._generation:
                         self._stats['mismatch_generation_dropped'] += 1
@@ -171,6 +163,14 @@ class Driver(object):
 
                     if msg_id not in self.method_results:
                         self._stats['late_responses_dropped'] += 1
+                        continue
+
+                    if msg_id in self._completed_ids:
+                        self._stats['duplicate_final_states'] += 1
+                        continue
+
+                    if msg_id in self._received_ids:
+                        self._stats['duplicate_final_states'] += 1
                         continue
 
                     self._received_ids.add(msg_id)

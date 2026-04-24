@@ -125,11 +125,13 @@ def test_timeout_late_response():
         sender = Thread(target=send_with_timeout)
         sender.start()
 
-        time.sleep(0.5)
+        time.sleep(0.6)
 
         mock_ws.inject_response('{"id": 1, "result": {"data": "late response"}}')
 
         sender.join(timeout=1)
+
+        time.sleep(0.3)
 
         stats = driver._get_stats()
         print(f"  总命令数: {stats['total_commands_issued']}")
@@ -142,8 +144,9 @@ def test_timeout_late_response():
         assert result.get('type') == 'timeout', f"应该返回超时错误，实际: {result}"
 
         assert stats['final_state_consistency_rate'] == 100.0, "终态一致率应为100%"
+        assert stats['late_responses_dropped'] >= 1, f"应该丢弃迟到响应，实际丢弃数: {stats['late_responses_dropped']}"
 
-        print("  [PASS] 测试通过：超时后返回超时错误")
+        print("  [PASS] 测试通过：超时后返回超时错误，迟到响应被丢弃")
         return True, stats
 
     except Exception as e:
