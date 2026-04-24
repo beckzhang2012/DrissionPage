@@ -131,7 +131,7 @@ def test_timeout_late_response():
 
         sender.join(timeout=1)
 
-        stats = driver.get_stats()
+        stats = driver._get_stats()
         print(f"  总命令数: {stats['total_commands_issued']}")
         print(f"  一致完成数: {stats['consistent_completions']}")
         print(f"  终态一致率: {stats['final_state_consistency_rate']:.2f}%")
@@ -187,7 +187,7 @@ def test_duplicate_final_state():
 
         sender.join(timeout=2)
 
-        stats = driver.get_stats()
+        stats = driver._get_stats()
         print(f"  总命令数: {stats['total_commands_issued']}")
         print(f"  一致完成数: {stats['consistent_completions']}")
         print(f"  终态一致率: {stats['final_state_consistency_rate']:.2f}%")
@@ -228,7 +228,7 @@ def test_reconnect_old_generation():
         driver._recv_th.start()
         driver._handle_event_th.start()
 
-        gen_before = driver.get_stats()['current_generation']
+        gen_before = driver._get_stats()['current_generation']
         print(f"  重连前代号: {gen_before}")
 
         driver._cur_id = 5
@@ -250,7 +250,7 @@ def test_reconnect_old_generation():
         driver._recv_th.start()
         driver._handle_event_th.start()
 
-        gen_after = driver.get_stats()['current_generation']
+        gen_after = driver._get_stats()['current_generation']
         print(f"  重连后代号: {gen_after}")
 
         assert gen_after > gen_before, "重连后generation应该增加"
@@ -273,7 +273,7 @@ def test_reconnect_old_generation():
 
         sender.join(timeout=2)
 
-        stats = driver.get_stats()
+        stats = driver._get_stats()
         print(f"  总命令数: {stats['total_commands_issued']}")
         print(f"  一致完成数: {stats['consistent_completions']}")
         print(f"  终态一致率: {stats['final_state_consistency_rate']:.2f}%")
@@ -348,7 +348,7 @@ def test_concurrent_no_crosstalk():
         for t in threads:
             t.join(timeout=3)
 
-        stats = driver.get_stats()
+        stats = driver._get_stats()
         print(f"  总命令数: {stats['total_commands_issued']}")
         print(f"  一致完成数: {stats['consistent_completions']}")
         print(f"  终态一致率: {stats['final_state_consistency_rate']:.2f}%")
@@ -429,7 +429,7 @@ def test_multiple_round_consistency():
             else:
                 print(f"  轮次{round_num}: [FAIL] 未收到结果或收到多个结果")
 
-        stats = driver.get_stats()
+        stats = driver._get_stats()
         print(f"\n  统计:")
         print(f"    总轮次: {round_count}")
         print(f"    成功轮次: {success_count}")

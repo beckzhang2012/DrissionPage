@@ -276,7 +276,7 @@ class Driver(object):
         else:
             handler.pop(event, None)
 
-    def get_stats(self):
+    def _get_stats(self):
         with self._lock:
             total = self._stats['total_commands']
             consistent = self._stats['consistent_completions']
@@ -292,7 +292,7 @@ class Driver(object):
                 'current_generation': self._generation
             }
 
-    def reset_stats(self):
+    def _reset_stats(self):
         with self._lock:
             self._stats = {
                 'duplicate_final_states': 0,
