@@ -7,7 +7,7 @@
 """
 from os.path import sep
 from pathlib import Path
-from shutil import move
+from shutil import move, copy2
 from time import sleep, perf_counter
 
 from DataRecorder.tools import get_usable_path
@@ -26,18 +26,37 @@ class DownloadManager(object):
         t.suffix = None
         t.when_file_exists = 'rename'
 
-        self._missions = {}  # {guid: DownloadMission}
-        self._tab_missions = {}  # {tab_id: [DownloadMission, ...]}
-        self._flags = {}  # {tab_id: [bool, DownloadMission]}
-        self._waiting_tab = set()  # click.to_download()专用
+        self._missions = {}
+        self._all_missions = {}
+        self._tab_missions = {}
+        self._flags = {}
+        self._waiting_tab = set()
         self._tmp_path = '.'
         self._page_id = None
 
         self._running = False
 
+        self._stats = {
+            'success_count': 0,
+            'fail_count': 0,
+            'cancel_count': 0,
+            'skip_count': 0,
+            'rename_count': 0,
+            'duplicate_final_state_blocked': 0,
+            'temp_files_cleaned': 0,
+        }
+
     @property
     def missions(self):
         return self._missions
+
+    @property
+    def stats(self):
+        return self._stats.copy()
+
+    def reset_stats(self):
+        for key in self._stats:
+            self._stats[key] = 0
 
     def set_path(self, tab, path):
         tid = tab if isinstance(tab, str) else tab.tab_id
@@ -72,9 +91,24 @@ class DownloadManager(object):
         return self._tab_missions.get(tab_id, set())
 
     def set_done(self, mission, state, final_path=None):
+        if mission._is_done:
+            self._stats['duplicate_final_state_blocked'] += 1
+            return
+
         if mission.state not in ('canceled', 'skipped'):
             mission.state = state
+
         mission.final_path = final_path
+
+        if state == 'completed':
+            self._stats['success_count'] += 1
+        elif state == 'canceled':
+            self._stats['cancel_count'] += 1
+        elif state == 'skipped':
+            self._stats['skip_count'] += 1
+        else:
+            self._stats['fail_count'] += 1
+
         if mission.tab_id in self._tab_missions and mission in self._tab_missions[mission.tab_id]:
             self._tab_missions[mission.tab_id].discard(mission)
         if (mission.from_tab and mission.from_tab in self._tab_missions
@@ -83,21 +117,118 @@ class DownloadManager(object):
         self._missions.pop(mission.id, None)
         mission._is_done = True
 
+    def _reserve_final_path(self, mission, settings, name):
+        goal_path = Path(settings.path) / name
+
+        if settings.when_file_exists == 'skip':
+            if goal_path.exists():
+                mission._reserved_path = None
+                mission._skip_due_to_exists = True
+                return
+
+        if settings.when_file_exists == 'overwrite':
+            mission._reserved_path = str(goal_path.resolve())
+            mission._final_name = name
+            mission._skip_due_to_exists = False
+            return
+
+        final_name = name
+        goal_path_str = str(goal_path.resolve())
+        Path(settings.path).mkdir(parents=True, exist_ok=True)
+
+        if goal_path.exists():
+            while True:
+                goal_path_str = get_usable_path(str(goal_path))
+                new_final_name = Path(goal_path_str).name
+                try:
+                    with open(goal_path_str, 'x') as f:
+                        pass
+                    final_name = new_final_name
+                    break
+                except FileExistsError:
+                    continue
+        else:
+            while True:
+                try:
+                    with open(goal_path_str, 'x') as f:
+                        pass
+                    break
+                except FileExistsError:
+                    goal_path_str = get_usable_path(str(goal_path))
+                    new_final_name = Path(goal_path_str).name
+                    try:
+                        with open(goal_path_str, 'x') as f:
+                            pass
+                        final_name = new_final_name
+                        break
+                    except FileExistsError:
+                        continue
+
+        if final_name != name:
+            self._stats['rename_count'] += 1
+
+        mission._reserved_path = goal_path_str
+        mission._final_name = final_name
+        mission._skip_due_to_exists = False
+
+    def _cleanup_temp_file(self, mission):
+        temp_file = Path(mission.tmp_path) / mission.id
+        if temp_file.exists():
+            try:
+                temp_file.unlink()
+                self._stats['temp_files_cleaned'] += 1
+            except:
+                pass
+
+    def _cleanup_reserved_placeholder(self, mission):
+        if hasattr(mission, '_reserved_path') and mission._reserved_path:
+            placeholder = Path(mission._reserved_path)
+            if placeholder.exists():
+                try:
+                    with open(placeholder, 'rb') as f:
+                        content = f.read()
+                    if len(content) == 0:
+                        placeholder.unlink()
+                except:
+                    pass
+
     def cancel(self, mission):
+        if mission._is_done:
+            self._stats['duplicate_final_state_blocked'] += 1
+            return
+
         mission.state = 'canceled'
         try:
             self._browser._run_cdp('Browser.cancelDownload', guid=mission.id)
         except:
             pass
+
+        self._cleanup_temp_file(mission)
+        self._cleanup_reserved_placeholder(mission)
+
         if mission.final_path:
-            Path(mission.final_path).unlink(True)
+            try:
+                Path(mission.final_path).unlink(True)
+            except:
+                pass
+
+        self.set_done(mission, 'canceled')
 
     def skip(self, mission):
+        if mission._is_done:
+            self._stats['duplicate_final_state_blocked'] += 1
+            return
+
         mission.state = 'skipped'
         try:
             self._browser._run_cdp('Browser.cancelDownload', guid=mission.id)
         except:
             pass
+
+        self._cleanup_temp_file(mission)
+        self._cleanup_reserved_placeholder(mission)
+
+        self.set_done(mission, 'skipped')
 
     def clear_tab_info(self, tab_id):
         self._tab_missions.pop(tab_id, None)
@@ -138,24 +269,33 @@ class DownloadManager(object):
         else:
             name = kwargs['suggestedFilename']
 
-        skip = False
-        overwrite = None  # 存在且重命名
+        overwrite = None
         goal_path = Path(settings.path) / name
         if goal_path.exists():
             if settings.when_file_exists == 'skip':
-                skip = True
+                pass
             elif settings.when_file_exists == 'overwrite':
-                overwrite = True  # 存在且覆盖
-        else:  # 不存在
+                overwrite = True
+        else:
             overwrite = False
 
         m = DownloadMission(self, tab_id, guid, settings.path, name, kwargs['url'], self._tmp_path, overwrite)
+
+        skip = False
+        if settings.when_file_exists == 'skip':
+            self._reserve_final_path(m, settings, name)
+            if m._skip_due_to_exists:
+                skip = True
+        else:
+            self._reserve_final_path(m, settings, name)
+
         if from_tab:
             m.from_tab = from_tab
             self._tab_missions.setdefault(from_tab, set()).add(m)
         self._missions[guid] = m
+        self._all_missions[guid] = m
 
-        if self.get_flag('browser') is False or self.get_flag(tab) is False:  # 取消该任务
+        if self.get_flag('browser') is False or self.get_flag(tab) is False:
             self.cancel(m)
         elif skip:
             self.skip(m)
@@ -168,40 +308,84 @@ class DownloadManager(object):
             self._flags[tab] = m
 
     def _onDownloadProgress(self, **kwargs):
-        if kwargs['guid'] in self._missions:
-            mission = self._missions[kwargs['guid']]
-            if kwargs['state'] == 'inProgress':
-                mission.received_bytes = kwargs['receivedBytes']
-                mission.total_bytes = kwargs['totalBytes']
+        if kwargs['guid'] not in self._all_missions:
+            return
 
-            elif kwargs['state'] == 'completed':
-                if mission.state == 'skipped':
-                    Path(f'{mission.tmp_path}{sep}{mission.id}').unlink(True)
-                    self.set_done(mission, 'skipped')
-                    return
-                mission.received_bytes = kwargs['receivedBytes']
-                mission.total_bytes = kwargs['totalBytes']
-                form_path = f'{mission.tmp_path}{sep}{mission.id}'
+        mission = self._all_missions[kwargs['guid']]
+
+        if mission._is_done:
+            self._stats['duplicate_final_state_blocked'] += 1
+            return
+
+        if kwargs['state'] == 'inProgress':
+            mission.received_bytes = kwargs['receivedBytes']
+            mission.total_bytes = kwargs['totalBytes']
+
+        elif kwargs['state'] == 'completed':
+            if mission.state == 'skipped':
+                self._cleanup_temp_file(mission)
+                self._cleanup_reserved_placeholder(mission)
+                self.set_done(mission, 'skipped')
+                return
+
+            if mission._is_done:
+                self._stats['duplicate_final_state_blocked'] += 1
+                return
+
+            mission.received_bytes = kwargs['receivedBytes']
+            mission.total_bytes = kwargs['totalBytes']
+            form_path = f'{mission.tmp_path}{sep}{mission.id}'
+
+            if hasattr(mission, '_reserved_path') and mission._reserved_path:
+                to_path = mission._reserved_path
+            else:
                 if mission._overwrite is None:
                     to_path = str(get_usable_path(f'{mission.folder}{sep}{mission.name}'))
+                    self._stats['rename_count'] += 1
                 else:
                     to_path = f'{mission.folder}{sep}{mission.name}'
-                Path(mission.folder).mkdir(parents=True, exist_ok=True)
-                not_moved = True
-                for _ in range(10):
-                    try:
-                        move(form_path, to_path)
-                        not_moved = False
-                        break
-                    except PermissionError:
-                        sleep(.5)
-                if not_moved:
-                    from shutil import copy
-                    copy(form_path, to_path)
-                self.set_done(mission, 'completed', final_path=to_path)
 
-            else:  # 'canceled'
-                self.set_done(mission, 'canceled')
+            Path(mission.folder).mkdir(parents=True, exist_ok=True)
+
+            self._cleanup_reserved_placeholder(mission)
+
+            to_path_obj = Path(to_path)
+            if to_path_obj.exists():
+                try:
+                    to_path_obj.unlink()
+                except:
+                    pass
+
+            not_moved = True
+            for _ in range(10):
+                try:
+                    move(form_path, to_path)
+                    not_moved = False
+                    break
+                except PermissionError:
+                    sleep(.5)
+                except FileExistsError:
+                    try:
+                        to_path_obj.unlink()
+                    except:
+                        pass
+
+            if not_moved:
+                try:
+                    copy2(form_path, to_path)
+                    try:
+                        Path(form_path).unlink()
+                    except:
+                        pass
+                except:
+                    pass
+
+            self.set_done(mission, 'completed', final_path=to_path)
+
+        else:
+            self._cleanup_temp_file(mission)
+            self._cleanup_reserved_placeholder(mission)
+            self.set_done(mission, 'canceled')
 
 
 class TabDownloadSettings(object):
@@ -244,6 +428,9 @@ class DownloadMission(object):
         self.tmp_path = tmp_path
         self._overwrite = overwrite
         self._is_done = False
+        self._reserved_path = None
+        self._final_name = None
+        self._skip_due_to_exists = False
 
     def __repr__(self):
         return f'<DownloadMission {id(self)} {self.rate}>'
@@ -287,7 +474,7 @@ class DownloadMission(object):
         if show:
             if self.state == 'completed':
                 print('\r100% ', end='')
-                if self._overwrite is None:
+                if self._overwrite is None or (hasattr(self, '_final_name') and self._final_name != self.name):
                     print(f'{_S._lang.COMPLETED_AND_RENAME} {self.final_path}')
                 elif self._overwrite is False:
                     print(f'{_S._lang.DOWNLOAD_COMPLETED} {self.final_path}')
