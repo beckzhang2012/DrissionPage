@@ -53,6 +53,11 @@ class TestDownloaderConcurrency:
         os.makedirs(self.tmp_path, exist_ok=True)
         
         TabDownloadSettings.TABS.clear()
+        
+        self.total_tests = 0
+        self.passed_tests = 0
+        self.total_rename_count = 0
+        self.total_duplicate_blocked = 0
     
     def cleanup(self):
         try:
@@ -106,6 +111,9 @@ class TestDownloaderConcurrency:
             guid = f'guid_{i}'
             create_temp_file(os.path.join(self.tmp_path, guid), f'content_{i}'.encode())
         
+        initial_rename_count = mgr._stats.get('rename_count', 0)
+        initial_duplicate_blocked = mgr._stats.get('duplicate_final_state_blocked', 0)
+        
         barrier = Barrier(concurrent_count)
         errors = []
         results_lock = Lock()
@@ -143,10 +151,18 @@ class TestDownloaderConcurrency:
         download_files = list(Path(self.download_path).glob('test*.txt'))
         temp_files = count_temp_files(self.tmp_path)
         
+        rename_count = mgr._stats.get('rename_count', 0) - initial_rename_count
+        duplicate_blocked = mgr._stats.get('duplicate_final_state_blocked', 0) - initial_duplicate_blocked
+        
+        self.total_rename_count += rename_count
+        self.total_duplicate_blocked += duplicate_blocked
+        
         print(f"Concurrent tasks: {concurrent_count}")
         print(f"Downloaded files count: {len(download_files)}")
         print(f"Downloaded files: {[f.name for f in download_files]}")
         print(f"Remaining temp files: {temp_files}")
+        print(f"Rename count in this test: {rename_count}")
+        print(f"Duplicate blocked in this test: {duplicate_blocked}")
         
         assert len(download_files) == concurrent_count, f"Expected {concurrent_count} files, got {len(download_files)}"
         assert temp_files == 0, f"Remaining {temp_files} temp files"
@@ -180,6 +196,9 @@ class TestDownloaderConcurrency:
         guid = 'test_duplicate'
         create_temp_file(os.path.join(self.tmp_path, guid), b'content')
         
+        initial_rename_count = mgr._stats.get('rename_count', 0)
+        initial_duplicate_blocked = mgr._stats.get('duplicate_final_state_blocked', 0)
+        
         self.simulate_download_begin(mgr, 'browser', guid, 'dup_test.txt')
         
         mission = None
@@ -207,11 +226,19 @@ class TestDownloaderConcurrency:
         
         temp_files = count_temp_files(self.tmp_path)
         
+        rename_count = mgr._stats.get('rename_count', 0) - initial_rename_count
+        duplicate_blocked = mgr._stats.get('duplicate_final_state_blocked', 0) - initial_duplicate_blocked
+        
+        self.total_rename_count += rename_count
+        self.total_duplicate_blocked += duplicate_blocked
+        
         download_files = list(Path(self.download_path).glob('dup_test*.txt'))
         print(f"Downloaded files count: {len(download_files)}")
         print(f"Mission state: {mission.state}")
         print(f"Mission is_done: {mission._is_done}")
         print(f"Remaining temp files: {temp_files}")
+        print(f"Rename count in this test: {rename_count}")
+        print(f"Duplicate blocked in this test: {duplicate_blocked}")
         
         assert len(download_files) == 1, "Should have exactly 1 downloaded file"
         assert temp_files == 0, f"Remaining {temp_files} temp files"
@@ -240,6 +267,9 @@ class TestDownloaderConcurrency:
         
         create_temp_file(os.path.join(self.tmp_path, guid1), b'content1')
         create_temp_file(os.path.join(self.tmp_path, guid2), b'content2')
+        
+        initial_rename_count = mgr._stats.get('rename_count', 0)
+        initial_duplicate_blocked = mgr._stats.get('duplicate_final_state_blocked', 0)
         
         self.simulate_download_begin(mgr, 'browser', guid1, 'cancel_file.txt')
         
@@ -272,11 +302,19 @@ class TestDownloaderConcurrency:
         
         temp_files = count_temp_files(self.tmp_path)
         
+        rename_count = mgr._stats.get('rename_count', 0) - initial_rename_count
+        duplicate_blocked = mgr._stats.get('duplicate_final_state_blocked', 0) - initial_duplicate_blocked
+        
+        self.total_rename_count += rename_count
+        self.total_duplicate_blocked += duplicate_blocked
+        
         download_files = list(Path(self.download_path).glob('cancel_file*.txt'))
         print(f"Downloaded files count: {len(download_files)}")
         print(f"Mission 1 state: {mission1.state}")
         print(f"Mission 2 state: {mission2.state}")
         print(f"Remaining temp files: {temp_files}")
+        print(f"Rename count in this test: {rename_count}")
+        print(f"Duplicate blocked in this test: {duplicate_blocked}")
         
         assert len(download_files) == 0, "Should have no downloaded files after cancel"
         assert temp_files == 0, f"Remaining {temp_files} temp files"
@@ -308,6 +346,9 @@ class TestDownloaderConcurrency:
         create_temp_file(os.path.join(self.tmp_path, guid1), b'content1')
         create_temp_file(os.path.join(self.tmp_path, guid2), b'content2')
         
+        initial_rename_count = mgr._stats.get('rename_count', 0)
+        initial_duplicate_blocked = mgr._stats.get('duplicate_final_state_blocked', 0)
+        
         self.simulate_download_begin(mgr, 'browser', guid1, 'skip_test.txt')
         self.simulate_download_begin(mgr, 'browser', guid2, 'skip_test.txt')
         
@@ -329,12 +370,20 @@ class TestDownloaderConcurrency:
         
         temp_files = count_temp_files(self.tmp_path)
         
+        rename_count = mgr._stats.get('rename_count', 0) - initial_rename_count
+        duplicate_blocked = mgr._stats.get('duplicate_final_state_blocked', 0) - initial_duplicate_blocked
+        
+        self.total_rename_count += rename_count
+        self.total_duplicate_blocked += duplicate_blocked
+        
         download_files = list(Path(self.download_path).glob('skip_test*.txt'))
         print(f"Downloaded files count: {len(download_files)}")
         print(f"Downloaded files: {[f.name for f in download_files]}")
         print(f"Mission 1 state: {mission1.state}")
         print(f"Mission 2 state: {mission2.state}")
         print(f"Remaining temp files: {temp_files}")
+        print(f"Rename count in this test: {rename_count}")
+        print(f"Duplicate blocked in this test: {duplicate_blocked}")
         
         assert len(download_files) == 1, "Should have only 1 file (original)"
         assert download_files[0].name == 'skip_test.txt', "Should be original filename"
@@ -366,6 +415,9 @@ class TestDownloaderConcurrency:
             guid = f'guid_{i}'
             create_temp_file(os.path.join(self.tmp_path, guid), f'content_{i}'.encode())
         
+        initial_rename_count = mgr._stats.get('rename_count', 0)
+        initial_duplicate_blocked = mgr._stats.get('duplicate_final_state_blocked', 0)
+        
         missions = []
         for i in range(concurrent_count):
             guid = f'guid_{i}'
@@ -384,9 +436,17 @@ class TestDownloaderConcurrency:
         download_files = list(Path(self.download_path).glob('overwrite_test*.txt'))
         temp_files = count_temp_files(self.tmp_path)
         
+        rename_count = mgr._stats.get('rename_count', 0) - initial_rename_count
+        duplicate_blocked = mgr._stats.get('duplicate_final_state_blocked', 0) - initial_duplicate_blocked
+        
+        self.total_rename_count += rename_count
+        self.total_duplicate_blocked += duplicate_blocked
+        
         print(f"Concurrent tasks: {concurrent_count}")
         print(f"Downloaded files count: {len(download_files)}")
         print(f"Remaining temp files: {temp_files}")
+        print(f"Rename count in this test: {rename_count}")
+        print(f"Duplicate blocked in this test: {duplicate_blocked}")
         
         for i, mission in enumerate(missions):
             print(f"Mission {i} state: {mission.state}, is_done: {mission._is_done}")
@@ -416,6 +476,9 @@ class TestDownloaderConcurrency:
         
         rounds = 3
         files_per_round = 2
+        
+        initial_rename_count = mgr._stats.get('rename_count', 0)
+        initial_duplicate_blocked = mgr._stats.get('duplicate_final_state_blocked', 0)
         
         for round_num in range(rounds):
             print(f"\n--- Round {round_num + 1} ---")
@@ -451,10 +514,18 @@ class TestDownloaderConcurrency:
         
         download_files = list(Path(self.download_path).glob('multi_test*.txt'))
         
+        rename_count = mgr._stats.get('rename_count', 0) - initial_rename_count
+        duplicate_blocked = mgr._stats.get('duplicate_final_state_blocked', 0) - initial_duplicate_blocked
+        
+        self.total_rename_count += rename_count
+        self.total_duplicate_blocked += duplicate_blocked
+        
         expected_files = rounds * files_per_round
         print(f"\nFinal result:")
         print(f"Downloaded files count: {len(download_files)}")
         print(f"Downloaded files: {[f.name for f in download_files]}")
+        print(f"Rename count in this test: {rename_count}")
+        print(f"Duplicate blocked in this test: {duplicate_blocked}")
         
         assert len(download_files) == expected_files, f"Expected {expected_files} files, got {len(download_files)}"
         
@@ -470,53 +541,27 @@ class TestDownloaderConcurrency:
         """Run all tests"""
         results = []
         
-        try:
-            results.append(('Concurrent same name', self.test_concurrent_same_name_success()))
-        except Exception as e:
-            print(f"FAIL Test 1: {e}")
-            import traceback
-            traceback.print_exc()
-            results.append(('Concurrent same name', False))
+        test_cases = [
+            ('Concurrent same name', self.test_concurrent_same_name_success),
+            ('Duplicate final state', self.test_duplicate_final_state),
+            ('Cancel cleanup', self.test_cancel_cleanup),
+            ('Skip mode', self.test_skip_mode),
+            ('Overwrite mode', self.test_overwrite_mode),
+            ('Multiple rounds', self.test_multiple_rounds_consistency),
+        ]
         
-        try:
-            results.append(('Duplicate final state', self.test_duplicate_final_state()))
-        except Exception as e:
-            print(f"FAIL Test 2: {e}")
-            import traceback
-            traceback.print_exc()
-            results.append(('Duplicate final state', False))
-        
-        try:
-            results.append(('Cancel cleanup', self.test_cancel_cleanup()))
-        except Exception as e:
-            print(f"FAIL Test 3: {e}")
-            import traceback
-            traceback.print_exc()
-            results.append(('Cancel cleanup', False))
-        
-        try:
-            results.append(('Skip mode', self.test_skip_mode()))
-        except Exception as e:
-            print(f"FAIL Test 4: {e}")
-            import traceback
-            traceback.print_exc()
-            results.append(('Skip mode', False))
-        
-        try:
-            results.append(('Overwrite mode', self.test_overwrite_mode()))
-        except Exception as e:
-            print(f"FAIL Test 5: {e}")
-            import traceback
-            traceback.print_exc()
-            results.append(('Overwrite mode', False))
-        
-        try:
-            results.append(('Multiple rounds', self.test_multiple_rounds_consistency()))
-        except Exception as e:
-            print(f"FAIL Test 6: {e}")
-            import traceback
-            traceback.print_exc()
-            results.append(('Multiple rounds', False))
+        for i, (name, test_func) in enumerate(test_cases, 1):
+            try:
+                self.total_tests += 1
+                passed = test_func()
+                results.append((name, passed))
+                if passed:
+                    self.passed_tests += 1
+            except Exception as e:
+                print(f"FAIL Test {i}: {e}")
+                import traceback
+                traceback.print_exc()
+                results.append((name, False))
         
         print("\n" + "="*60)
         print("Test Summary")
@@ -546,6 +591,9 @@ def main():
         print("\n" + "="*60)
         print("Final Statistics")
         print("="*60)
+        print(f"Success rate: {test.passed_tests}/{test.total_tests}")
+        print(f"Conflict rename count: {test.total_rename_count}")
+        print(f"Duplicate final state blocked count: {test.total_duplicate_blocked}")
         print(f"Remaining temp files: {temp_files_remaining}")
         
         if all_passed and temp_files_remaining == 0:
