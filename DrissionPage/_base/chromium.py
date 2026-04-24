@@ -222,7 +222,8 @@ class Chromium(object):
         if isinstance(tab, str):
             tab = self.get_tab(tab)
         tab._run_cdp('Target.closeTarget', targetId=tab.tab_id)
-        while tab.driver.is_running and tab.tab_id in self._all_drivers:
+        end_time = perf_counter() + 5
+        while (tab.driver.is_running or tab.tab_id in self._all_drivers) and perf_counter() < end_time:
             sleep(.01)
 
     def activate_tab(self, id_ind_tab):

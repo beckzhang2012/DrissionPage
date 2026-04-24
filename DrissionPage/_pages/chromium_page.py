@@ -128,4 +128,6 @@ class ChromiumPage(ChromiumBase):
         self.browser.quit(timeout, force, del_data=del_data)
 
     def _on_disconnect(self):
+        if self._listener is not None:
+            self._listener.stop()
         ChromiumPage._PAGES.pop(self._browser.id, None)

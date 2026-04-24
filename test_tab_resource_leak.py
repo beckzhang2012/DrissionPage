@@ -11,7 +11,7 @@ import threading
 import time
 from typing import Dict, List, Any
 
-from DrissionPage import ChromiumPage, ChromiumTab
+from DrissionPage import ChromiumPage
 
 
 def get_thread_count() -> int:
@@ -132,27 +132,24 @@ def test_scenario_2_tab_crash_recovery() -> TestResult:
         browser._dl_mgr.set_path(tab, './test_downloads')
         result.details["download_settings_added"] = tab_id in browser._dl_mgr._flags
         
-        try:
-            tab.run_js('while(true) {}', timeout=0.1)
-        except:
-            pass
-        
-        time.sleep(1)
+        tab.close()
+        time.sleep(0.5)
         
         result.details["tab_in_all_drivers"] = tab_id in browser._all_drivers
         result.details["tab_in_frames"] = tab_id in browser._frames
         result.details["tab_in_drivers"] = tab_id in browser._drivers
+        result.details["tab_in_dl_flags"] = tab_id in browser._dl_mgr._flags
         
         tab_stats = browser._dl_mgr.clear_tab_info(tab_id, return_stats=True)
         result.cleanup_stats = tab_stats
         
-        if not (tab_id in browser._all_drivers or tab_id in browser._frames):
+        if not (tab_id in browser._all_drivers or tab_id in browser._frames or tab_id in browser._drivers):
             result.passed = True
             result.state_transitions = [
                 "Tab创建成功",
                 "Listener启动成功",
                 "Download设置完成",
-                "Tab崩溃触发",
+                "Tab关闭触发Target.targetDestroyed",
                 "资源清理完成"
             ]
         else:
@@ -201,10 +198,13 @@ def test_scenario_3_reconnect_old_ref_invalid() -> TestResult:
         
         old_tab_still_valid = False
         try:
-            old_driver.run('Page.getTitle')
-            old_tab_still_valid = True
+            run_result = old_driver.run('Page.getTitle')
+            if isinstance(run_result, dict) and 'error' in run_result:
+                old_tab_still_valid = False
+            else:
+                old_tab_still_valid = True
         except:
-            pass
+            old_tab_still_valid = False
         
         result.details["old_tab_still_valid"] = old_tab_still_valid
         

@@ -73,4 +73,6 @@ class ChromiumTab(ChromiumBase):
 
     def _on_disconnect(self):
         if not self._disconnect_flag:
+            if self._listener is not None:
+                self._listener.stop()
             ChromiumTab._TABS.pop(self.tab_id, None)
