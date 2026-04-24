@@ -95,7 +95,6 @@ class TestDownloaderConcurrency:
         browser = MockBrowser(self.download_path)
         mgr = DownloadManager(browser)
         mgr._tmp_path = self.tmp_path
-        mgr.reset_stats()
         
         TabDownloadSettings('browser').path = self.download_path
         TabDownloadSettings('browser').when_file_exists = 'rename'
@@ -144,26 +143,20 @@ class TestDownloaderConcurrency:
         download_files = list(Path(self.download_path).glob('test*.txt'))
         temp_files = count_temp_files(self.tmp_path)
         
-        stats = mgr.stats
-        
         print(f"Concurrent tasks: {concurrent_count}")
         print(f"Downloaded files count: {len(download_files)}")
         print(f"Downloaded files: {[f.name for f in download_files]}")
         print(f"Remaining temp files: {temp_files}")
-        print(f"Success count: {stats['success_count']}")
-        print(f"Rename count: {stats['rename_count']}")
-        print(f"Duplicate final state blocked: {stats['duplicate_final_state_blocked']}")
-        print(f"Temp files cleaned: {stats['temp_files_cleaned']}")
         
         assert len(download_files) == concurrent_count, f"Expected {concurrent_count} files, got {len(download_files)}"
         assert temp_files == 0, f"Remaining {temp_files} temp files"
-        assert stats['success_count'] == concurrent_count, f"Success count should be {concurrent_count}"
-        assert stats['rename_count'] == concurrent_count - 1, f"Rename count should be {concurrent_count - 1}"
         
         names = set()
         for f in download_files:
             assert f.name not in names, f"Duplicate filename: {f.name}"
             names.add(f.name)
+        
+        assert 'test.txt' in names, "Expected original filename 'test.txt' to exist"
         
         print("PASS: Test 1")
         return True
@@ -180,7 +173,6 @@ class TestDownloaderConcurrency:
         browser = MockBrowser(self.download_path)
         mgr = DownloadManager(browser)
         mgr._tmp_path = self.tmp_path
-        mgr.reset_stats()
         
         TabDownloadSettings('browser').path = self.download_path
         TabDownloadSettings('browser').when_file_exists = 'rename'
@@ -190,21 +182,38 @@ class TestDownloaderConcurrency:
         
         self.simulate_download_begin(mgr, 'browser', guid, 'dup_test.txt')
         
+        mission = None
+        for mid, m in list(mgr._missions.items()):
+            if m.id == guid:
+                mission = m
+                break
+        
+        assert mission is not None, "Mission should exist"
+        assert mission._is_done is False, "Mission should not be done yet"
+        
         self.simulate_download_progress(mgr, guid, 'completed')
+        
+        assert mission._is_done is True, "Mission should be done after first completed"
+        assert mission.state == 'completed', "Mission state should be 'completed'"
+        
+        first_final_path = mission.final_path
+        assert first_final_path is not None, "Final path should be set"
+        
         self.simulate_download_progress(mgr, guid, 'completed')
         self.simulate_download_progress(mgr, guid, 'canceled')
         
-        stats = mgr.stats
+        assert mission.state == 'completed', "Mission state should still be 'completed' after duplicate callbacks"
+        assert mission.final_path == first_final_path, "Final path should not change"
+        
         temp_files = count_temp_files(self.tmp_path)
         
-        print(f"Success count: {stats['success_count']}")
-        print(f"Cancel count: {stats['cancel_count']}")
-        print(f"Duplicate final state blocked: {stats['duplicate_final_state_blocked']}")
+        download_files = list(Path(self.download_path).glob('dup_test*.txt'))
+        print(f"Downloaded files count: {len(download_files)}")
+        print(f"Mission state: {mission.state}")
+        print(f"Mission is_done: {mission._is_done}")
         print(f"Remaining temp files: {temp_files}")
         
-        assert stats['success_count'] == 1, "Success count should be 1"
-        assert stats['cancel_count'] == 0, "Cancel count should be 0"
-        assert stats['duplicate_final_state_blocked'] >= 2, f"Duplicate blocked should be >= 2, got {stats['duplicate_final_state_blocked']}"
+        assert len(download_files) == 1, "Should have exactly 1 downloaded file"
         assert temp_files == 0, f"Remaining {temp_files} temp files"
         
         print("PASS: Test 2")
@@ -222,7 +231,6 @@ class TestDownloaderConcurrency:
         browser = MockBrowser(self.download_path)
         mgr = DownloadManager(browser)
         mgr._tmp_path = self.tmp_path
-        mgr.reset_stats()
         
         TabDownloadSettings('browser').path = self.download_path
         TabDownloadSettings('browser').when_file_exists = 'rename'
@@ -241,21 +249,36 @@ class TestDownloaderConcurrency:
                 mission1 = m
                 break
         
-        if mission1:
-            mgr.cancel(mission1)
+        assert mission1 is not None, "Mission 1 should exist"
+        mgr.cancel(mission1)
+        
+        assert mission1.state == 'canceled', "Mission 1 state should be 'canceled'"
+        assert mission1._is_done is True, "Mission 1 should be done"
         
         self.simulate_download_begin(mgr, 'browser', guid2, 'cancel_file2.txt')
+        
+        mission2 = None
+        for mid, m in list(mgr._missions.items()):
+            if m.id == guid2:
+                mission2 = m
+                break
+        
+        assert mission2 is not None, "Mission 2 should exist"
+        
         self.simulate_download_progress(mgr, guid2, 'canceled')
         
-        stats = mgr.stats
+        assert mission2.state == 'canceled', "Mission 2 state should be 'canceled'"
+        assert mission2._is_done is True, "Mission 2 should be done"
+        
         temp_files = count_temp_files(self.tmp_path)
         
-        print(f"Cancel count: {stats['cancel_count']}")
-        print(f"Temp files cleaned: {stats['temp_files_cleaned']}")
+        download_files = list(Path(self.download_path).glob('cancel_file*.txt'))
+        print(f"Downloaded files count: {len(download_files)}")
+        print(f"Mission 1 state: {mission1.state}")
+        print(f"Mission 2 state: {mission2.state}")
         print(f"Remaining temp files: {temp_files}")
         
-        assert stats['cancel_count'] == 2, "Cancel count should be 2"
-        assert stats['temp_files_cleaned'] >= 2, f"Temp files cleaned should be >= 2"
+        assert len(download_files) == 0, "Should have no downloaded files after cancel"
         assert temp_files == 0, f"Remaining {temp_files} temp files"
         
         print("PASS: Test 3")
@@ -273,7 +296,6 @@ class TestDownloaderConcurrency:
         browser = MockBrowser(self.download_path)
         mgr = DownloadManager(browser)
         mgr._tmp_path = self.tmp_path
-        mgr.reset_stats()
         
         TabDownloadSettings('browser').path = self.download_path
         TabDownloadSettings('browser').when_file_exists = 'skip'
@@ -289,16 +311,33 @@ class TestDownloaderConcurrency:
         self.simulate_download_begin(mgr, 'browser', guid1, 'skip_test.txt')
         self.simulate_download_begin(mgr, 'browser', guid2, 'skip_test.txt')
         
-        stats = mgr.stats
-        temp_files = count_temp_files(self.tmp_path)
+        mission1 = None
+        mission2 = None
+        for mid, m in list(mgr._all_missions.items()):
+            if m.id == guid1:
+                mission1 = m
+            if m.id == guid2:
+                mission2 = m
         
-        print(f"Skip count: {stats['skip_count']}")
-        print(f"Remaining temp files: {temp_files}")
+        assert mission1 is not None, "Mission 1 should exist in all_missions"
+        assert mission2 is not None, "Mission 2 should exist in all_missions"
+        
+        assert mission1.state == 'skipped', f"Mission 1 state should be 'skipped', got {mission1.state}"
+        assert mission2.state == 'skipped', f"Mission 2 state should be 'skipped', got {mission2.state}"
+        assert mission1._is_done is True, "Mission 1 should be done"
+        assert mission2._is_done is True, "Mission 2 should be done"
+        
+        temp_files = count_temp_files(self.tmp_path)
         
         download_files = list(Path(self.download_path).glob('skip_test*.txt'))
         print(f"Downloaded files count: {len(download_files)}")
+        print(f"Downloaded files: {[f.name for f in download_files]}")
+        print(f"Mission 1 state: {mission1.state}")
+        print(f"Mission 2 state: {mission2.state}")
+        print(f"Remaining temp files: {temp_files}")
         
         assert len(download_files) == 1, "Should have only 1 file (original)"
+        assert download_files[0].name == 'skip_test.txt', "Should be original filename"
         assert temp_files == 0, f"Remaining {temp_files} temp files"
         
         print("PASS: Test 4")
@@ -316,7 +355,6 @@ class TestDownloaderConcurrency:
         browser = MockBrowser(self.download_path)
         mgr = DownloadManager(browser)
         mgr._tmp_path = self.tmp_path
-        mgr.reset_stats()
         
         TabDownloadSettings('browser').path = self.download_path
         TabDownloadSettings('browser').when_file_exists = 'overwrite'
@@ -328,23 +366,34 @@ class TestDownloaderConcurrency:
             guid = f'guid_{i}'
             create_temp_file(os.path.join(self.tmp_path, guid), f'content_{i}'.encode())
         
+        missions = []
         for i in range(concurrent_count):
             guid = f'guid_{i}'
             self.simulate_download_begin(mgr, 'browser', guid, filename)
+            
+            mission = None
+            for mid, m in list(mgr._missions.items()):
+                if m.id == guid:
+                    mission = m
+                    break
+            if mission:
+                missions.append(mission)
+            
             self.simulate_download_progress(mgr, guid, 'completed')
         
         download_files = list(Path(self.download_path).glob('overwrite_test*.txt'))
         temp_files = count_temp_files(self.tmp_path)
-        stats = mgr.stats
         
         print(f"Concurrent tasks: {concurrent_count}")
         print(f"Downloaded files count: {len(download_files)}")
-        print(f"Success count: {stats['success_count']}")
-        print(f"Rename count: {stats['rename_count']}")
         print(f"Remaining temp files: {temp_files}")
         
+        for i, mission in enumerate(missions):
+            print(f"Mission {i} state: {mission.state}, is_done: {mission._is_done}")
+            assert mission.state == 'completed', f"Mission {i} state should be 'completed'"
+            assert mission._is_done is True, f"Mission {i} should be done"
+        
         assert temp_files == 0, f"Remaining {temp_files} temp files"
-        assert stats['success_count'] == concurrent_count, f"Success count should be {concurrent_count}"
         
         print("PASS: Test 5")
         return True
@@ -361,7 +410,6 @@ class TestDownloaderConcurrency:
         browser = MockBrowser(self.download_path)
         mgr = DownloadManager(browser)
         mgr._tmp_path = self.tmp_path
-        mgr.reset_stats()
         
         TabDownloadSettings('browser').path = self.download_path
         TabDownloadSettings('browser').when_file_exists = 'rename'
@@ -372,34 +420,48 @@ class TestDownloaderConcurrency:
         for round_num in range(rounds):
             print(f"\n--- Round {round_num + 1} ---")
             
+            round_missions = []
             for i in range(files_per_round):
                 guid = f'round{round_num}_file{i}'
                 create_temp_file(os.path.join(self.tmp_path, guid), f'round{round_num}_content{i}'.encode())
                 
                 self.simulate_download_begin(mgr, 'browser', guid, f'multi_test.txt')
+                
+                mission = None
+                for mid, m in list(mgr._missions.items()):
+                    if m.id == guid:
+                        mission = m
+                        break
+                if mission:
+                    round_missions.append(mission)
+                
                 self.simulate_download_progress(mgr, guid, 'completed')
             
             temp_files = count_temp_files(self.tmp_path)
-            stats = mgr.stats
             
-            print(f"Success count (cumulative): {stats['success_count']}")
-            print(f"Rename count (cumulative): {stats['rename_count']}")
+            download_files = list(Path(self.download_path).glob('multi_test*.txt'))
+            print(f"Downloaded files count (so far): {len(download_files)}")
             print(f"Remaining temp files: {temp_files}")
+            
+            for i, mission in enumerate(round_missions):
+                assert mission.state == 'completed', f"Round {round_num + 1} Mission {i} state should be 'completed'"
+                assert mission._is_done is True, f"Round {round_num + 1} Mission {i} should be done"
             
             assert temp_files == 0, f"Round {round_num + 1}: Remaining {temp_files} temp files"
         
         download_files = list(Path(self.download_path).glob('multi_test*.txt'))
-        stats = mgr.stats
-        
-        print(f"\nFinal result:")
-        print(f"Downloaded files count: {len(download_files)}")
-        print(f"Total success count: {stats['success_count']}")
-        print(f"Total rename count: {stats['rename_count']}")
-        print(f"Duplicate final state blocked: {stats['duplicate_final_state_blocked']}")
         
         expected_files = rounds * files_per_round
+        print(f"\nFinal result:")
+        print(f"Downloaded files count: {len(download_files)}")
+        print(f"Downloaded files: {[f.name for f in download_files]}")
+        
         assert len(download_files) == expected_files, f"Expected {expected_files} files, got {len(download_files)}"
-        assert stats['success_count'] == expected_files, f"Success count should be {expected_files}"
+        
+        names = set()
+        for f in download_files:
+            assert f.name not in names, f"Duplicate filename: {f.name}"
+            names.add(f.name)
         
         print("PASS: Test 6")
         return True

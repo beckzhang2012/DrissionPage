@@ -50,14 +50,6 @@ class DownloadManager(object):
     def missions(self):
         return self._missions
 
-    @property
-    def stats(self):
-        return self._stats.copy()
-
-    def reset_stats(self):
-        for key in self._stats:
-            self._stats[key] = 0
-
     def set_path(self, tab, path):
         tid = tab if isinstance(tab, str) else tab.tab_id
         TabDownloadSettings(tid).path = path
