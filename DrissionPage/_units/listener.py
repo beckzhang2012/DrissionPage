@@ -5,6 +5,8 @@
 @Website  : https://DrissionPage.cn
 @Copyright: (c) 2020 by g1879, Inc. All Rights Reserved.
 """
+from __future__ import annotations
+
 from base64 import b64decode
 from json import JSONDecodeError, loads
 from queue import Queue
@@ -16,6 +18,9 @@ from requests.structures import CaseInsensitiveDict
 from .._base.driver import Driver
 from .._functions.settings import Settings as _S
 from ..errors import WaitTimeoutError
+
+
+
 
 
 class Listener(object):
@@ -40,6 +45,10 @@ class Listener(object):
         self._is_regex = False
         self._method = {'GET', 'POST'}
         self._res_type = True
+
+        self._body_size_limit = 10 * 1024 * 1024
+        self._queue_size_limit = 1000
+        self._degradation_mode = 'truncate'
 
     @property
     def targets(self):
@@ -162,9 +171,10 @@ class Listener(object):
     def stop(self):
         if self.listening:
             self.pause()
-            self.clear()
-        self._driver.stop()
-        self._driver = None
+        self.clear()
+        if self._driver:
+            self._driver.stop()
+            self._driver = None
 
     def pause(self, clear=True):
         if self.listening:
@@ -188,6 +198,47 @@ class Listener(object):
         self._caught = Queue(maxsize=0)
         self._running_requests = 0
         self._running_targets = 0
+
+    def _estimate_body_size(self, body: str, is_base64: bool) -> int:
+        if body is None:
+            return 0
+        if is_base64:
+            return int(len(body) * 0.75)
+        return len(body)
+
+    def _process_body_for_packet(self, packet: DataPacket, body: str, is_base64: bool) -> tuple:
+        if body is None:
+            return '', False, 0
+
+        original_size = self._estimate_body_size(body, is_base64)
+
+        if self._body_size_limit <= 0 or original_size <= self._body_size_limit:
+            return body, is_base64, original_size
+
+        if self._degradation_mode == 'skip':
+            return '', False, original_size
+
+        elif self._degradation_mode == 'truncate':
+            if is_base64:
+                chars_to_keep = int(self._body_size_limit / 0.75)
+                chars_to_keep = chars_to_keep - (chars_to_keep % 4)
+                truncated = body[:chars_to_keep] if chars_to_keep > 0 else ''
+                return truncated, is_base64, original_size
+            else:
+                truncated = body[:self._body_size_limit] if self._body_size_limit > 0 else ''
+                return truncated, is_base64, original_size
+
+        return body, is_base64, original_size
+
+    def _enforce_queue_limit(self):
+        if self._queue_size_limit <= 0:
+            return
+
+        while self._caught.qsize() >= self._queue_size_limit:
+            try:
+                self._caught.get_nowait()
+            except Exception:
+                break
 
     def wait_silent(self, timeout=None, targets_only=False, limit=0):
         if not self.listening:
@@ -287,8 +338,13 @@ class Listener(object):
         if packet:
             r = self._driver.run('Network.getResponseBody', requestId=rid)
             if 'body' in r:
-                packet._raw_body = r['body']
-                packet._base64_body = r['base64Encoded']
+                raw_body = r['body']
+                base64_encoded = r['base64Encoded']
+                processed_body, processed_base64, _ = self._process_body_for_packet(
+                    packet, raw_body, base64_encoded
+                )
+                packet._raw_body = processed_body
+                packet._base64_body = processed_base64
             else:
                 packet._raw_body = ''
                 packet._base64_body = False
@@ -312,6 +368,7 @@ class Listener(object):
         self._request_ids.pop(rid, None)
 
         if packet:
+            self._enforce_queue_limit()
             self._caught.put(packet)
             self._running_targets -= 1
 
@@ -339,6 +396,7 @@ class Listener(object):
         self._request_ids.pop(r_id, None)
 
         if data_packet:
+            self._enforce_queue_limit()
             self._caught.put(data_packet)
             self._running_targets -= 1
 
