@@ -7,7 +7,7 @@
 """
 from json import dumps, loads, JSONDecodeError
 from queue import Queue, Empty
-from threading import Thread
+from threading import Thread, Lock, Event
 from time import perf_counter, sleep
 
 from requests import Session
@@ -21,15 +21,29 @@ from ..errors import PageDisconnectedError, BrowserConnectError
 adapters.DEFAULT_RETRIES = 5
 
 
+class _RequestState(object):
+    __slots__ = ('generation', 'method', 'is_completed', 'result_queue', 'is_sent')
+
+    def __init__(self, generation, method):
+        self.generation = generation
+        self.method = method
+        self.is_completed = False
+        self.result_queue = Queue()
+        self.is_sent = False
+
+
 class Driver(object):
     def __init__(self, _id, address, owner=None):
         self.id = _id
         self.address = address
         self.owner = owner
-        self.alert_flag = False  # 标记alert出现，跳过一条请求后复原
+        self.alert_flag = False
 
         self._cur_id = 0
         self._ws = None
+        self._generation = 0
+        self._lock = Lock()
+        self._stopped_event = Event()
 
         self._recv_th = Thread(target=self._recv_loop)
         self._handle_event_th = Thread(target=self._handle_event_loop)
@@ -46,43 +60,74 @@ class Driver(object):
         self.event_queue = Queue()
         self.immediate_event_queue = Queue()
 
+        self._metrics = {
+            'late_packets_discarded': 0,
+            'duplicate_completions': 0,
+            'generation_changes': 0,
+            'requests_aborted_on_stop': 0
+        }
+
         self.start()
 
     def _send(self, message, timeout=None):
-        self._cur_id += 1
-        ws_id = self._cur_id
-        message['id'] = ws_id
-        message_json = dumps(message)
+        method = message.get('method', 'unknown')
+
+        with self._lock:
+            self._cur_id += 1
+            ws_id = self._cur_id
+            generation = self._generation
+            message['id'] = ws_id
+            message_json = dumps(message)
+
+            state = _RequestState(generation, method)
+            self.method_results[ws_id] = state
 
         end_time = perf_counter() + timeout if timeout is not None else None
-        self.method_results[ws_id] = Queue()
+
         try:
             self._ws.send(message_json)
+            with self._lock:
+                state.is_sent = True
+
             if timeout == 0:
-                self.method_results.pop(ws_id, None)
+                with self._lock:
+                    self.method_results.pop(ws_id, None)
                 return {'id': ws_id, 'result': {}}
 
         except (OSError, WebSocketConnectionClosedException):
-            self.method_results.pop(ws_id, None)
+            with self._lock:
+                self.method_results.pop(ws_id, None)
             return {'error': {'message': 'connection disconnected'}, 'type': 'connection_error'}
 
         while self.is_running:
             try:
-                result = self.method_results[ws_id].get(timeout=.2)
-                self.method_results.pop(ws_id, None)
+                result = state.result_queue.get(timeout=.2)
+                with self._lock:
+                    self.method_results.pop(ws_id, None)
                 return result
 
             except Empty:
-                if self.alert_flag and message['method'].startswith(('Input.', 'Runtime.')):
+                if self.alert_flag and method.startswith(('Input.', 'Runtime.')):
+                    with self._lock:
+                        self.method_results.pop(ws_id, None)
                     return {'error': {'message': 'alert exists.'}, 'type': 'alert_exists'}
 
                 if timeout is not None and perf_counter() > end_time:
-                    self.method_results.pop(ws_id, None)
+                    with self._lock:
+                        self.method_results.pop(ws_id, None)
                     return {'error': {'message': 'alert exists.'}, 'type': 'alert_exists'} \
                         if self.alert_flag else {'error': {'message': 'timeout'}, 'type': 'timeout'}
 
+                with self._lock:
+                    if self._stopped_event.is_set():
+                        self.method_results.pop(ws_id, None)
+                        self._metrics['requests_aborted_on_stop'] += 1
+                        return {'error': {'message': 'connection disconnected'}, 'type': 'connection_error'}
+
                 continue
 
+        with self._lock:
+            self.method_results.pop(ws_id, None)
         return {'error': {'message': 'connection disconnected'}, 'type': 'connection_error'}
 
     def _recv_loop(self):
@@ -106,8 +151,20 @@ class Driver(object):
                 else:
                     self.event_queue.put(msg)
 
-            elif msg.get('id') in self.method_results:
-                self.method_results[msg['id']].put(msg)
+            elif msg.get('id') is not None:
+                msg_id = msg.get('id')
+                with self._lock:
+                    state = self.method_results.get(msg_id)
+                    if state is None:
+                        self._metrics['late_packets_discarded'] += 1
+                    elif state.is_completed:
+                        self._metrics['duplicate_completions'] += 1
+                    elif state.generation != self._generation:
+                        self._metrics['late_packets_discarded'] += 1
+                        self.method_results.pop(msg_id, None)
+                    else:
+                        state.is_completed = True
+                        state.result_queue.put(msg)
 
     def _handle_event_loop(self):
         while self.is_running:
@@ -154,7 +211,11 @@ class Driver(object):
             return result['result']
 
     def start(self):
-        self.is_running = True
+        with self._lock:
+            self.is_running = True
+            self._stopped_event.clear()
+            self._generation += 1
+            self._metrics['generation_changes'] += 1
         try:
             self._ws = create_connection(self.address, enable_multithread=True, suppress_origin=True)
         except WebSocketBadStatusException as e:
@@ -164,6 +225,10 @@ class Driver(object):
                 raise
         except ConnectionRefusedError:
             raise BrowserConnectError(_S._lang.BROWSER_NOT_EXIST)
+        self._recv_th = Thread(target=self._recv_loop)
+        self._recv_th.daemon = True
+        self._handle_event_th = Thread(target=self._handle_event_loop)
+        self._handle_event_th.daemon = True
         self._recv_th.start()
         self._handle_event_th.start()
         return True
@@ -175,20 +240,40 @@ class Driver(object):
         return True
 
     def _stop(self):
-        if not self.is_running:
-            return False
+        with self._lock:
+            if not self.is_running:
+                return False
 
-        self.is_running = False
+            self.is_running = False
+            self._stopped_event.set()
+            self._generation += 1
+            self._metrics['generation_changes'] += 1
+
+            for ws_id, state in list(self.method_results.items()):
+                if not state.is_completed:
+                    self._metrics['requests_aborted_on_stop'] += 1
+                    state.result_queue.put({
+                        'error': {'message': 'connection disconnected'},
+                        'type': 'connection_error'
+                    })
+
         if self._ws:
-            self._ws.close()
+            try:
+                self._ws.close()
+            except:
+                pass
             self._ws = None
 
-        self.event_handlers.clear()
-        self.method_results.clear()
-        self.event_queue.queue.clear()
+        with self._lock:
+            self.event_handlers.clear()
+            self.method_results.clear()
+            self.event_queue.queue.clear()
 
         if hasattr(self.owner, '_on_disconnect'):
-            self.owner._on_disconnect()
+            try:
+                self.owner._on_disconnect()
+            except:
+                pass
 
     def set_callback(self, event, callback, immediate=False):
         handler = self.immediate_event_handlers if immediate else self.event_handlers
