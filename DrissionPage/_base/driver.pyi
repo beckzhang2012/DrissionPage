@@ -6,8 +6,8 @@
 @Copyright: (c) 2020 by g1879, Inc. All Rights Reserved.
 """
 from queue import Queue
-from threading import Thread
-from typing import Union, Callable, Dict, Optional
+from threading import Thread, Lock
+from typing import Union, Callable, Dict, Optional, Tuple
 
 from requests import Response
 from websocket import WebSocket
@@ -21,7 +21,9 @@ class Driver(object):
     owner = ...
     alert_flag: bool
     _cur_id: int
+    _epoch: int
     _ws: Optional[WebSocket]
+    _lock: Lock
     _recv_th: Thread
     _handle_event_th: Thread
     _handle_immediate_event_th: Optional[Thread]
@@ -29,7 +31,7 @@ class Driver(object):
     is_running: bool
     event_handlers: dict
     immediate_event_handlers: dict
-    method_results: dict
+    method_results: Dict[int, Tuple[int, Queue]]
     event_queue: Queue
     immediate_event_queue: Queue
 
