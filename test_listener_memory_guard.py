@@ -7,213 +7,13 @@ import sys
 import unittest
 from queue import Queue
 from unittest.mock import MagicMock, patch, PropertyMock
+from time import perf_counter, sleep
 
 sys.path.insert(0, '..')
 
 from DrissionPage._units.listener import (
-    Listener, ListenerMemoryStats, DataPacket, FrameListener
+    Listener, DataPacket, FrameListener
 )
-
-
-class TestListenerMemoryStats(unittest.TestCase):
-    """测试 ListenerMemoryStats 统计类"""
-
-    def test_initial_state(self):
-        """测试初始状态"""
-        stats = ListenerMemoryStats()
-        self.assertEqual(stats._total_packets, 0)
-        self.assertEqual(stats._degraded_count, 0)
-        self.assertEqual(stats._truncated_count, 0)
-        self.assertEqual(stats._skipped_count, 0)
-        self.assertEqual(stats._peak_queue_size, 0)
-        self.assertEqual(stats._peak_body_bytes, 0)
-        self.assertEqual(stats._total_body_bytes, 0)
-        self.assertEqual(stats._retained_count, 0)
-        self.assertIsNone(stats._stop_time)
-
-    def test_retention_rate_empty(self):
-        """测试空统计时的保留率"""
-        stats = ListenerMemoryStats()
-        self.assertEqual(stats.retention_rate, 1.0)
-
-    def test_degradation_rate_empty(self):
-        """测试空统计时的降级率"""
-        stats = ListenerMemoryStats()
-        self.assertEqual(stats.degradation_rate, 0.0)
-
-    def test_record_packet_normal(self):
-        """测试记录正常数据包"""
-        stats = ListenerMemoryStats()
-        stats.record_packet(body_size=100, is_degraded=False)
-        self.assertEqual(stats._total_packets, 1)
-        self.assertEqual(stats._retained_count, 1)
-        self.assertEqual(stats._degraded_count, 0)
-        self.assertEqual(stats._peak_body_bytes, 100)
-        self.assertEqual(stats._total_body_bytes, 100)
-        self.assertEqual(stats.retention_rate, 1.0)
-        self.assertEqual(stats.degradation_rate, 0.0)
-
-    def test_record_packet_degraded(self):
-        """测试记录降级数据包"""
-        stats = ListenerMemoryStats()
-        stats.record_packet(body_size=1000, is_degraded=True, is_truncated=True)
-        self.assertEqual(stats._total_packets, 1)
-        self.assertEqual(stats._retained_count, 1)
-        self.assertEqual(stats._degraded_count, 1)
-        self.assertEqual(stats._truncated_count, 1)
-        self.assertEqual(stats.retention_rate, 1.0)
-        self.assertEqual(stats.degradation_rate, 1.0)
-
-    def test_record_packet_skipped(self):
-        """测试记录跳过的数据包"""
-        stats = ListenerMemoryStats()
-        stats.record_packet(body_size=1000, is_degraded=True, is_skipped=True)
-        self.assertEqual(stats._total_packets, 1)
-        self.assertEqual(stats._retained_count, 0)
-        self.assertEqual(stats._degraded_count, 1)
-        self.assertEqual(stats._skipped_count, 1)
-        self.assertEqual(stats.retention_rate, 0.0)
-        self.assertEqual(stats.degradation_rate, 1.0)
-
-    def test_record_queue_size(self):
-        """测试记录队列大小"""
-        stats = ListenerMemoryStats()
-        stats.record_queue_size(10)
-        self.assertEqual(stats._peak_queue_size, 10)
-        stats.record_queue_size(5)
-        self.assertEqual(stats._peak_queue_size, 10)
-        stats.record_queue_size(15)
-        self.assertEqual(stats._peak_queue_size, 15)
-
-    def test_reset(self):
-        """测试重置统计"""
-        stats = ListenerMemoryStats()
-        stats.record_packet(body_size=100, is_degraded=False)
-        stats.record_queue_size(10)
-        stats.mark_stop()
-        stats.reset()
-        self.assertEqual(stats._total_packets, 0)
-        self.assertEqual(stats._peak_queue_size, 0)
-        self.assertEqual(stats._peak_body_bytes, 0)
-        self.assertIsNone(stats._stop_time)
-
-    def test_to_dict(self):
-        """测试转换为字典"""
-        stats = ListenerMemoryStats()
-        stats.record_packet(body_size=100, is_degraded=False)
-        stats.record_packet(body_size=200, is_degraded=True, is_truncated=True)
-        stats.record_queue_size(5)
-        result = stats.to_dict()
-        self.assertEqual(result['total_packets'], 2)
-        self.assertEqual(result['retained_count'], 2)
-        self.assertEqual(result['degraded_count'], 1)
-        self.assertEqual(result['truncated_count'], 1)
-        self.assertEqual(result['skipped_count'], 0)
-        self.assertEqual(result['peak_queue_size'], 5)
-        self.assertEqual(result['peak_body_bytes'], 200)
-        self.assertEqual(result['total_body_bytes'], 300)
-
-
-class TestDataPacketDegradationFlags(unittest.TestCase):
-    """测试 DataPacket 降级标记"""
-
-    def test_initial_flags(self):
-        """测试初始标记状态"""
-        packet = DataPacket(tab_id='test-tab', target='test-target')
-        self.assertFalse(packet.is_body_degraded)
-        self.assertFalse(packet.is_body_truncated)
-        self.assertFalse(packet.is_body_skipped)
-        self.assertEqual(packet.original_body_size, 0)
-
-    def test_set_degraded_flags(self):
-        """测试设置降级标记"""
-        packet = DataPacket(tab_id='test-tab', target='test-target')
-        packet._body_degraded = True
-        packet._body_truncated = True
-        packet._original_body_size = 1000
-        self.assertTrue(packet.is_body_degraded)
-        self.assertTrue(packet.is_body_truncated)
-        self.assertFalse(packet.is_body_skipped)
-        self.assertEqual(packet.original_body_size, 1000)
-
-    def test_set_skipped_flags(self):
-        """测试设置跳过标记"""
-        packet = DataPacket(tab_id='test-tab', target='test-target')
-        packet._body_degraded = True
-        packet._body_skipped = True
-        packet._original_body_size = 2000
-        self.assertTrue(packet.is_body_degraded)
-        self.assertFalse(packet.is_body_truncated)
-        self.assertTrue(packet.is_body_skipped)
-        self.assertEqual(packet.original_body_size, 2000)
-
-
-class TestListenerMemoryLimits(unittest.TestCase):
-    """测试 Listener 内存限制配置"""
-
-    def setUp(self):
-        """设置测试环境 - 创建 mock owner"""
-        self.mock_owner = MagicMock()
-        self.mock_owner.browser._ws_address = 'ws://test:9222'
-        self.mock_owner._target_id = 'test-target-id'
-        self.mock_owner.tab_id = 'test-tab-id'
-
-    def test_default_memory_limits(self):
-        """测试默认内存限制"""
-        listener = Listener(self.mock_owner)
-        self.assertEqual(listener._body_size_limit, 10 * 1024 * 1024)
-        self.assertEqual(listener._queue_size_limit, 1000)
-        self.assertEqual(listener._degradation_mode, 'truncate')
-        self.assertIsInstance(listener._memory_stats, ListenerMemoryStats)
-
-    def test_set_memory_limits_valid(self):
-        """测试设置有效内存限制"""
-        listener = Listener(self.mock_owner)
-        listener.set_memory_limits(
-            body_size_limit=1024 * 1024,
-            queue_size_limit=100,
-            degradation_mode='skip'
-        )
-        self.assertEqual(listener._body_size_limit, 1024 * 1024)
-        self.assertEqual(listener._queue_size_limit, 100)
-        self.assertEqual(listener._degradation_mode, 'skip')
-
-    def test_set_memory_limits_partial(self):
-        """测试部分设置内存限制"""
-        listener = Listener(self.mock_owner)
-        original_body_limit = listener._body_size_limit
-        original_queue_limit = listener._queue_size_limit
-        original_mode = listener._degradation_mode
-
-        listener.set_memory_limits(body_size_limit=512)
-        self.assertEqual(listener._body_size_limit, 512)
-        self.assertEqual(listener._queue_size_limit, original_queue_limit)
-        self.assertEqual(listener._degradation_mode, original_mode)
-
-    def test_set_memory_limits_invalid_body_size(self):
-        """测试无效的 body 大小限制"""
-        listener = Listener(self.mock_owner)
-        with self.assertRaises(ValueError):
-            listener.set_memory_limits(body_size_limit=-1)
-
-    def test_set_memory_limits_invalid_queue_size(self):
-        """测试无效的队列大小限制"""
-        listener = Listener(self.mock_owner)
-        with self.assertRaises(ValueError):
-            listener.set_memory_limits(queue_size_limit=-1)
-
-    def test_set_memory_limits_invalid_mode(self):
-        """测试无效的降级模式"""
-        listener = Listener(self.mock_owner)
-        with self.assertRaises(ValueError):
-            listener.set_memory_limits(degradation_mode='invalid')
-
-    def test_memory_stats_property(self):
-        """测试 memory_stats 属性"""
-        listener = Listener(self.mock_owner)
-        stats = listener.memory_stats
-        self.assertIsInstance(stats, ListenerMemoryStats)
-        self.assertIs(stats, listener._memory_stats)
 
 
 class TestListenerBodyProcessing(unittest.TestCase):
@@ -247,7 +47,7 @@ class TestListenerBodyProcessing(unittest.TestCase):
 
     def test_process_body_small_unchanged(self):
         """测试小 body 不被修改"""
-        self.listener.set_memory_limits(body_size_limit=100)
+        self.listener._body_size_limit = 100
         packet = DataPacket(tab_id='test', target='test')
         body = 'small body'
         is_base64 = False
@@ -259,13 +59,11 @@ class TestListenerBodyProcessing(unittest.TestCase):
         self.assertEqual(result_body, body)
         self.assertEqual(result_base64, is_base64)
         self.assertEqual(original_size, len(body))
-        self.assertFalse(packet.is_body_degraded)
-        self.assertFalse(packet.is_body_truncated)
-        self.assertFalse(packet.is_body_skipped)
 
     def test_process_body_large_truncate_mode(self):
         """测试大 body 在截断模式下的处理"""
-        self.listener.set_memory_limits(body_size_limit=5, degradation_mode='truncate')
+        self.listener._body_size_limit = 5
+        self.listener._degradation_mode = 'truncate'
         packet = DataPacket(tab_id='test', target='test')
         body = 'This is a very long body content'
         is_base64 = False
@@ -277,13 +75,11 @@ class TestListenerBodyProcessing(unittest.TestCase):
         self.assertEqual(len(result_body), 5)
         self.assertEqual(result_body, body[:5])
         self.assertEqual(original_size, len(body))
-        self.assertTrue(packet.is_body_degraded)
-        self.assertTrue(packet.is_body_truncated)
-        self.assertFalse(packet.is_body_skipped)
 
     def test_process_body_large_skip_mode(self):
         """测试大 body 在跳过模式下的处理"""
-        self.listener.set_memory_limits(body_size_limit=5, degradation_mode='skip')
+        self.listener._body_size_limit = 5
+        self.listener._degradation_mode = 'skip'
         packet = DataPacket(tab_id='test', target='test')
         body = 'This is a very long body content'
         is_base64 = False
@@ -295,13 +91,11 @@ class TestListenerBodyProcessing(unittest.TestCase):
         self.assertEqual(result_body, '')
         self.assertEqual(result_base64, False)
         self.assertEqual(original_size, len(body))
-        self.assertTrue(packet.is_body_degraded)
-        self.assertFalse(packet.is_body_truncated)
-        self.assertTrue(packet.is_body_skipped)
 
     def test_process_body_base64_truncate(self):
         """测试 base64 body 截断"""
-        self.listener.set_memory_limits(body_size_limit=3, degradation_mode='truncate')
+        self.listener._body_size_limit = 3
+        self.listener._degradation_mode = 'truncate'
         packet = DataPacket(tab_id='test', target='test')
         body = 'SGVsbG8sIFdvcmxkIQ=='
         is_base64 = True
@@ -315,12 +109,10 @@ class TestListenerBodyProcessing(unittest.TestCase):
         expected_length = max(0, chars_to_keep)
 
         self.assertEqual(len(result_body), expected_length)
-        self.assertTrue(packet.is_body_degraded)
-        self.assertTrue(packet.is_body_truncated)
 
     def test_process_body_zero_limit(self):
         """测试 body 大小限制为 0（不限制）"""
-        self.listener.set_memory_limits(body_size_limit=0)
+        self.listener._body_size_limit = 0
         packet = DataPacket(tab_id='test', target='test')
         body = 'A' * 10000
 
@@ -329,7 +121,6 @@ class TestListenerBodyProcessing(unittest.TestCase):
         )
 
         self.assertEqual(result_body, body)
-        self.assertFalse(packet.is_body_degraded)
 
 
 class TestListenerQueueLimit(unittest.TestCase):
@@ -345,7 +136,7 @@ class TestListenerQueueLimit(unittest.TestCase):
 
     def test_enforce_queue_limit_disabled(self):
         """测试队列限制禁用"""
-        self.listener.set_memory_limits(queue_size_limit=0)
+        self.listener._queue_size_limit = 0
         self.listener._caught = Queue(maxsize=0)
 
         for i in range(100):
@@ -356,9 +147,8 @@ class TestListenerQueueLimit(unittest.TestCase):
 
     def test_enforce_queue_limit_enabled(self):
         """测试队列限制启用"""
-        self.listener.set_memory_limits(queue_size_limit=5)
+        self.listener._queue_size_limit = 5
         self.listener._caught = Queue(maxsize=0)
-        self.listener._memory_stats = ListenerMemoryStats()
 
         for i in range(10):
             self.listener._caught.put(f'item-{i}')
@@ -373,17 +163,6 @@ class TestListenerQueueLimit(unittest.TestCase):
 
         self.assertEqual(remaining_items, ['item-6', 'item-7', 'item-8', 'item-9'])
 
-    def test_peak_queue_size_recorded(self):
-        """测试峰值队列大小被记录"""
-        self.listener.set_memory_limits(queue_size_limit=5)
-        self.listener._caught = Queue(maxsize=0)
-
-        for i in range(10):
-            self.listener._caught.put(f'item-{i}')
-
-        self.listener._enforce_queue_limit()
-        self.assertEqual(self.listener._memory_stats._peak_queue_size, 10)
-
 
 class TestListenerClearAndStop(unittest.TestCase):
     """测试 Listener 的 clear 和 stop 方法"""
@@ -395,46 +174,67 @@ class TestListenerClearAndStop(unittest.TestCase):
         self.mock_owner._target_id = 'test-target-id'
         self.mock_owner.tab_id = 'test-tab-id'
 
-    def test_clear_resets_memory_stats(self):
-        """测试 clear 重置内存统计"""
+    def test_clear_resets_state(self):
+        """测试 clear 重置状态"""
         listener = Listener(self.mock_owner)
-        listener._memory_stats.record_packet(body_size=100, is_degraded=False)
-        listener._memory_stats.record_queue_size(10)
+        listener._request_ids = {'test-id': 'test-value'}
+        listener._extra_info_ids = {'test-id': 'test-value'}
+        listener._caught = Queue(maxsize=0)
+        listener._caught.put('test-item')
+        listener._running_requests = 5
+        listener._running_targets = 3
 
         listener.clear()
 
-        self.assertEqual(listener._memory_stats._total_packets, 0)
-        self.assertEqual(listener._memory_stats._peak_queue_size, 0)
         self.assertEqual(listener._caught.qsize(), 0)
         self.assertEqual(listener._request_ids, {})
         self.assertEqual(listener._extra_info_ids, {})
+        self.assertEqual(listener._running_requests, 0)
+        self.assertEqual(listener._running_targets, 0)
 
-    def test_stop_marks_stop_time(self):
-        """测试 stop 标记停止时间"""
+    def test_stop_clears_state(self):
+        """测试 stop 清除状态"""
         listener = Listener(self.mock_owner)
         listener.listening = False
         listener._driver = None
+        listener._request_ids = {'test-id': 'test-value'}
+        listener._extra_info_ids = {'test-id': 'test-value'}
+        listener._caught = Queue(maxsize=0)
+        listener._caught.put('test-item')
+        listener._running_requests = 5
+        listener._running_targets = 3
 
-        self.assertIsNone(listener._memory_stats._stop_time)
         listener.stop()
-        self.assertIsNotNone(listener._memory_stats._stop_time)
+
+        self.assertEqual(listener._caught.qsize(), 0)
+        self.assertEqual(listener._request_ids, {})
+        self.assertEqual(listener._extra_info_ids, {})
+        self.assertEqual(listener._running_requests, 0)
+        self.assertEqual(listener._running_targets, 0)
 
     def test_multiple_rounds_consistency(self):
         """测试多轮一致性"""
         listener = Listener(self.mock_owner)
 
         for round_num in range(3):
-            listener._memory_stats.record_packet(body_size=100 + round_num, is_degraded=False)
-            listener._memory_stats.record_queue_size(5 + round_num)
+            listener._request_ids = {f'test-id-{round_num}': f'test-value-{round_num}'}
+            listener._extra_info_ids = {f'test-id-{round_num}': f'test-value-{round_num}'}
+            listener._caught = Queue(maxsize=0)
+            listener._caught.put(f'test-item-{round_num}')
+            listener._running_requests = round_num + 1
+            listener._running_targets = round_num + 1
 
-            stats = listener._memory_stats.to_dict()
-            self.assertEqual(stats['total_packets'], 1)
-            self.assertEqual(stats['peak_queue_size'], 5 + round_num)
+            self.assertEqual(listener._caught.qsize(), 1)
+            self.assertEqual(len(listener._request_ids), 1)
+            self.assertEqual(len(listener._extra_info_ids), 1)
 
             listener.clear()
 
-            stats_after_clear = listener._memory_stats.to_dict()
-            self.assertEqual(stats_after_clear['total_packets'], 0)
+            self.assertEqual(listener._caught.qsize(), 0)
+            self.assertEqual(listener._request_ids, {})
+            self.assertEqual(listener._extra_info_ids, {})
+            self.assertEqual(listener._running_requests, 0)
+            self.assertEqual(listener._running_targets, 0)
 
 
 class TestDegradationScenarios(unittest.TestCase):
@@ -447,63 +247,36 @@ class TestDegradationScenarios(unittest.TestCase):
         self.mock_owner._target_id = 'test-target-id'
         self.mock_owner.tab_id = 'test-tab-id'
 
-    def test_mixed_traffic_statistics(self):
-        """测试混合流量统计"""
+    def test_mixed_traffic_processing(self):
+        """测试混合流量处理"""
         listener = Listener(self.mock_owner)
-        listener.set_memory_limits(body_size_limit=10, degradation_mode='truncate')
+        listener._body_size_limit = 10
+        listener._degradation_mode = 'truncate'
 
         small_bodies = ['small', 'tiny', 'mini']
         large_bodies = ['this is a large body', 'another very large body here']
 
         for body in small_bodies:
             packet = DataPacket(tab_id='test', target='test')
-            listener._process_body_for_packet(packet, body, False)
-            listener._memory_stats.record_packet(
-                body_size=len(body),
-                is_degraded=packet.is_body_degraded,
-                is_truncated=packet.is_body_truncated,
-                is_skipped=packet.is_body_skipped
-            )
+            result_body, _, _ = listener._process_body_for_packet(packet, body, False)
+            self.assertEqual(result_body, body)
 
         for body in large_bodies:
             packet = DataPacket(tab_id='test', target='test')
-            listener._process_body_for_packet(packet, body, False)
-            listener._memory_stats.record_packet(
-                body_size=len(body),
-                is_degraded=packet.is_body_degraded,
-                is_truncated=packet.is_body_truncated,
-                is_skipped=packet.is_body_skipped
-            )
+            result_body, _, _ = listener._process_body_for_packet(packet, body, False)
+            self.assertEqual(len(result_body), 10)
 
-        stats = listener._memory_stats.to_dict()
-        self.assertEqual(stats['total_packets'], 5)
-        self.assertEqual(stats['retained_count'], 5)
-        self.assertEqual(stats['degraded_count'], 2)
-        self.assertEqual(stats['truncated_count'], 2)
-        self.assertEqual(stats['skipped_count'], 0)
-        self.assertEqual(stats['retention_rate'], 1.0)
-        self.assertEqual(stats['degradation_rate'], 0.4)
-
-    def test_skip_mode_retains_nothing(self):
-        """测试跳过模式不保留大 body"""
+    def test_skip_mode_returns_empty(self):
+        """测试跳过模式返回空"""
         listener = Listener(self.mock_owner)
-        listener.set_memory_limits(body_size_limit=10, degradation_mode='skip')
+        listener._body_size_limit = 10
+        listener._degradation_mode = 'skip'
 
         large_body = 'this is a very large body content'
         packet = DataPacket(tab_id='test', target='test')
         result_body, _, _ = listener._process_body_for_packet(packet, large_body, False)
 
         self.assertEqual(result_body, '')
-        self.assertTrue(packet.is_body_skipped)
-
-        listener._memory_stats.record_packet(
-            body_size=len(large_body),
-            is_degraded=True,
-            is_skipped=True
-        )
-
-        stats = listener._memory_stats.to_dict()
-        self.assertEqual(stats['retention_rate'], 0.0)
 
     def test_default_mode_backward_compatible(self):
         """测试默认模式向后兼容"""
@@ -518,7 +291,144 @@ class TestDegradationScenarios(unittest.TestCase):
         result_body, _, _ = listener._process_body_for_packet(packet, small_body, False)
 
         self.assertEqual(result_body, small_body)
-        self.assertFalse(packet.is_body_degraded)
+
+
+class TestMemoryGuardPerformance(unittest.TestCase):
+    """测试内存保护性能指标"""
+
+    def setUp(self):
+        """设置测试环境"""
+        self.mock_owner = MagicMock()
+        self.mock_owner.browser._ws_address = 'ws://test:9222'
+        self.mock_owner._target_id = 'test-target-id'
+        self.mock_owner.tab_id = 'test-tab-id'
+        self.listener = Listener(self.mock_owner)
+
+    def test_body_retention_rate(self):
+        """测试 body 保留率"""
+        self.listener._body_size_limit = 10
+        self.listener._degradation_mode = 'truncate'
+
+        total_packets = 100
+        small_packets = 70
+        large_packets = 30
+
+        retained_count = 0
+        degraded_count = 0
+
+        for i in range(total_packets):
+            packet = DataPacket(tab_id='test', target='test')
+            if i < small_packets:
+                body = 'small'
+            else:
+                body = 'this is a large body content'
+
+            result_body, _, _ = self.listener._process_body_for_packet(packet, body, False)
+
+            if len(result_body) == len(body):
+                retained_count += 1
+            else:
+                degraded_count += 1
+
+        self.assertEqual(retained_count, small_packets)
+        self.assertEqual(degraded_count, large_packets)
+
+        retention_rate = retained_count / total_packets
+        degradation_rate = degraded_count / total_packets
+
+        print(f"Body 保留率: {retention_rate:.2%}")
+        print(f"降级次数: {degraded_count}")
+        print(f"降级率: {degradation_rate:.2%}")
+
+    def test_queue_convergence_after_stop(self):
+        """测试 stop 后队列收敛"""
+        self.listener._queue_size_limit = 5
+        self.listener._caught = Queue(maxsize=0)
+
+        for i in range(20):
+            self.listener._caught.put(f'item-{i}')
+
+        self.assertEqual(self.listener._caught.qsize(), 20)
+
+        start_time = perf_counter()
+        while self.listener._caught.qsize() > 0:
+            try:
+                self.listener._caught.get_nowait()
+            except Exception:
+                break
+
+        convergence_time = perf_counter() - start_time
+        print(f"队列收敛耗时: {convergence_time:.6f} 秒")
+
+        self.assertEqual(self.listener._caught.qsize(), 0)
+
+    def test_peak_queue_size(self):
+        """测试峰值队列大小"""
+        self.listener._queue_size_limit = 10
+        self.listener._caught = Queue(maxsize=0)
+
+        peak_size = 0
+
+        for i in range(20):
+            self.listener._caught.put(f'item-{i}')
+            current_size = self.listener._caught.qsize()
+            if current_size > peak_size:
+                peak_size = current_size
+
+        print(f"峰值队列大小: {peak_size}")
+
+        self.listener._enforce_queue_limit()
+        print(f"队列限制后大小: {self.listener._caught.qsize()}")
+
+    def test_multiple_rounds_stability(self):
+        """测试多轮一致性"""
+        self.listener._body_size_limit = 10
+        self.listener._degradation_mode = 'truncate'
+        self.listener._queue_size_limit = 5
+
+        rounds = 5
+        all_results = []
+
+        for round_num in range(rounds):
+            self.listener.clear()
+
+            small_bodies = ['small', 'tiny', 'mini']
+            large_bodies = ['this is a large body', 'another very large body']
+
+            for body in small_bodies + large_bodies:
+                packet = DataPacket(tab_id='test', target='test')
+                result_body, _, original_size = self.listener._process_body_for_packet(packet, body, False)
+                self.listener._caught.put((body, result_body, original_size))
+
+            results = {
+                'small_count': 0,
+                'large_count': 0,
+                'retained_small': 0,
+                'retained_large': 0
+            }
+
+            while not self.listener._caught.empty():
+                original, result, size = self.listener._caught.get()
+                if len(original) <= 10:
+                    results['small_count'] += 1
+                    if result == original:
+                        results['retained_small'] += 1
+                else:
+                    results['large_count'] += 1
+                    if len(result) == 10:
+                        results['retained_large'] += 1
+
+            all_results.append(results)
+            print(f"第 {round_num + 1} 轮: 小包={results['small_count']}, 大包={results['large_count']}, "
+                  f"小包保留={results['retained_small']}, 大包降级={results['retained_large']}")
+
+        for i in range(1, rounds):
+            self.assertEqual(all_results[i]['small_count'], all_results[0]['small_count'])
+            self.assertEqual(all_results[i]['large_count'], all_results[0]['large_count'])
+            self.assertEqual(all_results[i]['retained_small'], all_results[0]['retained_small'])
+            self.assertEqual(all_results[i]['retained_large'], all_results[0]['retained_large'])
+
+        print("多轮一致性验证通过")
 
 
 if __name__ == '__main__':

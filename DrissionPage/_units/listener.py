@@ -20,87 +20,11 @@ from .._functions.settings import Settings as _S
 from ..errors import WaitTimeoutError
 
 
-class ListenerMemoryStats(object):
-    """监听器内存统计"""
 
-    def __init__(self):
-        self._total_packets = 0
-        self._degraded_count = 0
-        self._truncated_count = 0
-        self._skipped_count = 0
-        self._peak_queue_size = 0
-        self._peak_body_bytes = 0
-        self._total_body_bytes = 0
-        self._retained_count = 0
-        self._stop_time = None
-
-    def reset(self):
-        self._total_packets = 0
-        self._degraded_count = 0
-        self._truncated_count = 0
-        self._skipped_count = 0
-        self._peak_queue_size = 0
-        self._peak_body_bytes = 0
-        self._total_body_bytes = 0
-        self._retained_count = 0
-        self._stop_time = None
-
-    def record_packet(self, body_size: int, is_degraded: bool = False,
-                      is_truncated: bool = False, is_skipped: bool = False):
-        self._total_packets += 1
-        self._total_body_bytes += body_size
-        if is_degraded:
-            self._degraded_count += 1
-        if is_truncated:
-            self._truncated_count += 1
-        if is_skipped:
-            self._skipped_count += 1
-        if not is_skipped:
-            self._retained_count += 1
-        if body_size > self._peak_body_bytes:
-            self._peak_body_bytes = body_size
-
-    def record_queue_size(self, size: int):
-        if size > self._peak_queue_size:
-            self._peak_queue_size = size
-
-    def mark_stop(self):
-        self._stop_time = perf_counter()
-
-    @property
-    def retention_rate(self) -> float:
-        if self._total_packets == 0:
-            return 1.0
-        return self._retained_count / self._total_packets
-
-    @property
-    def degradation_rate(self) -> float:
-        if self._total_packets == 0:
-            return 0.0
-        return self._degraded_count / self._total_packets
-
-    def to_dict(self) -> dict:
-        return {
-            'total_packets': self._total_packets,
-            'retained_count': self._retained_count,
-            'degraded_count': self._degraded_count,
-            'truncated_count': self._truncated_count,
-            'skipped_count': self._skipped_count,
-            'retention_rate': self.retention_rate,
-            'degradation_rate': self.degradation_rate,
-            'peak_queue_size': self._peak_queue_size,
-            'peak_body_bytes': self._peak_body_bytes,
-            'total_body_bytes': self._total_body_bytes,
-        }
 
 
 class Listener(object):
     """监听器基类"""
-
-    _default_body_size_limit = 10 * 1024 * 1024
-    _default_queue_size_limit = 1000
-    _degradation_mode_truncate = 'truncate'
-    _degradation_mode_skip = 'skip'
 
     def __init__(self, owner):
         self._owner = owner
@@ -122,10 +46,9 @@ class Listener(object):
         self._method = {'GET', 'POST'}
         self._res_type = True
 
-        self._body_size_limit = self._default_body_size_limit
-        self._queue_size_limit = self._default_queue_size_limit
-        self._degradation_mode = self._degradation_mode_truncate
-        self._memory_stats = ListenerMemoryStats()
+        self._body_size_limit = 10 * 1024 * 1024
+        self._queue_size_limit = 1000
+        self._degradation_mode = 'truncate'
 
     @property
     def targets(self):
@@ -166,26 +89,6 @@ class Listener(object):
             else:
                 raise ValueError(_S._lang.join(_S._lang.INCORRECT_TYPE_, 'res_type',
                                                ALLOW_TYPE='str, list, tuple, set, True', CURR_TYPE=type(res_type)))
-
-    @property
-    def memory_stats(self) -> ListenerMemoryStats:
-        return self._memory_stats
-
-    def set_memory_limits(self, body_size_limit: int = None, queue_size_limit: int = None,
-                          degradation_mode: str = None):
-        if body_size_limit is not None:
-            if body_size_limit < 0:
-                raise ValueError('body_size_limit must be non-negative')
-            self._body_size_limit = body_size_limit
-        if queue_size_limit is not None:
-            if queue_size_limit < 0:
-                raise ValueError('queue_size_limit must be non-negative')
-            self._queue_size_limit = queue_size_limit
-        if degradation_mode is not None:
-            if degradation_mode not in (self._degradation_mode_truncate, self._degradation_mode_skip):
-                raise ValueError(f'degradation_mode must be "{self._degradation_mode_truncate}" '
-                               f'or "{self._degradation_mode_skip}"')
-            self._degradation_mode = degradation_mode
 
     def start(self, targets=None, is_regex=None, method=None, res_type=None):
         if targets is not None:
@@ -268,8 +171,7 @@ class Listener(object):
     def stop(self):
         if self.listening:
             self.pause()
-            self.clear()
-        self._memory_stats.mark_stop()
+        self.clear()
         if self._driver:
             self._driver.stop()
             self._driver = None
@@ -296,7 +198,6 @@ class Listener(object):
         self._caught = Queue(maxsize=0)
         self._running_requests = 0
         self._running_targets = 0
-        self._memory_stats.reset()
 
     def _estimate_body_size(self, body: str, is_base64: bool) -> int:
         if body is None:
@@ -310,19 +211,14 @@ class Listener(object):
             return '', False, 0
 
         original_size = self._estimate_body_size(body, is_base64)
-        packet._original_body_size = original_size
 
         if self._body_size_limit <= 0 or original_size <= self._body_size_limit:
             return body, is_base64, original_size
 
-        packet._body_degraded = True
-
-        if self._degradation_mode == self._degradation_mode_skip:
-            packet._body_skipped = True
+        if self._degradation_mode == 'skip':
             return '', False, original_size
 
-        elif self._degradation_mode == self._degradation_mode_truncate:
-            packet._body_truncated = True
+        elif self._degradation_mode == 'truncate':
             if is_base64:
                 chars_to_keep = int(self._body_size_limit / 0.75)
                 chars_to_keep = chars_to_keep - (chars_to_keep % 4)
@@ -337,9 +233,6 @@ class Listener(object):
     def _enforce_queue_limit(self):
         if self._queue_size_limit <= 0:
             return
-
-        current_size = self._caught.qsize()
-        self._memory_stats.record_queue_size(current_size)
 
         while self._caught.qsize() >= self._queue_size_limit:
             try:
@@ -447,25 +340,14 @@ class Listener(object):
             if 'body' in r:
                 raw_body = r['body']
                 base64_encoded = r['base64Encoded']
-                processed_body, processed_base64, original_size = self._process_body_for_packet(
+                processed_body, processed_base64, _ = self._process_body_for_packet(
                     packet, raw_body, base64_encoded
                 )
                 packet._raw_body = processed_body
                 packet._base64_body = processed_base64
-
-                is_degraded = packet._body_degraded
-                is_truncated = packet._body_truncated
-                is_skipped = packet._body_skipped
-                self._memory_stats.record_packet(
-                    body_size=original_size,
-                    is_degraded=is_degraded,
-                    is_truncated=is_truncated,
-                    is_skipped=is_skipped
-                )
             else:
                 packet._raw_body = ''
                 packet._base64_body = False
-                self._memory_stats.record_packet(body_size=0)
 
             if (packet._raw_request['request'].get('hasPostData', None)
                     and not packet._raw_request['request'].get('postData', None)):
@@ -498,7 +380,6 @@ class Listener(object):
             data_packet._raw_fail_info = kwargs
             data_packet._resource_type = kwargs['type']
             data_packet.is_failed = True
-            self._memory_stats.record_packet(body_size=0)
 
         r = self._extra_info_ids.get(kwargs['requestId'], None)
         if r:
@@ -553,27 +434,6 @@ class DataPacket(object):
         self._requestExtraInfo = None
         self._responseExtraInfo = None
         self._resource_type = None
-
-        self._body_degraded = False
-        self._body_truncated = False
-        self._body_skipped = False
-        self._original_body_size = 0
-
-    @property
-    def is_body_degraded(self) -> bool:
-        return self._body_degraded
-
-    @property
-    def is_body_truncated(self) -> bool:
-        return self._body_truncated
-
-    @property
-    def is_body_skipped(self) -> bool:
-        return self._body_skipped
-
-    @property
-    def original_body_size(self) -> int:
-        return self._original_body_size
 
     def __repr__(self):
         t = f'"{self.target}"' if self.target is not True else True
