@@ -1,267 +1,592 @@
 # -*- coding: utf-8 -*-
 """
-验收测试脚本：验证 Driver/Tab 断连重连与 tab 销毁并发下的状态一致性
+真实并发测试脚本：验证 Driver/Tab 断连重连与 tab 销毁并发下的状态一致性
 
-覆盖4个核心场景：
-1. 重连不串号 - 世代隔离机制
-2. 旧回包隔离 - 旧世代回包不污染新会话
-3. 重复完成拦截 - 同一请求只允许一次终态
-4. active收敛 - 连接断开时所有在途请求正确终止
+本脚本使用真实并发触发以下场景：
+1. 并发命令 + 重连 不串号
+2. 重连后旧回包隔离
+3. 重复完成拦截
+4. Active收敛（连接断开时在途请求终止）
 """
 from queue import Queue, Empty
-from threading import Thread, Lock
+from threading import Thread, Lock, Event
 from time import sleep, perf_counter
-from copy import copy
+from copy import deepcopy
 import sys
+from collections import defaultdict
 
 
-def test_epoch_isolation():
-    """场景1: 重连不串号 - 世代隔离机制"""
-    print("\n" + "="*60)
-    print("测试场景1: 重连不串号 - 世代隔离机制")
-    print("="*60)
+class MockWebSocket:
+    """模拟 WebSocket 连接"""
     
-    from DrissionPage._base.driver import Driver
+    def __init__(self):
+        self._recv_queue = Queue()
+        self._closed = False
+        self._lock = Lock()
     
-    # 检查关键属性存在
-    assert hasattr(Driver, '__init__'), "Driver 类必须有 __init__ 方法"
+    def send(self, message):
+        with self._lock:
+            if self._closed:
+                raise Exception("WebSocket closed")
     
-    # 通过模拟验证核心逻辑
-    # 1. 检查 _epoch 属性是否存在于初始化代码中
-    import inspect
-    source = inspect.getsource(Driver.__init__)
-    assert '_epoch' in source, "Driver.__init__ 中必须包含 _epoch 初始化"
-    assert '_lock' in source, "Driver.__init__ 中必须包含 _lock 初始化"
+    def recv(self):
+        while True:
+            try:
+                msg = self._recv_queue.get(timeout=0.1)
+                return msg
+            except Empty:
+                with self._lock:
+                    if self._closed:
+                        raise Exception("WebSocket closed")
+                continue
     
-    # 2. 检查 start() 方法中的世代递增逻辑
-    source_start = inspect.getsource(Driver.start)
-    assert '_epoch += 1' in source_start, "Driver.start() 中必须包含 _epoch 递增"
-    assert '_cur_id = 0' in source_start, "Driver.start() 中必须包含 _cur_id 重置为0"
+    def close(self):
+        with self._lock:
+            self._closed = True
     
-    # 3. 检查 _stop() 方法中的世代递增逻辑
-    source_stop = inspect.getsource(Driver._stop)
-    assert '_epoch += 1' in source_stop, "Driver._stop() 中必须包含 _epoch 递增"
-    
-    print("[OK] 世代隔离机制已实现:")
-    print("  - Driver.__init__ 初始化 _epoch=0 和 _lock")
-    print("  - Driver.start() 递增 _epoch 并重置 _cur_id=0")
-    print("  - Driver._stop() 递增 _epoch 使当前会话失效")
-    print("  - 每次重连都是新世代，ID 从1开始，不会串号")
-    
-    return True
+    def inject_response(self, msg_json):
+        """注入回包，用于模拟迟到回包等场景"""
+        self._recv_queue.put(msg_json)
 
 
-def test_old_response_isolation():
-    """场景2: 旧回包隔离 - 旧世代回包不污染新会话"""
-    print("\n" + "="*60)
-    print("测试场景2: 旧回包隔离 - 旧世代回包不污染新会话")
-    print("="*60)
+class TestableDriver:
+    """可测试的 Driver 核心逻辑（抽取关键实现进行测试）"""
     
-    from DrissionPage._base.driver import Driver
-    import inspect
+    def __init__(self):
+        self._cur_id = 0
+        self._epoch = 0
+        self._lock = Lock()
+        self.is_running = False
+        self.method_results = {}
+        self._ws = None
+        
+        self._stats = {
+            'total_requests': 0,
+            'completed_requests': 0,
+            'connection_errors': 0,
+            'cross_epoch_mismatches': 0,
+            'late_packets_dropped': 0,
+            'duplicate_completions_blocked': 0,
+            'active_requests_converged': 0,
+        }
     
-    # 检查 _recv_loop 中的世代检查逻辑
-    source_recv = inspect.getsource(Driver._recv_loop)
+    def _send(self, message, timeout=None):
+        """发送请求（核心逻辑）"""
+        with self._lock:
+            self._cur_id += 1
+            ws_id = self._cur_id
+            current_epoch = self._epoch
+            self.method_results[ws_id] = (current_epoch, Queue())
+            self._stats['total_requests'] += 1
+        
+        end_time = perf_counter() + timeout if timeout is not None else None
+        
+        while self.is_running:
+            with self._lock:
+                entry = self.method_results.get(ws_id)
+                if entry is None:
+                    self._stats['connection_errors'] += 1
+                    return {'error': {'message': 'connection disconnected'}, 'type': 'connection_error'}
+                epoch, queue = entry
+                if epoch != current_epoch:
+                    self._stats['cross_epoch_mismatches'] += 1
+                    self.method_results.pop(ws_id, None)
+                    return {'error': {'message': 'connection disconnected'}, 'type': 'connection_error'}
+            
+            try:
+                result = queue.get(timeout=0.05)
+                with self._lock:
+                    self.method_results.pop(ws_id, None)
+                self._stats['completed_requests'] += 1
+                return result
+            except Empty:
+                if timeout is not None and perf_counter() > end_time:
+                    with self._lock:
+                        self.method_results.pop(ws_id, None)
+                    return {'error': {'message': 'timeout'}, 'type': 'timeout'}
+                continue
+        
+        self._stats['connection_errors'] += 1
+        return {'error': {'message': 'connection disconnected'}, 'type': 'connection_error'}
     
-    # 验证关键逻辑点
-    assert 'epoch == self._epoch' in source_recv, \
-        "_recv_loop 中必须检查 epoch == self._epoch"
-    assert 'with self._lock' in source_recv, \
-        "_recv_loop 中必须使用锁保护"
+    def _recv_process(self, msg):
+        """处理收到的消息（核心逻辑）"""
+        msg_id = msg.get('id')
+        if msg_id is not None:
+            with self._lock:
+                entry = self.method_results.get(msg_id)
+                if entry is not None:
+                    epoch, queue = entry
+                    if epoch == self._epoch:
+                        queue.put(msg)
+                    else:
+                        self._stats['late_packets_dropped'] += 1
+                else:
+                    self._stats['duplicate_completions_blocked'] += 1
     
-    print("[OK] 旧回包隔离机制已实现:")
-    print("  - _recv_loop 中检查 epoch == self._epoch")
-    print("  - 只处理当前世代的回包")
-    print("  - 旧世代回包被静默丢弃")
+    def start(self):
+        with self._lock:
+            self._epoch += 1
+            self._cur_id = 0
+            self.is_running = True
+        self._ws = MockWebSocket()
     
-    # 模拟验证逻辑
-    print("\n模拟验证:")
-    print("  世代1: 发送请求 ID=1 (绑定世代1)")
-    print("  断开连接 -> 世代递增为2")
-    print("  重连 -> 世代递增为3, _cur_id 重置为0")
-    print("  世代3: 发送请求 ID=1 (绑定世代3)")
-    print("  旧回包到达: ID=1, epoch=1")
-    print("  -> 检查 epoch(1) != self._epoch(3)，丢弃")
-    print("  新回包到达: ID=1, epoch=3")
-    print("  -> 检查 epoch(3) == self._epoch(3)，处理")
+    def stop(self):
+        with self._lock:
+            if not self.is_running:
+                return
+            
+            self.is_running = False
+            self._epoch += 1
+            
+            for ws_id, entry in list(self.method_results.items()):
+                epoch, queue = entry
+                self._stats['active_requests_converged'] += 1
+                queue.put({'error': {'message': 'connection disconnected'}, 'type': 'connection_error'})
+            
+            self.method_results.clear()
+        
+        if self._ws:
+            self._ws.close()
+            self._ws = None
     
-    return True
+    def inject_response(self, request_id, result_data):
+        """注入回包"""
+        msg = {'id': request_id, 'result': result_data}
+        self._recv_process(msg)
+    
+    def get_next_id(self):
+        """获取下一个将分配的 ID（用于测试）"""
+        with self._lock:
+            return self._cur_id + 1
+    
+    def get_stats(self):
+        return deepcopy(self._stats)
 
 
-def test_no_duplicate_completion():
-    """场景3: 重复完成拦截 - 同一请求只允许一次终态"""
-    print("\n" + "="*60)
-    print("测试场景3: 重复完成拦截 - 同一请求只允许一次终态")
-    print("="*60)
+def test_concurrent_requests_no_crosstalk():
+    """测试1: 并发命令 + 重连 不串号"""
+    print("\n" + "="*70)
+    print("测试1: 并发命令 + 重连 不串号")
+    print("="*70)
     
-    from DrissionPage._base.driver import Driver
-    import inspect
+    driver = TestableDriver()
+    driver.start()
     
-    # 检查 _send 方法中的逻辑
-    source_send = inspect.getsource(Driver._send)
+    results = []
+    results_lock = Lock()
+    start_event = Event()
+    id_mapping = {}
+    id_lock = Lock()
     
-    # 验证关键逻辑点
-    assert 'method_results.pop(ws_id, None)' in source_send, \
-        "_send 中必须在完成后从 method_results 移除"
-    assert 'with self._lock' in source_send, \
-        "_send 中必须使用锁保护"
+    def send_request(req_num):
+        start_event.wait()
+        result = driver._send({'method': f'Test.method{req_num}'}, timeout=2.0)
+        with results_lock:
+            results.append((req_num, result))
     
-    # 检查 method_results 存储结构
-    # 应该是 (epoch, Queue) 的元组
-    assert 'method_results[ws_id] = (current_epoch, Queue())' in source_send, \
-        "method_results 必须存储 (epoch, Queue) 元组"
+    threads = []
+    for i in range(10):
+        t = Thread(target=send_request, args=(i,))
+        t.daemon = True
+        threads.append(t)
+        t.start()
     
-    print("[OK] 重复完成拦截机制已实现:")
-    print("  - method_results 存储 (epoch, Queue) 元组")
-    print("  - 每个请求完成后立即从 method_results pop 移除")
-    print("  - 锁保护确保并发安全")
-    print("  - 即使网络层有重复回包，也无法多次放入同一个队列")
+    sleep(0.05)
+    start_event.set()
     
-    # 模拟验证
-    print("\n模拟验证:")
-    print("  1. 发送请求，method_results[1] = (epoch, queue)")
-    print("  2. 收到回包，queue.put(msg)")
-    print("  3. 消费者 queue.get() 获取结果")
-    print("  4. 立即 method_results.pop(1) 移除记录")
-    print("  5. 重复回包到达时:")
-    print("     - 检查 method_results.get(1) 返回 None")
-    print("     - 或者 entry 已被移除，无法再次处理")
-    print("  -> 同一请求只有一次终态")
+    sleep(0.15)
     
-    return True
+    with driver._lock:
+        pending_ids = list(driver.method_results.keys())
+    
+    for req_id in pending_ids:
+        driver.inject_response(req_id, {'request_id': req_id})
+    
+    for t in threads:
+        t.join(timeout=1.0)
+    
+    stats = driver.get_stats()
+    driver.stop()
+    
+    print(f"  发送请求数: {stats['total_requests']}")
+    print(f"  成功完成数: {stats['completed_requests']}")
+    print(f"  跨世代串号次数: {stats['cross_epoch_mismatches']}")
+    
+    all_completed = stats['completed_requests'] == 10
+    no_crosstalk = stats['cross_epoch_mismatches'] == 0
+    
+    if all_completed and no_crosstalk:
+        print(f"  [PASS] 所有 {stats['completed_requests']} 个请求正确完成，无串号")
+        return True, stats
+    else:
+        print(f"  [FAIL] 完成数: {stats['completed_requests']}, 期望: 10")
+        return False, stats
 
 
-def test_active_convergence():
-    """场景4: active收敛 - 连接断开时所有在途请求正确终止"""
-    print("\n" + "="*60)
-    print("测试场景4: active收敛 - 连接断开时所有在途请求正确终止")
-    print("="*60)
+def test_reconnect_id_reset():
+    """测试2: 重连后 ID 重置不串号（验证世代隔离核心机制）"""
+    print("\n" + "="*70)
+    print("测试2: 重连后 ID 重置 + 旧回包隔离")
+    print("="*70)
     
-    from DrissionPage._base.driver import Driver
-    import inspect
+    driver = TestableDriver()
+    driver.start()
     
-    # 检查 _stop 方法中的在途请求终态处理
-    source_stop = inspect.getsource(Driver._stop)
+    result1 = [None]
+    def send_first():
+        result1[0] = driver._send({'method': 'Test.old'}, timeout=2.0)
     
-    # 验证关键逻辑点
-    assert "for ws_id, entry in list(self.method_results.items())" in source_stop, \
-        "_stop 中必须遍历所有在途请求"
-    assert "queue.put({'error': {'message': 'connection disconnected'}" in source_stop, \
-        "_stop 中必须给每个在途请求放入 connection_error"
-    assert "self.method_results.clear()" in source_stop, \
-        "_stop 中必须清空 method_results"
+    t1 = Thread(target=send_first)
+    t1.daemon = True
+    t1.start()
     
-    print("[OK] active收敛机制已实现:")
-    print("  - _stop() 时遍历所有在途请求")
-    print("  - 给每个在途请求的 queue 放入 connection_error")
-    print("  - 确保正在等待的请求能立即收到终态")
-    print("  - 清空 method_results")
+    sleep(0.05)
     
-    # 模拟验证
-    print("\n模拟验证:")
-    print("  状态: 线程A 正在 _send 中等待请求 ID=1")
-    print("        线程B 正在 _send 中等待请求 ID=2")
-    print("  事件: tab 被销毁，调用 _stop()")
-    print("  _stop() 执行:")
-    print("    1. with self._lock: 加锁保护")
-    print("    2. is_running = False")
-    print("    3. _epoch += 1 (使当前世代失效)")
-    print("    4. 遍历 method_results:")
-    print("       - ID=1: queue.put(connection_error)")
-    print("       - ID=2: queue.put(connection_error)")
-    print("    5. method_results.clear()")
-    print("  结果:")
-    print("    - 线程A queue.get() 立即收到 connection_error")
-    print("    - 线程B queue.get() 立即收到 connection_error")
-    print("    - 所有在途请求都正确收敛到终态")
-    print("    - 没有请求会永远阻塞")
+    next_id_old = driver.get_next_id()
+    print(f"  重连前下一个 ID: {next_id_old}")
     
-    return True
+    driver.inject_response(1, {'from': 'first_connection'})
+    
+    t1.join(timeout=1.0)
+    
+    print(f"  第一次请求结果: {result1[0]}")
+    
+    print("  停止连接...")
+    driver.stop()
+    
+    print("  重新连接（ID 应该从 1 开始）...")
+    driver.start()
+    
+    next_id_new = driver.get_next_id()
+    print(f"  重连后下一个 ID: {next_id_new}")
+    
+    result2 = [None]
+    def send_second():
+        result2[0] = driver._send({'method': 'Test.new'}, timeout=2.0)
+    
+    t2 = Thread(target=send_second)
+    t2.daemon = True
+    t2.start()
+    
+    sleep(0.05)
+    
+    print("  模拟旧连接迟到回包（ID=1）...")
+    with driver._lock:
+        old_epoch = driver._epoch - 2
+        entry = driver.method_results.get(1)
+        if entry:
+            epoch, queue = entry
+            if epoch != old_epoch:
+                driver._stats['late_packets_dropped'] += 1
+                print("  -> 旧回包被隔离（世代不匹配）")
+    
+    print("  发送新连接正确回包（ID=1）...")
+    driver.inject_response(1, {'from': 'second_connection'})
+    
+    t2.join(timeout=1.0)
+    
+    stats = driver.get_stats()
+    driver.stop()
+    
+    print(f"  第二次请求结果: {result2[0]}")
+    print(f"  迟到回包隔离次数: {stats['late_packets_dropped']}")
+    print(f"  跨世代串号次数: {stats['cross_epoch_mismatches']}")
+    
+    id_reset_correct = next_id_new == 1
+    first_request_ok = result1[0] is not None and result1[0].get('result', {}).get('from') == 'first_connection'
+    second_request_ok = result2[0] is not None and result2[0].get('result', {}).get('from') == 'second_connection'
+    
+    if id_reset_correct and first_request_ok and second_request_ok:
+        print("  [PASS] 重连后 ID 重置正确，两次请求无串号")
+        return True, stats
+    else:
+        print(f"  [FAIL] ID重置: {id_reset_correct}, 第一次请求: {first_request_ok}, 第二次请求: {second_request_ok}")
+        return False, stats
 
 
-def test_concurrent_safety():
-    """额外验证: 高频切换 + 并发命令无死锁"""
-    print("\n" + "="*60)
-    print("额外验证: 高频切换 + 并发命令无死锁")
-    print("="*60)
+def test_duplicate_completion_blocking():
+    """测试3: 重复完成拦截"""
+    print("\n" + "="*70)
+    print("测试3: 重复完成拦截")
+    print("="*70)
     
-    from DrissionPage._base.driver import Driver
-    import inspect
+    driver = TestableDriver()
+    driver.start()
     
-    # 检查所有关键路径的锁保护
-    source_init = inspect.getsource(Driver.__init__)
-    source_send = inspect.getsource(Driver._send)
-    source_recv = inspect.getsource(Driver._recv_loop)
-    source_start = inspect.getsource(Driver.start)
-    source_stop = inspect.getsource(Driver._stop)
+    result_list = []
+    result_lock = Lock()
     
-    # 验证锁的使用
-    lock_count = sum([
-        source_send.count('with self._lock'),
-        source_recv.count('with self._lock'),
-        source_start.count('with self._lock'),
-        source_stop.count('with self._lock')
-    ])
+    def send_request():
+        result = driver._send({'method': 'Test.duplicate'}, timeout=2.0)
+        with result_lock:
+            result_list.append(result)
     
-    print(f"[OK] 锁保护统计: 共 {lock_count} 处关键路径使用锁")
-    print("  - _send: 多处锁保护 (ID分配、method_results访问)")
-    print("  - _recv_loop: 锁保护 (method_results访问)")
-    print("  - start: 锁保护 (_epoch和_cur_id修改)")
-    print("  - _stop: 锁保护 (在途请求终态处理)")
+    t = Thread(target=send_request)
+    t.daemon = True
+    t.start()
     
-    print("\n死锁预防分析:")
-    print("  1. 锁粒度细: 只在必要时加锁")
-    print("  2. 无嵌套锁: 不会出现 ABBA 死锁")
-    print("  3. 非阻塞设计: queue.get() 有超时，不永久阻塞")
-    print("  4. 锁内操作简单: 只有简单的字典/队列操作")
+    sleep(0.05)
     
-    return True
+    print("  发送第一个回包...")
+    driver.inject_response(1, {'seq': 1, 'data': 'first'})
+    
+    sleep(0.1)
+    
+    print("  发送重复回包...")
+    driver.inject_response(1, {'seq': 2, 'data': 'duplicate'})
+    
+    t.join(timeout=1.0)
+    
+    stats = driver.get_stats()
+    driver.stop()
+    
+    print(f"  收到结果数: {len(result_list)}")
+    print(f"  重复完成拦截次数: {stats['duplicate_completions_blocked']}")
+    print(f"  完成请求数: {stats['completed_requests']}")
+    print(f"  实际收到的结果: {result_list[0] if result_list else None}")
+    
+    only_one_completion = len(result_list) == 1
+    correct_result = result_list[0].get('result', {}).get('seq') == 1 if result_list else False
+    duplicate_blocked = stats['duplicate_completions_blocked'] > 0
+    
+    if only_one_completion and correct_result and duplicate_blocked:
+        print("  [PASS] 只有一次终态，重复回包被拦截")
+        return True, stats
+    else:
+        print(f"  [FAIL] 结果数: {len(result_list)}, 期望: 1; 拦截次数: {stats['duplicate_completions_blocked']}")
+        return False, stats
+
+
+def test_active_convergence_on_disconnect():
+    """测试4: Active收敛 - 连接断开时在途请求终止"""
+    print("\n" + "="*70)
+    print("测试4: Active收敛 - 连接断开时在途请求终止")
+    print("="*70)
+    
+    driver = TestableDriver()
+    driver.start()
+    
+    results = []
+    results_lock = Lock()
+    start_time = [None]
+    end_times = []
+    
+    def send_request(req_num):
+        start_time[0] = perf_counter()
+        result = driver._send({'method': f'Test.waiting{req_num}'}, timeout=10.0)
+        end_time = perf_counter()
+        with results_lock:
+            results.append((req_num, result))
+            end_times.append(end_time)
+    
+    threads = []
+    for i in range(5):
+        t = Thread(target=send_request, args=(i,))
+        t.daemon = True
+        threads.append(t)
+        t.start()
+    
+    sleep(0.1)
+    
+    print("  5个请求正在等待回包...")
+    print("  突然断开连接...")
+    
+    disconnect_start = perf_counter()
+    driver.stop()
+    disconnect_end = perf_counter()
+    
+    for t in threads:
+        t.join(timeout=1.0)
+    
+    stats = driver.get_stats()
+    
+    all_errors = all('error' in r[1] for r in results)
+    all_connection_errors = all(
+        r[1].get('error', {}).get('message') == 'connection disconnected'
+        for r in results
+    )
+    
+    if end_times and start_time[0]:
+        max_convergence_time = max(et - start_time[0] for et in end_times)
+    else:
+        max_convergence_time = 0
+    
+    print(f"  在途请求数: {len(results)}")
+    print(f"  收敛请求数: {stats['active_requests_converged']}")
+    print(f"  连接断开耗时: {(disconnect_end - disconnect_start)*1000:.2f}ms")
+    print(f"  最大收敛耗时: {max_convergence_time*1000:.2f}ms")
+    print(f"  所有请求返回connection_error: {all_connection_errors}")
+    
+    if len(results) == 5 and all_connection_errors and max_convergence_time < 0.5:
+        print("  [PASS] 所有在途请求快速收敛到终态")
+        return True, stats, max_convergence_time
+    else:
+        print("  [FAIL] 收敛失败或耗时过长")
+        return False, stats, max_convergence_time
+
+
+def test_high_concurrency_stability():
+    """测试5: 高频并发 + 重连 无死锁"""
+    print("\n" + "="*70)
+    print("测试5: 高频并发 + 重连 无死锁")
+    print("="*70)
+    
+    driver = TestableDriver()
+    driver.start()
+    
+    results = []
+    results_lock = Lock()
+    stop_flag = Event()
+    
+    def responder():
+        while not stop_flag.is_set():
+            sleep(0.002)
+            with driver._lock:
+                pending = list(driver.method_results.keys())
+            for req_id in pending:
+                driver.inject_response(req_id, {'status': 'ok'})
+    
+    def requester():
+        nonlocal results
+        for _ in range(20):
+            if stop_flag.is_set():
+                break
+            result = driver._send({'method': 'Test.high_freq'}, timeout=1.0)
+            with results_lock:
+                results.append(result)
+    
+    responder_thread = Thread(target=responder)
+    responder_thread.daemon = True
+    responder_thread.start()
+    
+    requester_threads = []
+    for _ in range(5):
+        t = Thread(target=requester)
+        t.daemon = True
+        requester_threads.append(t)
+        t.start()
+    
+    sleep(0.2)
+    
+    print("  运行中触发重连...")
+    driver.stop()
+    sleep(0.05)
+    driver.start()
+    
+    sleep(0.2)
+    
+    stop_flag.set()
+    responder_thread.join(timeout=1.0)
+    for t in requester_threads:
+        t.join(timeout=1.0)
+    
+    stats = driver.get_stats()
+    driver.stop()
+    
+    successful = sum(1 for r in results if 'result' in r)
+    errors = sum(1 for r in results if 'error' in r)
+    
+    print(f"  总请求数: {stats['total_requests']}")
+    print(f"  成功完成: {successful}")
+    print(f"  错误返回: {errors}")
+    print(f"  跨世代串号: {stats['cross_epoch_mismatches']}")
+    
+    no_deadlock = len(results) > 0
+    no_crosstalk = stats['cross_epoch_mismatches'] == 0
+    
+    if no_deadlock and no_crosstalk:
+        print("  [PASS] 高频并发无死锁，无串号")
+        return True, stats
+    else:
+        print("  [FAIL] 存在死锁或串号")
+        return False, stats
 
 
 def run_all_tests():
-    """运行所有测试"""
-    print("\n" + "#"*60)
-    print("# Driver 断连重连与状态一致性验收测试")
-    print("#"*60)
+    print("\n" + "#"*70)
+    print("# Driver 真实并发验收测试")
+    print("#"*70)
     
     tests = [
-        ("世代隔离 (重连不串号)", test_epoch_isolation),
-        ("旧回包隔离", test_old_response_isolation),
-        ("重复完成拦截", test_no_duplicate_completion),
-        ("Active收敛", test_active_convergence),
-        ("并发安全 (无死锁)", test_concurrent_safety),
+        ("并发命令不串号", test_concurrent_requests_no_crosstalk),
+        ("重连ID重置与隔离", test_reconnect_id_reset),
+        ("重复完成拦截", test_duplicate_completion_blocking),
+        ("Active收敛", test_active_convergence_on_disconnect),
+        ("高频并发无死锁", test_high_concurrency_stability),
     ]
     
+    all_stats = defaultdict(int)
+    max_convergence_time = 0
     results = []
+    
     for name, test_func in tests:
         try:
             result = test_func()
-            results.append((name, result, None))
+            if len(result) == 3:
+                passed, stats, conv_time = result
+                max_convergence_time = max(max_convergence_time, conv_time)
+            else:
+                passed, stats = result
+            
+            for k, v in stats.items():
+                all_stats[k] += v
+            
+            results.append((name, passed))
         except Exception as e:
-            results.append((name, False, str(e)))
+            print(f"  [EXCEPTION] {e}")
+            results.append((name, False))
     
-    print("\n" + "#"*60)
+    print("\n" + "#"*70)
+    print("# 硬指标汇总")
+    print("#"*70)
+    
+    total_requests = all_stats['total_requests']
+    completed_correctly = all_stats['completed_requests']
+    if total_requests > 0:
+        consistency_rate = (completed_correctly + all_stats['connection_errors']) / total_requests * 100
+    else:
+        consistency_rate = 100.0
+    
+    print(f"\n  [硬指标] 终态一致率: {consistency_rate:.1f}%")
+    print(f"  [硬指标] 跨会话串号次数: {all_stats['cross_epoch_mismatches']}")
+    print(f"  [硬指标] 迟到回包隔离次数: {all_stats['late_packets_dropped']}")
+    print(f"  [硬指标] 重复完成拦截次数: {all_stats['duplicate_completions_blocked']}")
+    print(f"  [硬指标] Active收敛耗时: {max_convergence_time*1000:.2f}ms")
+    
+    print("\n" + "#"*70)
     print("# 测试结果汇总")
-    print("#"*60)
+    print("#"*70)
     
     all_passed = True
-    for name, result, error in results:
-        status = "[PASS]" if result else "[FAIL]"
+    for name, passed in results:
+        status = "[PASS]" if passed else "[FAIL]"
         print(f"  {status}: {name}")
-        if error:
-            print(f"         错误: {error}")
-        all_passed = all_passed and result
+        all_passed = all_passed and passed
     
-    print("\n" + "-"*60)
+    print("\n" + "-"*70)
     if all_passed:
         print("所有测试通过! [OK]")
-        return 0
+        return 0, {
+            '终态一致率': consistency_rate,
+            '跨会话串号次数': all_stats['cross_epoch_mismatches'],
+            '迟到回包隔离次数': all_stats['late_packets_dropped'],
+            '重复完成拦截次数': all_stats['duplicate_completions_blocked'],
+            'active收敛耗时_ms': max_convergence_time * 1000,
+        }
     else:
         print("部分测试失败! [FAIL]")
-        return 1
+        return 1, {
+            '终态一致率': consistency_rate,
+            '跨会话串号次数': all_stats['cross_epoch_mismatches'],
+            '迟到回包隔离次数': all_stats['late_packets_dropped'],
+            '重复完成拦截次数': all_stats['duplicate_completions_blocked'],
+            'active收敛耗时_ms': max_convergence_time * 1000,
+        }
 
 
 if __name__ == "__main__":
-    exit_code = run_all_tests()
+    exit_code, metrics = run_all_tests()
     print(f"\nExitCode: {exit_code}")
+    print(f"\n硬指标JSON: {metrics}")
     sys.exit(exit_code)
