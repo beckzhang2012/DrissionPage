@@ -7,7 +7,7 @@
 """
 from json import dumps, loads, JSONDecodeError
 from queue import Queue, Empty
-from threading import Thread
+from threading import Thread, Lock
 from time import perf_counter, sleep
 
 from requests import Session
@@ -29,7 +29,9 @@ class Driver(object):
         self.alert_flag = False  # 标记alert出现，跳过一条请求后复原
 
         self._cur_id = 0
+        self._epoch = 0
         self._ws = None
+        self._lock = Lock()
 
         self._recv_th = Thread(target=self._recv_loop)
         self._handle_event_th = Thread(target=self._handle_event_loop)
@@ -49,35 +51,53 @@ class Driver(object):
         self.start()
 
     def _send(self, message, timeout=None):
-        self._cur_id += 1
-        ws_id = self._cur_id
-        message['id'] = ws_id
-        message_json = dumps(message)
+        with self._lock:
+            self._cur_id += 1
+            ws_id = self._cur_id
+            current_epoch = self._epoch
+            message['id'] = ws_id
+            message_json = dumps(message)
+            self.method_results[ws_id] = (current_epoch, Queue())
 
         end_time = perf_counter() + timeout if timeout is not None else None
-        self.method_results[ws_id] = Queue()
+
         try:
             self._ws.send(message_json)
             if timeout == 0:
-                self.method_results.pop(ws_id, None)
+                with self._lock:
+                    self.method_results.pop(ws_id, None)
                 return {'id': ws_id, 'result': {}}
 
         except (OSError, WebSocketConnectionClosedException):
-            self.method_results.pop(ws_id, None)
+            with self._lock:
+                self.method_results.pop(ws_id, None)
             return {'error': {'message': 'connection disconnected'}, 'type': 'connection_error'}
 
         while self.is_running:
+            with self._lock:
+                entry = self.method_results.get(ws_id)
+                if entry is None:
+                    return {'error': {'message': 'connection disconnected'}, 'type': 'connection_error'}
+                epoch, queue = entry
+                if epoch != current_epoch:
+                    self.method_results.pop(ws_id, None)
+                    return {'error': {'message': 'connection disconnected'}, 'type': 'connection_error'}
+
             try:
-                result = self.method_results[ws_id].get(timeout=.2)
-                self.method_results.pop(ws_id, None)
+                result = queue.get(timeout=.2)
+                with self._lock:
+                    self.method_results.pop(ws_id, None)
                 return result
 
             except Empty:
                 if self.alert_flag and message['method'].startswith(('Input.', 'Runtime.')):
+                    with self._lock:
+                        self.method_results.pop(ws_id, None)
                     return {'error': {'message': 'alert exists.'}, 'type': 'alert_exists'}
 
                 if timeout is not None and perf_counter() > end_time:
-                    self.method_results.pop(ws_id, None)
+                    with self._lock:
+                        self.method_results.pop(ws_id, None)
                     return {'error': {'message': 'alert exists.'}, 'type': 'alert_exists'} \
                         if self.alert_flag else {'error': {'message': 'timeout'}, 'type': 'timeout'}
 
@@ -106,8 +126,15 @@ class Driver(object):
                 else:
                     self.event_queue.put(msg)
 
-            elif msg.get('id') in self.method_results:
-                self.method_results[msg['id']].put(msg)
+            else:
+                msg_id = msg.get('id')
+                if msg_id is not None:
+                    with self._lock:
+                        entry = self.method_results.get(msg_id)
+                        if entry is not None:
+                            epoch, queue = entry
+                            if epoch == self._epoch:
+                                queue.put(msg)
 
     def _handle_event_loop(self):
         while self.is_running:
@@ -154,7 +181,10 @@ class Driver(object):
             return result['result']
 
     def start(self):
-        self.is_running = True
+        with self._lock:
+            self._epoch += 1
+            self._cur_id = 0
+            self.is_running = True
         try:
             self._ws = create_connection(self.address, enable_multithread=True, suppress_origin=True)
         except WebSocketBadStatusException as e:
@@ -175,16 +205,24 @@ class Driver(object):
         return True
 
     def _stop(self):
-        if not self.is_running:
-            return False
+        with self._lock:
+            if not self.is_running:
+                return False
 
-        self.is_running = False
+            self.is_running = False
+            self._epoch += 1
+
+            for ws_id, entry in list(self.method_results.items()):
+                epoch, queue = entry
+                queue.put({'error': {'message': 'connection disconnected'}, 'type': 'connection_error'})
+
+            self.method_results.clear()
+
         if self._ws:
             self._ws.close()
             self._ws = None
 
         self.event_handlers.clear()
-        self.method_results.clear()
         self.event_queue.queue.clear()
 
         if hasattr(self.owner, '_on_disconnect'):
