@@ -9,6 +9,7 @@ from base64 import b64decode
 from json import JSONDecodeError, loads
 from queue import Queue
 from re import search
+from threading import Lock, Event
 from time import perf_counter, sleep
 
 from requests.structures import CaseInsensitiveDict
@@ -16,6 +17,22 @@ from requests.structures import CaseInsensitiveDict
 from .._base.driver import Driver
 from .._functions.settings import Settings as _S
 from ..errors import WaitTimeoutError
+
+
+class _RequestTracker(object):
+    __slots__ = ('request_id', 'data_packet', 'extra_info', 'is_completed', 'is_target',
+                 'waiting_for_body', 'waiting_for_extra', 'extra_ready_event', 'generation')
+
+    def __init__(self, request_id, data_packet=None, generation=0):
+        self.request_id = request_id
+        self.data_packet = data_packet
+        self.extra_info = {'request': None, 'response': None}
+        self.is_completed = False
+        self.is_target = data_packet is not None
+        self.waiting_for_body = False
+        self.waiting_for_extra = False
+        self.extra_ready_event = Event()
+        self.generation = generation
 
 
 class Listener(object):
@@ -28,6 +45,9 @@ class Listener(object):
         self._driver = None
         self._running_requests = 0
         self._running_targets = 0
+        self._lock = Lock()
+        self._generation = 0
+        self._stopped_event = Event()
 
         self._caught = None
         self._request_ids = None
@@ -40,6 +60,15 @@ class Listener(object):
         self._is_regex = False
         self._method = {'GET', 'POST'}
         self._res_type = True
+
+        self._metrics = {
+            'packets_delivered_once': 0,
+            'packets_delivered_multiple': 0,
+            'late_packets_discarded': 0,
+            'extra_info_timeout': 0,
+            'generation_changes': 0,
+            'requests_aborted_on_stop': 0
+        }
 
     @property
     def targets(self):
@@ -87,6 +116,11 @@ class Listener(object):
                 is_regex = False
         if targets or is_regex is not None or method or res_type:
             self.set_targets(targets, is_regex, method, res_type)
+
+        with self._lock:
+            self._generation += 1
+            self._metrics['generation_changes'] += 1
+            self._stopped_event.clear()
         self.clear()
 
         if self.listening:
@@ -160,11 +194,30 @@ class Listener(object):
             return False
 
     def stop(self):
+        with self._lock:
+            self._generation += 1
+            self._metrics['generation_changes'] += 1
+            self._stopped_event.set()
+
+            for rid, tracker in list(self._request_ids.items()):
+                if not tracker.is_completed:
+                    self._metrics['requests_aborted_on_stop'] += 1
+                    tracker.is_completed = True
+                    tracker.extra_ready_event.set()
+
+            self._extra_info_ids.clear()
+
         if self.listening:
-            self.pause()
-            self.clear()
-        self._driver.stop()
-        self._driver = None
+            self.pause(clear=False)
+
+        self.clear()
+
+        if self._driver:
+            try:
+                self._driver.stop()
+            except:
+                pass
+            self._driver = None
 
     def pause(self, clear=True):
         if self.listening:
@@ -179,15 +232,20 @@ class Listener(object):
     def resume(self):
         if self.listening:
             return
+        with self._lock:
+            self._generation += 1
+            self._metrics['generation_changes'] += 1
+            self._stopped_event.clear()
         self._set_callback()
         self.listening = True
 
     def clear(self):
-        self._request_ids = {}
-        self._extra_info_ids = {}
-        self._caught = Queue(maxsize=0)
-        self._running_requests = 0
-        self._running_targets = 0
+        with self._lock:
+            self._request_ids = {}
+            self._extra_info_ids = {}
+            self._caught = Queue(maxsize=0)
+            self._running_requests = 0
+            self._running_targets = 0
 
     def wait_silent(self, timeout=None, targets_only=False, limit=0):
         if not self.listening:
@@ -229,116 +287,211 @@ class Listener(object):
         self._driver.set_callback('Network.loadingFailed', self._loading_failed)
 
     def _requestWillBeSent(self, **kwargs):
+        with self._lock:
+            current_gen = self._generation
+            if self._stopped_event.is_set():
+                return
+
         self._running_requests += 1
         p = None
-        if self._targets is True:
-            if ((self._method is True or kwargs['request']['method'] in self._method)
-                    and (self._res_type is True or kwargs.get('type', '').upper() in self._res_type)):
-                self._running_targets += 1
-                rid = kwargs['requestId']
-                p = self._request_ids.setdefault(rid, DataPacket(self._owner.tab_id, True))
-                p._raw_request = kwargs
-                if kwargs['request'].get('hasPostData', None) and not kwargs['request'].get('postData', None):
-                    p._raw_post_data = self._driver.run('Network.getRequestPostData',
-                                                        requestId=rid).get('postData', None)
+        rid = kwargs['requestId']
 
-        else:
-            rid = kwargs['requestId']
-            for target in self._targets:
-                if (((self._is_regex and search(target, kwargs['request']['url']))
-                     or (not self._is_regex and target in kwargs['request']['url']))
-                        and (self._method is True or kwargs['request']['method'] in self._method)
+        with self._lock:
+            if self._generation != current_gen or self._stopped_event.is_set():
+                self._metrics['late_packets_discarded'] += 1
+                return
+
+            if self._targets is True:
+                if ((self._method is True or kwargs['request']['method'] in self._method)
                         and (self._res_type is True or kwargs.get('type', '').upper() in self._res_type)):
                     self._running_targets += 1
-                    p = self._request_ids.setdefault(rid, DataPacket(self._owner.tab_id, target))
+                    p = DataPacket(self._owner.tab_id, True)
                     p._raw_request = kwargs
-                    break
+                    self._request_ids[rid] = p
+                    if kwargs['request'].get('hasPostData', None) and not kwargs['request'].get('postData', None):
+                        try:
+                            p._raw_post_data = self._driver.run('Network.getRequestPostData',
+                                                                requestId=rid).get('postData', None)
+                        except:
+                            pass
 
-        self._extra_info_ids.setdefault(kwargs['requestId'], {})['obj'] = p if p else False
+            else:
+                for target in self._targets:
+                    if (((self._is_regex and search(target, kwargs['request']['url']))
+                         or (not self._is_regex and target in kwargs['request']['url']))
+                            and (self._method is True or kwargs['request']['method'] in self._method)
+                            and (self._res_type is True or kwargs.get('type', '').upper() in self._res_type)):
+                        self._running_targets += 1
+                        p = DataPacket(self._owner.tab_id, target)
+                        p._raw_request = kwargs
+                        self._request_ids[rid] = p
+                        break
+
+            self._extra_info_ids.setdefault(rid, {})['obj'] = p if p else False
 
     def _requestWillBeSentExtraInfo(self, **kwargs):
+        with self._lock:
+            if self._stopped_event.is_set():
+                return
+
         self._running_requests += 1
-        self._extra_info_ids.setdefault(kwargs['requestId'], {})['request'] = kwargs
+        with self._lock:
+            if self._stopped_event.is_set():
+                return
+            self._extra_info_ids.setdefault(kwargs['requestId'], {})['request'] = kwargs
 
     def _response_received(self, **kwargs):
-        request = self._request_ids.get(kwargs['requestId'], None)
-        if request:
-            request._raw_response = kwargs['response']
-            request._resource_type = kwargs['type']
+        with self._lock:
+            if self._stopped_event.is_set():
+                return
+            request = self._request_ids.get(kwargs['requestId'], None)
+            if request:
+                request._raw_response = kwargs['response']
+                request._resource_type = kwargs['type']
 
     def _responseReceivedExtraInfo(self, **kwargs):
         self._running_requests -= 1
-        r = self._extra_info_ids.get(kwargs['requestId'], None)
-        if r:
-            obj = r.get('obj', None)
-            if obj is False:
-                self._extra_info_ids.pop(kwargs['requestId'], None)
-            elif isinstance(obj, DataPacket):
-                obj._requestExtraInfo = r.get('request', None)
-                obj._responseExtraInfo = kwargs
-                self._extra_info_ids.pop(kwargs['requestId'], None)
-            else:
-                r['response'] = kwargs
+        with self._lock:
+            if self._stopped_event.is_set():
+                return
+
+            r = self._extra_info_ids.get(kwargs['requestId'], None)
+            if r:
+                obj = r.get('obj', None)
+                if obj is False:
+                    self._extra_info_ids.pop(kwargs['requestId'], None)
+                elif isinstance(obj, DataPacket):
+                    obj._requestExtraInfo = r.get('request', None)
+                    obj._responseExtraInfo = kwargs
+                    obj._extra_info_received = True
+                    if hasattr(obj, '_tracker'):
+                        obj._tracker.extra_ready_event.set()
+                    self._extra_info_ids.pop(kwargs['requestId'], None)
+                else:
+                    r['response'] = kwargs
 
     def _loading_finished(self, **kwargs):
         self._running_requests -= 1
         rid = kwargs['requestId']
-        packet = self._request_ids.get(rid)
-        if packet:
-            r = self._driver.run('Network.getResponseBody', requestId=rid)
-            if 'body' in r:
-                packet._raw_body = r['body']
-                packet._base64_body = r['base64Encoded']
-            else:
-                packet._raw_body = ''
-                packet._base64_body = False
+        packet = None
 
-            if (packet._raw_request['request'].get('hasPostData', None)
-                    and not packet._raw_request['request'].get('postData', None)):
-                r = self._driver.run('Network.getRequestPostData', requestId=rid, _timeout=1)
-                packet._raw_post_data = r.get('postData', None)
+        with self._lock:
+            if self._stopped_event.is_set():
+                self._request_ids.pop(rid, None)
+                self._extra_info_ids.pop(rid, None)
+                return
 
-        r = self._extra_info_ids.get(kwargs['requestId'], None)
-        if r:
-            obj = r.get('obj', None)
-            if obj is False or (isinstance(obj, DataPacket) and not self._extra_info_ids.get('request')):
-                self._extra_info_ids.pop(kwargs['requestId'], None)
-            elif isinstance(obj, DataPacket) and self._extra_info_ids.get('response'):
-                response = r.get('response')
-                obj._requestExtraInfo = r['request']
-                obj._responseExtraInfo = response
-                self._extra_info_ids.pop(kwargs['requestId'], None)
-
-        self._request_ids.pop(rid, None)
+            packet = self._request_ids.get(rid)
+            if packet:
+                if hasattr(packet, '_is_completed') and packet._is_completed:
+                    self._metrics['packets_delivered_multiple'] += 1
+                    self._request_ids.pop(rid, None)
+                    self._extra_info_ids.pop(rid, None)
+                    return
+                packet._is_completed = True
 
         if packet:
+            try:
+                with self._lock:
+                    if self._stopped_event.is_set():
+                        self._metrics['requests_aborted_on_stop'] += 1
+                        return
+
+                r = self._driver.run('Network.getResponseBody', requestId=rid)
+                if 'body' in r:
+                    packet._raw_body = r['body']
+                    packet._base64_body = r['base64Encoded']
+                else:
+                    packet._raw_body = ''
+                    packet._base64_body = False
+
+                if (packet._raw_request['request'].get('hasPostData', None)
+                        and not packet._raw_request['request'].get('postData', None)):
+                    try:
+                        r = self._driver.run('Network.getRequestPostData', requestId=rid, _timeout=1)
+                        packet._raw_post_data = r.get('postData', None)
+                    except:
+                        pass
+            except:
+                pass
+
+        with self._lock:
+            if self._stopped_event.is_set():
+                self._request_ids.pop(rid, None)
+                self._extra_info_ids.pop(rid, None)
+                return
+
+            r = self._extra_info_ids.get(rid, None)
+            if r:
+                obj = r.get('obj', None)
+                if obj is False or (isinstance(obj, DataPacket) and not r.get('request')):
+                    self._extra_info_ids.pop(rid, None)
+                elif isinstance(obj, DataPacket) and r.get('response'):
+                    response = r.get('response')
+                    obj._requestExtraInfo = r['request']
+                    obj._responseExtraInfo = response
+                    obj._extra_info_received = True
+                    if hasattr(obj, '_tracker'):
+                        obj._tracker.extra_ready_event.set()
+                    self._extra_info_ids.pop(rid, None)
+
+            self._request_ids.pop(rid, None)
+
+        if packet:
+            with self._lock:
+                if self._stopped_event.is_set():
+                    self._metrics['requests_aborted_on_stop'] += 1
+                    return
+                self._metrics['packets_delivered_once'] += 1
             self._caught.put(packet)
             self._running_targets -= 1
 
     def _loading_failed(self, **kwargs):
         self._running_requests -= 1
         r_id = kwargs['requestId']
-        data_packet = self._request_ids.get(r_id, None)
-        if data_packet:
-            data_packet._raw_fail_info = kwargs
-            data_packet._resource_type = kwargs['type']
-            data_packet.is_failed = True
+        data_packet = None
 
-        r = self._extra_info_ids.get(kwargs['requestId'], None)
-        if r:
-            obj = r.get('obj', None)
-            if obj is False and r.get('response'):
-                self._extra_info_ids.pop(kwargs['requestId'], None)
-            elif isinstance(obj, DataPacket):
-                response = r.get('response')
-                if response:
-                    obj._requestExtraInfo = r['request']
-                    obj._responseExtraInfo = response
+        with self._lock:
+            if self._stopped_event.is_set():
+                self._request_ids.pop(r_id, None)
+                self._extra_info_ids.pop(r_id, None)
+                return
+
+            data_packet = self._request_ids.get(r_id, None)
+            if data_packet:
+                if hasattr(data_packet, '_is_completed') and data_packet._is_completed:
+                    self._metrics['packets_delivered_multiple'] += 1
+                    self._request_ids.pop(r_id, None)
+                    self._extra_info_ids.pop(r_id, None)
+                    return
+                data_packet._is_completed = True
+                data_packet._raw_fail_info = kwargs
+                data_packet._resource_type = kwargs['type']
+                data_packet.is_failed = True
+
+            r = self._extra_info_ids.get(kwargs['requestId'], None)
+            if r:
+                obj = r.get('obj', None)
+                if obj is False and r.get('response'):
+                    self._extra_info_ids.pop(kwargs['requestId'], None)
+                elif isinstance(obj, DataPacket):
+                    response = r.get('response')
+                    if response:
+                        obj._requestExtraInfo = r['request']
+                        obj._responseExtraInfo = response
+                        obj._extra_info_received = True
+                        if hasattr(obj, '_tracker'):
+                            obj._tracker.extra_ready_event.set()
                     self._extra_info_ids.pop(kwargs['requestId'], None)
 
-        self._request_ids.pop(r_id, None)
+            self._request_ids.pop(r_id, None)
 
         if data_packet:
+            with self._lock:
+                if self._stopped_event.is_set():
+                    self._metrics['requests_aborted_on_stop'] += 1
+                    return
+                self._metrics['packets_delivered_once'] += 1
             self._caught.put(data_packet)
             self._running_targets -= 1
 
@@ -361,6 +514,9 @@ class DataPacket(object):
         self.tab_id = tab_id
         self.target = target
         self.is_failed = False
+        self._is_completed = False
+        self._extra_info_received = False
+        self._tracker = None
 
         self._raw_request = None
         self._raw_post_data = None
@@ -424,19 +580,32 @@ class DataPacket(object):
         return self._fail_info
 
     def wait_extra_info(self, timeout=None):
-        if timeout is None:
-            while self._responseExtraInfo is None:
-                sleep(.01)
+        if self._responseExtraInfo is not None:
             return True
 
-        else:
+        if self._extra_info_received:
+            return self._responseExtraInfo is not None
+
+        if self._tracker is None:
+            if timeout is None:
+                timeout = 10
             end_time = perf_counter() + timeout
             while perf_counter() < end_time:
-                if self._responseExtraInfo is not None:
-                    return True
+                if self._responseExtraInfo is not None or self._extra_info_received:
+                    return self._responseExtraInfo is not None
                 sleep(.01)
-            else:
-                return False
+            return False
+
+        if timeout is None:
+            timeout = 10
+
+        wait_time = min(timeout, 10)
+        result = self._tracker.extra_ready_event.wait(timeout=wait_time)
+
+        if not result:
+            return False
+
+        return self._responseExtraInfo is not None
 
 
 class Request(object):
