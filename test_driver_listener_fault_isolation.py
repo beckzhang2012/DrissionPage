@@ -96,7 +96,7 @@ def test_driver_generation_isolation():
     """测试世代号隔离机制"""
     print("\n[测试1] 世代号隔离 - 旧会话回包隔离")
 
-    from DrissionPage._base.driver import Driver, RequestState
+    from DrissionPage._base.driver import Driver, _RequestState as RequestState
 
     mock_ws = MockWebSocket()
 
@@ -182,7 +182,7 @@ def test_duplicate_completion_blocking():
     """测试重复完成拦截"""
     print("\n[测试2] 重复完成拦截")
 
-    from DrissionPage._base.driver import Driver, RequestState
+    from DrissionPage._base.driver import Driver, _RequestState as RequestState
 
     mock_ws = MockWebSocket()
 
@@ -262,7 +262,7 @@ def test_listener_generation_isolation():
     """测试 Listener 的世代号隔离"""
     print("\n[测试3] Listener 世代号隔离")
 
-    from DrissionPage._units.listener import Listener, RequestTracker, DataPacket
+    from DrissionPage._units.listener import Listener, _RequestTracker as RequestTracker, DataPacket
 
     mock_owner = MagicMock()
     mock_owner.browser._ws_address = 'ws://test'
@@ -332,7 +332,7 @@ def test_stop_aborts_inflight_requests():
     """测试 stop 时终止 inflight 请求"""
     print("\n[测试4] Stop 时终止 inflight 请求")
 
-    from DrissionPage._base.driver import Driver, RequestState
+    from DrissionPage._base.driver import Driver, _RequestState as RequestState
 
     mock_ws = MockWebSocket()
 
@@ -477,7 +477,7 @@ def test_wait_extra_info_timeout():
     """测试 wait_extra_info 不会无限等待"""
     print("\n[测试6] wait_extra_info 超时保护")
 
-    from DrissionPage._units.listener import DataPacket, RequestTracker
+    from DrissionPage._units.listener import DataPacket, _RequestTracker as RequestTracker
 
     packet = DataPacket('test_tab', True)
     packet._tracker = RequestTracker('req1', packet, generation=1)
@@ -499,7 +499,7 @@ def test_consecutive_sessions_no_leak():
     """测试多轮运行无状态泄漏"""
     print("\n[测试7] 多轮运行无状态泄漏")
 
-    from DrissionPage._base.driver import Driver, RequestState
+    from DrissionPage._base.driver import Driver, _RequestState as RequestState
 
     mock_ws = MockWebSocket()
 
@@ -563,7 +563,7 @@ def test_fault_isolation():
     """测试故障隔离 - 单请求失败不影响同批请求"""
     print("\n[测试8] 故障隔离 - 单请求失败不影响同批请求")
 
-    from DrissionPage._base.driver import Driver, RequestState
+    from DrissionPage._base.driver import Driver, _RequestState as RequestState
 
     mock_ws = MockWebSocket()
 

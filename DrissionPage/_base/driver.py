@@ -21,7 +21,7 @@ from ..errors import PageDisconnectedError, BrowserConnectError
 adapters.DEFAULT_RETRIES = 5
 
 
-class RequestState(object):
+class _RequestState(object):
     __slots__ = ('generation', 'method', 'is_completed', 'result_queue', 'is_sent')
 
     def __init__(self, generation, method):
@@ -79,7 +79,7 @@ class Driver(object):
             message['id'] = ws_id
             message_json = dumps(message)
 
-            state = RequestState(generation, method)
+            state = _RequestState(generation, method)
             self.method_results[ws_id] = state
 
         end_time = perf_counter() + timeout if timeout is not None else None

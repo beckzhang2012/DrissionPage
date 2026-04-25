@@ -19,7 +19,7 @@ from .._functions.settings import Settings as _S
 from ..errors import WaitTimeoutError
 
 
-class RequestTracker(object):
+class _RequestTracker(object):
     __slots__ = ('request_id', 'data_packet', 'extra_info', 'is_completed', 'is_target',
                  'waiting_for_body', 'waiting_for_extra', 'extra_ready_event', 'generation')
 
