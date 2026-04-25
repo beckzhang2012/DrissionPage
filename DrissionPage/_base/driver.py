@@ -9,7 +9,6 @@ from json import dumps, loads, JSONDecodeError
 from queue import Queue, Empty
 from threading import Thread, Lock
 from time import perf_counter, sleep
-from enum import Enum, auto
 
 from requests import Session
 from requests import adapters
@@ -22,14 +21,13 @@ from ..errors import PageDisconnectedError, BrowserConnectError
 adapters.DEFAULT_RETRIES = 5
 
 
-class RequestState(Enum):
-    PENDING = auto()
-    COMPLETED = auto()
-    CANCELLED = auto()
-    TIMEOUT = auto()
+_STATE_PENDING = 'pending'
+_STATE_COMPLETED = 'completed'
+_STATE_CANCELLED = 'cancelled'
+_STATE_TIMEOUT = 'timeout'
 
 
-class DriverMetrics:
+class _DriverMetrics:
     cross_session_mismatch = 0
     late_response_isolated = 0
     duplicate_execution_blocked = 0
@@ -97,15 +95,15 @@ class Driver(object):
 
     def _register_request(self, ws_id: int, version: int):
         with self._results_lock:
-            self._request_states[ws_id] = RequestState.PENDING
+            self._request_states[ws_id] = _STATE_PENDING
             self._request_versions[ws_id] = version
 
-    def _set_request_state(self, ws_id: int, state: RequestState) -> bool:
+    def _set_request_state(self, ws_id: int, state: str) -> bool:
         with self._results_lock:
             if ws_id not in self._request_states:
                 return False
             current_state = self._request_states[ws_id]
-            if current_state in (RequestState.COMPLETED, RequestState.CANCELLED, RequestState.TIMEOUT):
+            if current_state in (_STATE_COMPLETED, _STATE_CANCELLED, _STATE_TIMEOUT):
                 return False
             self._request_states[ws_id] = state
             return True
@@ -141,17 +139,17 @@ class Driver(object):
             if timeout == 0:
                 with self._results_lock:
                     self.method_results.pop(ws_id, None)
-                self._set_request_state(ws_id, RequestState.COMPLETED)
+                self._set_request_state(ws_id, _STATE_COMPLETED)
                 self._unregister_request(ws_id)
-                DriverMetrics.record_final_state(True)
+                _DriverMetrics.record_final_state(True)
                 return {'id': ws_id, 'result': {}}
 
         except (OSError, WebSocketConnectionClosedException):
             with self._results_lock:
                 self.method_results.pop(ws_id, None)
-            self._set_request_state(ws_id, RequestState.CANCELLED)
+            self._set_request_state(ws_id, _STATE_CANCELLED)
             self._unregister_request(ws_id)
-            DriverMetrics.record_final_state(True)
+            _DriverMetrics.record_final_state(True)
             return {'error': {'message': 'connection disconnected'}, 'type': 'connection_error'}
 
         result = None
@@ -160,26 +158,26 @@ class Driver(object):
                 result = result_queue.get(timeout=.2)
                 with self._results_lock:
                     self.method_results.pop(ws_id, None)
-                self._set_request_state(ws_id, RequestState.COMPLETED)
+                self._set_request_state(ws_id, _STATE_COMPLETED)
                 self._unregister_request(ws_id)
-                DriverMetrics.record_final_state(True)
+                _DriverMetrics.record_final_state(True)
                 return result
 
             except Empty:
                 if self.alert_flag and message['method'].startswith(('Input.', 'Runtime.')):
                     with self._results_lock:
                         self.method_results.pop(ws_id, None)
-                    self._set_request_state(ws_id, RequestState.CANCELLED)
+                    self._set_request_state(ws_id, _STATE_CANCELLED)
                     self._unregister_request(ws_id)
-                    DriverMetrics.record_final_state(True)
+                    _DriverMetrics.record_final_state(True)
                     return {'error': {'message': 'alert exists.'}, 'type': 'alert_exists'}
 
                 if timeout is not None and perf_counter() > end_time:
                     with self._results_lock:
                         self.method_results.pop(ws_id, None)
-                    self._set_request_state(ws_id, RequestState.TIMEOUT)
+                    self._set_request_state(ws_id, _STATE_TIMEOUT)
                     self._unregister_request(ws_id)
-                    DriverMetrics.record_final_state(True)
+                    _DriverMetrics.record_final_state(True)
                     return {'error': {'message': 'alert exists.'}, 'type': 'alert_exists'} \
                         if self.alert_flag else {'error': {'message': 'timeout'}, 'type': 'timeout'}
 
@@ -187,9 +185,9 @@ class Driver(object):
 
         with self._results_lock:
             self.method_results.pop(ws_id, None)
-        self._set_request_state(ws_id, RequestState.CANCELLED)
+        self._set_request_state(ws_id, _STATE_CANCELLED)
         self._unregister_request(ws_id)
-        DriverMetrics.record_final_state(True)
+        _DriverMetrics.record_final_state(True)
         return {'error': {'message': 'connection disconnected'}, 'type': 'connection_error'}
 
     def _recv_loop(self):
@@ -219,23 +217,23 @@ class Driver(object):
                 with self._results_lock:
                     if msg_id not in self.method_results:
                         req_state = self._get_request_state(msg_id)
-                        if req_state in (RequestState.TIMEOUT, RequestState.CANCELLED):
-                            DriverMetrics.late_response_isolated += 1
-                        elif req_state == RequestState.COMPLETED:
-                            DriverMetrics.duplicate_execution_blocked += 1
+                        if req_state in (_STATE_TIMEOUT, _STATE_CANCELLED):
+                            _DriverMetrics.late_response_isolated += 1
+                        elif req_state == _STATE_COMPLETED:
+                            _DriverMetrics.duplicate_execution_blocked += 1
                         continue
 
                     req_version = self._get_request_version(msg_id)
                     if req_version is not None and req_version != current_version:
-                        DriverMetrics.cross_session_mismatch += 1
+                        _DriverMetrics.cross_session_mismatch += 1
                         continue
 
                     req_state = self._get_request_state(msg_id)
-                    if req_state != RequestState.PENDING:
-                        if req_state in (RequestState.TIMEOUT, RequestState.CANCELLED):
-                            DriverMetrics.late_response_isolated += 1
-                        elif req_state == RequestState.COMPLETED:
-                            DriverMetrics.duplicate_execution_blocked += 1
+                    if req_state != _STATE_PENDING:
+                        if req_state in (_STATE_TIMEOUT, _STATE_CANCELLED):
+                            _DriverMetrics.late_response_isolated += 1
+                        elif req_state == _STATE_COMPLETED:
+                            _DriverMetrics.duplicate_execution_blocked += 1
                         continue
 
                     self.method_results[msg_id].put(msg)

@@ -27,8 +27,10 @@ from time import sleep, perf_counter
 from unittest.mock import patch, MagicMock
 
 from DrissionPage._base.driver import (
-    Driver, DriverMetrics, RequestState
+    Driver, _DriverMetrics, _STATE_PENDING, _STATE_COMPLETED, _STATE_CANCELLED, _STATE_TIMEOUT
 )
+
+DriverMetrics = _DriverMetrics
 
 
 class MockWebSocket:
@@ -162,7 +164,7 @@ def test_late_response_isolation():
     driver._register_request(ws_id, driver._session_version)
     driver.method_results[ws_id] = Queue()
     
-    driver._set_request_state(ws_id, RequestState.TIMEOUT)
+    driver._set_request_state(ws_id, _STATE_TIMEOUT)
     
     with driver._results_lock:
         driver.method_results.pop(ws_id, None)
@@ -175,7 +177,7 @@ def test_late_response_isolation():
             msg_id = ws_id
             if msg_id not in driver.method_results:
                 req_state = driver._get_request_state(msg_id)
-                if req_state in (RequestState.TIMEOUT, RequestState.CANCELLED):
+                if req_state in (_STATE_TIMEOUT, _STATE_CANCELLED):
                     DriverMetrics.late_response_isolated += 1
     
     simulate_recv()
@@ -241,12 +243,12 @@ def test_duplicate_execution_blocking():
     result_queue = Queue()
     driver.method_results[ws_id] = result_queue
     
-    result = driver._set_request_state(ws_id, RequestState.COMPLETED)
+    result = driver._set_request_state(ws_id, _STATE_COMPLETED)
     if not result:
         print("[FAIL] First state transition to COMPLETED failed")
         return False
     
-    result = driver._set_request_state(ws_id, RequestState.TIMEOUT)
+    result = driver._set_request_state(ws_id, _STATE_TIMEOUT)
     if result:
         print("[FAIL] Second state transition should have been blocked")
         return False
@@ -256,7 +258,7 @@ def test_duplicate_execution_blocking():
             msg_id = ws_id
             if msg_id in driver.method_results:
                 req_state = driver._get_request_state(msg_id)
-                if req_state == RequestState.COMPLETED:
+                if req_state == _STATE_COMPLETED:
                     DriverMetrics.duplicate_execution_blocked += 1
     
     simulate_duplicate_response()

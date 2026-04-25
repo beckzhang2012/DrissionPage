@@ -8,7 +8,11 @@ from queue import Queue
 from threading import Thread, Lock
 from time import sleep
 
-from DrissionPage._base.driver import Driver, DriverMetrics, RequestState
+from DrissionPage._base.driver import (
+    Driver, _DriverMetrics, _STATE_PENDING, _STATE_COMPLETED, _STATE_TIMEOUT
+)
+
+DriverMetrics = _DriverMetrics
 
 
 class MockWebSocket:
@@ -138,14 +142,14 @@ def test_request_states():
             
             driver._register_request(ws_id, version)
             
-            assert driver._get_request_state(ws_id) == RequestState.PENDING
+            assert driver._get_request_state(ws_id) == _STATE_PENDING
             assert driver._get_request_version(ws_id) == version
             
-            result = driver._set_request_state(ws_id, RequestState.COMPLETED)
+            result = driver._set_request_state(ws_id, _STATE_COMPLETED)
             assert result == True
-            assert driver._get_request_state(ws_id) == RequestState.COMPLETED
+            assert driver._get_request_state(ws_id) == _STATE_COMPLETED
             
-            result = driver._set_request_state(ws_id, RequestState.TIMEOUT)
+            result = driver._set_request_state(ws_id, _STATE_TIMEOUT)
             assert result == False
             
             driver._unregister_request(ws_id)

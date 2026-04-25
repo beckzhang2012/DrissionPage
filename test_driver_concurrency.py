@@ -20,8 +20,14 @@ from threading import Thread, Lock
 from time import sleep, perf_counter
 
 from DrissionPage._base.driver import (
-    Driver, DriverMetrics, RequestState
+    Driver, _DriverMetrics, _STATE_PENDING, _STATE_COMPLETED, _STATE_CANCELLED, _STATE_TIMEOUT
 )
+
+RequestState_PENDING = _STATE_PENDING
+RequestState_COMPLETED = _STATE_COMPLETED
+RequestState_CANCELLED = _STATE_CANCELLED
+RequestState_TIMEOUT = _STATE_TIMEOUT
+DriverMetrics = _DriverMetrics
 
 
 class MockWebSocket:
@@ -145,14 +151,14 @@ class TestDriverConcurrency:
                 
                 driver._register_request(ws_id, version)
                 
-                assert driver._get_request_state(ws_id) == RequestState.PENDING
+                assert driver._get_request_state(ws_id) == _STATE_PENDING
                 assert driver._get_request_version(ws_id) == version
                 
-                result = driver._set_request_state(ws_id, RequestState.COMPLETED)
+                result = driver._set_request_state(ws_id, _STATE_COMPLETED)
                 assert result == True
-                assert driver._get_request_state(ws_id) == RequestState.COMPLETED
+                assert driver._get_request_state(ws_id) == _STATE_COMPLETED
                 
-                result = driver._set_request_state(ws_id, RequestState.TIMEOUT)
+                result = driver._set_request_state(ws_id, _STATE_TIMEOUT)
                 assert result == False
                 
                 driver._unregister_request(ws_id)
@@ -193,7 +199,7 @@ class TestDriverConcurrency:
                 driver._register_request(ws_id, 1)
                 driver.method_results[ws_id] = Queue()
                 
-                driver._set_request_state(ws_id, RequestState.TIMEOUT)
+                driver._set_request_state(ws_id, _STATE_TIMEOUT)
                 
                 with driver._results_lock:
                     driver.method_results.pop(ws_id, None)
@@ -209,7 +215,7 @@ class TestDriverConcurrency:
                     with driver._results_lock:
                         if ws_id not in driver.method_results:
                             req_state = driver._get_request_state(ws_id)
-                            if req_state in (RequestState.TIMEOUT, RequestState.CANCELLED):
+                            if req_state in (_STATE_TIMEOUT, _STATE_CANCELLED):
                                 DriverMetrics.late_response_isolated += 1
                 
                 assert DriverMetrics.late_response_isolated > initial_late_count, "Late response should be isolated"
@@ -297,13 +303,13 @@ class TestDriverConcurrency:
                 result_queue = Queue()
                 driver.method_results[ws_id] = result_queue
                 
-                driver._set_request_state(ws_id, RequestState.COMPLETED)
+                driver._set_request_state(ws_id, _STATE_COMPLETED)
                 
                 initial_duplicate_count = DriverMetrics.duplicate_execution_blocked
                 
                 with driver._results_lock:
                     req_state = driver._get_request_state(ws_id)
-                    if req_state == RequestState.COMPLETED:
+                    if req_state == _STATE_COMPLETED:
                         if ws_id in driver.method_results:
                             pass
                         else:
@@ -312,7 +318,7 @@ class TestDriverConcurrency:
                 with driver._results_lock:
                     if ws_id in driver.method_results:
                         req_state = driver._get_request_state(ws_id)
-                        if req_state == RequestState.COMPLETED:
+                        if req_state == _STATE_COMPLETED:
                             DriverMetrics.duplicate_execution_blocked += 1
                 
                 print(f"[PASS] Duplicate execution blocking test passed: {DriverMetrics.duplicate_execution_blocked} duplicates blocked")
