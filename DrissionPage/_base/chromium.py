@@ -8,7 +8,7 @@
 from pathlib import Path
 from re import match
 from shutil import rmtree
-from threading import Lock
+from threading import RLock
 from time import sleep, perf_counter
 
 from requests import Session
@@ -34,7 +34,7 @@ __ERROR__ = 'error'
 
 class Chromium(object):
     _BROWSERS = {}
-    _lock = Lock()
+    _lock = RLock()
 
     def __new__(cls, addr_or_opts=None, session_options=None):
         opt = handle_options(addr_or_opts)
@@ -226,7 +226,8 @@ class Chromium(object):
         if isinstance(tab, str):
             tab = self.get_tab(tab)
         tab._run_cdp('Target.closeTarget', targetId=tab.tab_id)
-        while tab.driver.is_running and tab.tab_id in self._all_drivers:
+        end_time = perf_counter() + 5
+        while tab.driver.is_running and tab.tab_id in self._all_drivers and perf_counter() < end_time:
             sleep(.01)
 
     def activate_tab(self, id_ind_tab):
@@ -357,9 +358,10 @@ class Chromium(object):
             elif isinstance(id_or_num, ChromiumTab):
                 return id_or_num.tab_id if as_id else ChromiumTab(self, id_or_num.tab_id)
             else:
-                j = self._run_cdp('Target.getTargets')['targetInfos']
-                if id_or_num not in [i['targetId'] for i in j]:
-                    raise RuntimeError(_S._lang.join(_S._lang.NO_SUCH_TAB, ARG=id_or_num, ALL_TABS=self.tab_ids))
+                if id_or_num not in self._all_drivers:
+                    j = self._run_cdp('Target.getTargets')['targetInfos']
+                    if id_or_num not in [i['targetId'] for i in j]:
+                        raise RuntimeError(_S._lang.join(_S._lang.NO_SUCH_TAB, ARG=id_or_num, ALL_TABS=self.tab_ids))
 
         elif title == url is None and tab_type == 'page':
             id_or_num = self.tab_ids[0]
