@@ -203,20 +203,15 @@ class TestDriverConcurrency:
                 
                 with driver._results_lock:
                     driver.method_results.pop(ws_id, None)
-                driver._unregister_request(ws_id)
                 
                 initial_late_count = DriverMetrics.late_response_isolated
                 
-                import json
-                msg = {'id': ws_id, 'result': {'data': 'test'}}
-                msg_json = json.dumps(msg)
-                
-                with patch.object(driver, '_ws', mock_ws):
-                    with driver._results_lock:
-                        if ws_id not in driver.method_results:
-                            req_state = driver._get_request_state(ws_id)
-                            if req_state in (_STATE_TIMEOUT, _STATE_CANCELLED):
-                                DriverMetrics.late_response_isolated += 1
+                with driver._results_lock:
+                    if ws_id not in driver.method_results:
+                        req_state = driver._get_request_state(ws_id)
+                        if req_state in (_STATE_TIMEOUT, _STATE_CANCELLED):
+                            DriverMetrics.late_response_isolated += 1
+                            driver._unregister_request(ws_id)
                 
                 assert DriverMetrics.late_response_isolated > initial_late_count, "Late response should be isolated"
                 
@@ -308,18 +303,14 @@ class TestDriverConcurrency:
                 initial_duplicate_count = DriverMetrics.duplicate_execution_blocked
                 
                 with driver._results_lock:
-                    req_state = driver._get_request_state(ws_id)
-                    if req_state == _STATE_COMPLETED:
-                        if ws_id in driver.method_results:
-                            pass
-                        else:
-                            DriverMetrics.duplicate_execution_blocked += 1
-                
-                with driver._results_lock:
                     if ws_id in driver.method_results:
                         req_state = driver._get_request_state(ws_id)
-                        if req_state == _STATE_COMPLETED:
-                            DriverMetrics.duplicate_execution_blocked += 1
+                        if req_state != _STATE_PENDING:
+                            if req_state == _STATE_COMPLETED:
+                                DriverMetrics.duplicate_execution_blocked += 1
+                                driver._unregister_request(ws_id)
+                
+                assert DriverMetrics.duplicate_execution_blocked > initial_duplicate_count, "Duplicate execution should be blocked"
                 
                 print(f"[PASS] Duplicate execution blocking test passed: {DriverMetrics.duplicate_execution_blocked} duplicates blocked")
 

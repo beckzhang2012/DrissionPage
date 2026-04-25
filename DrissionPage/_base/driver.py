@@ -159,7 +159,6 @@ class Driver(object):
                 with self._results_lock:
                     self.method_results.pop(ws_id, None)
                 self._set_request_state(ws_id, _STATE_COMPLETED)
-                self._unregister_request(ws_id)
                 _DriverMetrics.record_final_state(True)
                 return result
 
@@ -168,7 +167,6 @@ class Driver(object):
                     with self._results_lock:
                         self.method_results.pop(ws_id, None)
                     self._set_request_state(ws_id, _STATE_CANCELLED)
-                    self._unregister_request(ws_id)
                     _DriverMetrics.record_final_state(True)
                     return {'error': {'message': 'alert exists.'}, 'type': 'alert_exists'}
 
@@ -176,7 +174,6 @@ class Driver(object):
                     with self._results_lock:
                         self.method_results.pop(ws_id, None)
                     self._set_request_state(ws_id, _STATE_TIMEOUT)
-                    self._unregister_request(ws_id)
                     _DriverMetrics.record_final_state(True)
                     return {'error': {'message': 'alert exists.'}, 'type': 'alert_exists'} \
                         if self.alert_flag else {'error': {'message': 'timeout'}, 'type': 'timeout'}
@@ -186,7 +183,6 @@ class Driver(object):
         with self._results_lock:
             self.method_results.pop(ws_id, None)
         self._set_request_state(ws_id, _STATE_CANCELLED)
-        self._unregister_request(ws_id)
         _DriverMetrics.record_final_state(True)
         return {'error': {'message': 'connection disconnected'}, 'type': 'connection_error'}
 
@@ -219,13 +215,16 @@ class Driver(object):
                         req_state = self._get_request_state(msg_id)
                         if req_state in (_STATE_TIMEOUT, _STATE_CANCELLED):
                             _DriverMetrics.late_response_isolated += 1
+                            self._unregister_request(msg_id)
                         elif req_state == _STATE_COMPLETED:
                             _DriverMetrics.duplicate_execution_blocked += 1
+                            self._unregister_request(msg_id)
                         continue
 
                     req_version = self._get_request_version(msg_id)
                     if req_version is not None and req_version != current_version:
                         _DriverMetrics.cross_session_mismatch += 1
+                        self._unregister_request(msg_id)
                         continue
 
                     req_state = self._get_request_state(msg_id)
@@ -234,6 +233,7 @@ class Driver(object):
                             _DriverMetrics.late_response_isolated += 1
                         elif req_state == _STATE_COMPLETED:
                             _DriverMetrics.duplicate_execution_blocked += 1
+                        self._unregister_request(msg_id)
                         continue
 
                     self.method_results[msg_id].put(msg)
