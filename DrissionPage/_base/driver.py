@@ -120,11 +120,14 @@ class Driver(object):
 
                 with self._lock:
                     if self._stopped_event.is_set():
+                        self.method_results.pop(ws_id, None)
                         self._metrics['requests_aborted_on_stop'] += 1
                         return {'error': {'message': 'connection disconnected'}, 'type': 'connection_error'}
 
                 continue
 
+        with self._lock:
+            self.method_results.pop(ws_id, None)
         return {'error': {'message': 'connection disconnected'}, 'type': 'connection_error'}
 
     def _recv_loop(self):

@@ -333,8 +333,7 @@ class Listener(object):
         with self._lock:
             if self._stopped_event.is_set():
                 return
-
-        self._running_requests += 1
+        # ExtraInfo is metadata for an existing request and should not affect inflight counters.
         with self._lock:
             if self._stopped_event.is_set():
                 return
@@ -350,7 +349,7 @@ class Listener(object):
                 request._resource_type = kwargs['type']
 
     def _responseReceivedExtraInfo(self, **kwargs):
-        self._running_requests -= 1
+        # ExtraInfo is metadata for an existing request and should not affect inflight counters.
         with self._lock:
             if self._stopped_event.is_set():
                 return
