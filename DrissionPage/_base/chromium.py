@@ -8,7 +8,7 @@
 from pathlib import Path
 from re import match
 from shutil import rmtree
-from threading import Lock
+from threading import RLock
 from time import sleep, perf_counter
 
 from requests import Session
@@ -34,7 +34,7 @@ __ERROR__ = 'error'
 
 class Chromium(object):
     _BROWSERS = {}
-    _lock = Lock()
+    _lock = RLock()
 
     def __new__(cls, addr_or_opts=None, session_options=None):
         opt = handle_options(addr_or_opts)
@@ -65,6 +65,7 @@ class Chromium(object):
         self._all_drivers = {}
         self._relation = {}
         self._newest_tab_id = None
+        self._active_tab_id = None
 
         self._set = None
         self._wait = None
@@ -178,7 +179,10 @@ class Chromium(object):
 
     @property
     def latest_tab(self):
-        return self._get_tab(id_or_num=self.tab_ids[0], as_id=not _S.singleton_tab_obj)
+        with self._lock:
+            if self._active_tab_id and self._active_tab_id in self._all_drivers:
+                return self._get_tab(id_or_num=self._active_tab_id, as_id=not _S.singleton_tab_obj)
+            return self._get_tab(id_or_num=self.tab_ids[0], as_id=not _S.singleton_tab_obj)
 
     def cookies(self, all_info=False):
         cks = self._run_cdp(f'Storage.getCookies')['cookies']
@@ -222,16 +226,23 @@ class Chromium(object):
         if isinstance(tab, str):
             tab = self.get_tab(tab)
         tab._run_cdp('Target.closeTarget', targetId=tab.tab_id)
-        while tab.driver.is_running and tab.tab_id in self._all_drivers:
+        end_time = perf_counter() + 5
+        while tab.driver.is_running and tab.tab_id in self._all_drivers and perf_counter() < end_time:
             sleep(.01)
 
     def activate_tab(self, id_ind_tab):
-        if isinstance(id_ind_tab, int):
-            id_ind_tab += -1 if id_ind_tab else 1
-            id_ind_tab = self.tab_ids[id_ind_tab]
-        elif isinstance(id_ind_tab, ChromiumTab):
-            id_ind_tab = id_ind_tab.tab_id
-        self._run_cdp('Target.activateTarget', targetId=id_ind_tab)
+        with self._lock:
+            if isinstance(id_ind_tab, int):
+                id_ind_tab += -1 if id_ind_tab else 1
+                id_ind_tab = self.tab_ids[id_ind_tab]
+            elif isinstance(id_ind_tab, ChromiumTab):
+                id_ind_tab = id_ind_tab.tab_id
+            
+            if id_ind_tab not in self._all_drivers:
+                raise RuntimeError(_S._lang.join(_S._lang.NO_SUCH_TAB, ARG=id_ind_tab, ALL_TABS=self.tab_ids))
+            
+            self._run_cdp('Target.activateTarget', targetId=id_ind_tab)
+            self._active_tab_id = id_ind_tab
 
     def reconnect(self):
         self._disconnect_flag = True
@@ -330,6 +341,11 @@ class Chromium(object):
             sleep(.01)
         else:
             raise BrowserConnectError(_S._lang.BROWSER_DISCONNECTED)
+        
+        with self._lock:
+            if not background:
+                self._active_tab_id = tab
+        
         tab = tab_type(self, tab)
         if url:
             tab.get(url)
@@ -342,9 +358,10 @@ class Chromium(object):
             elif isinstance(id_or_num, ChromiumTab):
                 return id_or_num.tab_id if as_id else ChromiumTab(self, id_or_num.tab_id)
             else:
-                j = self._run_cdp('Target.getTargets')['targetInfos']
-                if id_or_num not in [i['targetId'] for i in j]:
-                    raise RuntimeError(_S._lang.join(_S._lang.NO_SUCH_TAB, ARG=id_or_num, ALL_TABS=self.tab_ids))
+                if id_or_num not in self._all_drivers:
+                    j = self._run_cdp('Target.getTargets')['targetInfos']
+                    if id_or_num not in [i['targetId'] for i in j]:
+                        raise RuntimeError(_S._lang.join(_S._lang.NO_SUCH_TAB, ARG=id_or_num, ALL_TABS=self.tab_ids))
 
         elif title == url is None and tab_type == 'page':
             id_or_num = self.tab_ids[0]
@@ -436,6 +453,9 @@ class Chromium(object):
         self._drivers.pop(tab_id, None)
         self._all_drivers.pop(tab_id, None)
         self._relation.pop(tab_id, None)
+        with self._lock:
+            if self._active_tab_id == tab_id:
+                self._active_tab_id = None
 
     def _on_disconnect(self):
         if not self._disconnect_flag:
