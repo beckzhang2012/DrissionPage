@@ -61,13 +61,15 @@ def temp_config_dir():
     """Keep test temp files inside the repo to avoid host TEMP permission drift."""
     class _TempConfigDir:
         def __enter__(self):
-            for old_file in test_tmp_root.glob('*.ini*'):
-                old_file.unlink(missing_ok=True)
+            for old_file in test_tmp_root.iterdir():
+                if old_file.is_file():
+                    old_file.unlink(missing_ok=True)
             return str(test_tmp_root)
 
         def __exit__(self, exc_type, exc, tb):
-            for old_file in test_tmp_root.glob('*.ini*'):
-                old_file.unlink(missing_ok=True)
+            for old_file in test_tmp_root.iterdir():
+                if old_file.is_file():
+                    old_file.unlink(missing_ok=True)
             return False
 
     return _TempConfigDir()
@@ -403,6 +405,73 @@ def test_atomic_save_on_error():
         return True
 
 
+def test_public_api_idempotency():
+    """测试公开 API 的幂等性和一致性（不改变公开 API 的断言）"""
+    print("\n=== 测试: 公开 API 幂等性 ===")
+    metrics.total_checks += 1
+
+    opt = ChromiumOptions(read_file=False)
+
+    errors = []
+
+    result1 = opt.set_argument('--test-idempotent', 'value1')
+    result2 = opt.set_argument('--test-idempotent', 'value1')
+    if result1 is not opt:
+        errors.append("set_argument 应返回 self 以支持链式调用")
+    if result2 is not opt:
+        errors.append("重复 set_argument 仍应返回 self")
+
+    args1 = opt.arguments
+    args2 = opt.arguments
+    if args1 is not args2:
+        errors.append("多次访问 arguments 属性应返回同一对象引用")
+
+    prefs1 = opt.preferences
+    prefs2 = opt.preferences
+    if prefs1 is not prefs2:
+        errors.append("多次访问 preferences 属性应返回同一对象引用")
+
+    chain_result = opt.set_argument('--chain-arg', 'v1').set_pref('chain.pref', 'v2').add_extension('/ext/chain')
+    if chain_result is not opt:
+        errors.append("链式调用后应返回同一对象")
+
+    if '--chain-arg=v1' not in opt.arguments:
+        errors.append("链式调用参数未生效")
+    if 'chain.pref' not in opt.preferences:
+        errors.append("链式调用 pref 未生效")
+    if '/ext/chain' not in opt.extensions:
+        errors.append("链式调用 extension 未生效")
+
+    ext_ref1 = opt.extensions
+    opt.add_extension('/ext/new')
+    ext_ref2 = opt.extensions
+    if ext_ref1 is not ext_ref2:
+        errors.append("添加扩展后 extensions 属性应仍返回同一列表引用")
+
+    if len(opt.extensions) != 2:
+        errors.append(f"扩展数量应为 2，实际为 {len(opt.extensions)}")
+
+    test_path = '/test/user/data/path'
+    opt.set_user_data_path(test_path)
+    if opt.user_data_path != test_path:
+        errors.append(f"user_data_path 应返回 {test_path}，实际为 {opt.user_data_path}")
+
+    with temp_config_dir() as tmpdir:
+        ini_path = Path(tmpdir) / 'idempotent_test.ini'
+        saved1 = opt.save(str(ini_path))
+        saved2 = opt.save(str(ini_path))
+        if saved1 != saved2:
+            errors.append("重复保存应返回相同路径")
+
+    if errors:
+        print(f"FAILED: {errors}")
+        return False
+
+    metrics.passed_checks += 1
+    print("PASSED: 公开 API 幂等性验证")
+    return True
+
+
 def run_all_tests():
     """运行所有测试"""
     print("=" * 60)
@@ -417,6 +486,7 @@ def run_all_tests():
     all_passed &= test_multiple_round_trips()
     all_passed &= test_remove_argument_no_residue()
     all_passed &= test_atomic_save_on_error()
+    all_passed &= test_public_api_idempotency()
 
     print("\n" + "=" * 60)
     print("测试结果汇总")
