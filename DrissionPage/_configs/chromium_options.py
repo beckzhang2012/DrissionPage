@@ -5,6 +5,7 @@
 @Website  : https://DrissionPage.cn
 @Copyright: (c) 2020 by g1879, Inc. All Rights Reserved.
 """
+from copy import deepcopy
 from pathlib import Path
 from re import search
 from urllib.parse import urlparse
@@ -38,11 +39,11 @@ class ChromiumOptions(object):
         options = om.chromium_options
         self._download_path = om.paths.get('download_path', '.') or '.'
         self._tmp_path = om.paths.get('tmp_path', None) or None
-        self._arguments = options.get('arguments', [])
+        self._arguments = list(options.get('arguments', []))
         self._browser_path = options.get('browser_path', '')
-        self._extensions = options.get('extensions', [])
-        self._prefs = options.get('prefs', {})
-        self._flags = options.get('flags', {})
+        self._extensions = list(options.get('extensions', []))
+        self._prefs = deepcopy(options.get('prefs', {}))
+        self._flags = deepcopy(options.get('flags', {}))
         self._address = options.get('address', '')
         self._load_mode = options.get('load_mode', 'normal')
         self._system_user_path = options.get('system_user_path', False)
