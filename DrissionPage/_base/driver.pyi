@@ -18,15 +18,14 @@ from .._base.chromium import Chromium
 class Driver(object):
     id: str
     address: str
-    type: str
     owner = ...
     alert_flag: bool
-    _websocket_url: str
     _cur_id: int
     _ws: Optional[WebSocket]
     _recv_th: Thread
     _handle_event_th: Thread
     _handle_immediate_event_th: Optional[Thread]
+    session_id: Optional[str] = ...
     is_running: bool
     event_handlers: dict
     immediate_event_handlers: dict
@@ -34,10 +33,9 @@ class Driver(object):
     event_queue: Queue
     immediate_event_queue: Queue
 
-    def __init__(self, tab_id: str, tab_type: str, address: str, owner=None):
+    def __init__(self, _id: str, address: str, owner=None):
         """
-        :param tab_id: 标签页id
-        :param tab_type: 标签页类型
+        :param _id: 标签页id
         :param address: 浏览器连接地址
         :param owner: 创建这个驱动的对象
         """
@@ -103,9 +101,9 @@ class BrowserDriver(Driver):
     BROWSERS: Dict[str, Driver] = ...
     owner: Chromium = ...
 
-    def __new__(cls, tab_id: str, tab_type: str, address: str, owner: Chromium): ...
+    def __new__(cls, _id: str, address: str, owner: Chromium): ...
 
-    def __init__(self, tab_id: str, tab_type: str, address: str, owner: Chromium): ...
+    def __init__(self, _id: str, address: str, owner: Chromium): ...
 
     @staticmethod
     def get(url) -> Response:

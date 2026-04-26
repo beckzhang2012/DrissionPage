@@ -7,7 +7,7 @@
 """
 from json import dumps, loads, JSONDecodeError
 from queue import Queue, Empty
-from threading import Thread
+from threading import Thread, Lock, RLock
 from time import perf_counter, sleep
 
 from requests import Session
@@ -22,16 +22,15 @@ adapters.DEFAULT_RETRIES = 5
 
 
 class Driver(object):
-    def __init__(self, tab_id, tab_type, address, owner=None):
-        self.id = tab_id
+    def __init__(self, _id, address, owner=None):
+        self.id = _id
         self.address = address
-        self.type = tab_type
         self.owner = owner
-        self.alert_flag = False  # 标记alert出现，跳过一条请求后复原
+        self.alert_flag = False
 
-        self._websocket_url = f'ws://{address}/devtools/{tab_type}/{tab_id}'
         self._cur_id = 0
         self._ws = None
+        self._ws_lock = Lock()
 
         self._recv_th = Thread(target=self._recv_loop)
         self._handle_event_th = Thread(target=self._handle_event_loop)
@@ -40,9 +39,12 @@ class Driver(object):
         self._handle_immediate_event_th = None
 
         self.is_running = False
+        self.session_id = None
+        self._session_epoch = 0
 
         self.event_handlers = {}
         self.immediate_event_handlers = {}
+        self._method_results_lock = RLock()
         self.method_results = {}
         self.event_queue = Queue()
         self.immediate_event_queue = Queue()
@@ -56,41 +58,71 @@ class Driver(object):
         message_json = dumps(message)
 
         end_time = perf_counter() + timeout if timeout is not None else None
-        self.method_results[ws_id] = Queue()
+        current_epoch = self._session_epoch
+        
+        with self._method_results_lock:
+            self.method_results[ws_id] = {'queue': Queue(), 'epoch': current_epoch}
+        
         try:
-            self._ws.send(message_json)
+            with self._ws_lock:
+                if self._ws is None:
+                    with self._method_results_lock:
+                        self.method_results.pop(ws_id, None)
+                    return {'error': {'message': 'connection disconnected'}, 'type': 'connection_error'}
+                self._ws.send(message_json)
+            
             if timeout == 0:
-                self.method_results.pop(ws_id, None)
+                with self._method_results_lock:
+                    self.method_results.pop(ws_id, None)
                 return {'id': ws_id, 'result': {}}
 
         except (OSError, WebSocketConnectionClosedException):
-            self.method_results.pop(ws_id, None)
+            with self._method_results_lock:
+                self.method_results.pop(ws_id, None)
             return {'error': {'message': 'connection disconnected'}, 'type': 'connection_error'}
 
         while self.is_running:
             try:
-                result = self.method_results[ws_id].get(timeout=.2)
-                self.method_results.pop(ws_id, None)
+                with self._method_results_lock:
+                    if ws_id not in self.method_results:
+                        return {'error': {'message': 'connection disconnected'}, 'type': 'connection_error'}
+                    result_info = self.method_results[ws_id]
+                    if result_info['epoch'] != current_epoch:
+                        self.method_results.pop(ws_id, None)
+                        return {'error': {'message': 'session invalidated'}, 'type': 'session_error'}
+                    result_queue = result_info['queue']
+                
+                result = result_queue.get(timeout=.2)
+                
+                with self._method_results_lock:
+                    self.method_results.pop(ws_id, None)
                 return result
 
             except Empty:
                 if self.alert_flag and message['method'].startswith(('Input.', 'Runtime.')):
+                    with self._method_results_lock:
+                        self.method_results.pop(ws_id, None)
                     return {'error': {'message': 'alert exists.'}, 'type': 'alert_exists'}
 
                 if timeout is not None and perf_counter() > end_time:
-                    self.method_results.pop(ws_id, None)
+                    with self._method_results_lock:
+                        self.method_results.pop(ws_id, None)
                     return {'error': {'message': 'alert exists.'}, 'type': 'alert_exists'} \
                         if self.alert_flag else {'error': {'message': 'timeout'}, 'type': 'timeout'}
 
                 continue
 
+        with self._method_results_lock:
+            self.method_results.pop(ws_id, None)
         return {'error': {'message': 'connection disconnected'}, 'type': 'connection_error'}
 
     def _recv_loop(self):
         while self.is_running:
             try:
-                # self._ws.settimeout(1)
-                msg_json = self._ws.recv()
+                with self._ws_lock:
+                    if self._ws is None:
+                        break
+                    msg_json = self._ws.recv()
                 msg = loads(msg_json)
             except WebSocketTimeoutException:
                 continue
@@ -107,8 +139,12 @@ class Driver(object):
                 else:
                     self.event_queue.put(msg)
 
-            elif msg.get('id') in self.method_results:
-                self.method_results[msg['id']].put(msg)
+            elif msg.get('id') is not None:
+                msg_id = msg['id']
+                with self._method_results_lock:
+                    if msg_id in self.method_results:
+                        result_info = self.method_results[msg_id]
+                        result_info['queue'].put(msg)
 
     def _handle_event_loop(self):
         while self.is_running:
@@ -139,16 +175,14 @@ class Driver(object):
             self._handle_immediate_event_th.start()
 
     def run(self, _method, **kwargs):
-        """执行cdp方法
-        :param _method: cdp方法名
-        :param kwargs: cdp参数
-        :return: 执行结果
-        """
         if not self.is_running:
             return {'error': 'connection disconnected', 'type': 'connection_error'}
 
         timeout = kwargs.pop('_timeout', _S.cdp_timeout)
-        result = self._send({'method': _method, 'params': kwargs}, timeout=timeout)
+        if self.session_id:
+            result = self._send({'method': _method, 'params': kwargs, 'sessionId': self.session_id}, timeout=timeout)
+        else:
+            result = self._send({'method': _method, 'params': kwargs}, timeout=timeout)
         if 'result' not in result and 'error' in result:
             kwargs['_timeout'] = timeout
             return {'error': result['error']['message'], 'type': result.get('type', 'call_method_error'),
@@ -158,22 +192,40 @@ class Driver(object):
 
     def start(self):
         self.is_running = True
+        self._session_epoch += 1
         try:
-            self._ws = create_connection(self._websocket_url, enable_multithread=True, suppress_origin=True)
+            with self._ws_lock:
+                self._ws = create_connection(self.address, enable_multithread=True, suppress_origin=True)
         except WebSocketBadStatusException as e:
             if 'Handshake status 403 Forbidden' in str(e):
                 raise EnvironmentError(_S._lang.join(_S._lang.UPGRADE_WS))
             else:
-                return
+                raise
         except ConnectionRefusedError:
             raise BrowserConnectError(_S._lang.BROWSER_NOT_EXIST)
-        self._recv_th.start()
-        self._handle_event_th.start()
+        
+        try:
+            self._recv_th.start()
+        except RuntimeError:
+            self._recv_th = Thread(target=self._recv_loop)
+            self._recv_th.daemon = True
+            self._recv_th.start()
+        
+        try:
+            self._handle_event_th.start()
+        except RuntimeError:
+            self._handle_event_th = Thread(target=self._handle_event_loop)
+            self._handle_event_th.daemon = True
+            self._handle_event_th.start()
+        
         return True
 
     def stop(self):
         self._stop()
+        wait_start = perf_counter()
         while self._handle_event_th.is_alive() or self._recv_th.is_alive():
+            if perf_counter() - wait_start > 5:
+                break
             sleep(.01)
         return True
 
@@ -182,16 +234,51 @@ class Driver(object):
             return False
 
         self.is_running = False
-        if self._ws:
-            self._ws.close()
-            self._ws = None
-
+        self._session_epoch += 1
+        
+        with self._ws_lock:
+            if self._ws:
+                try:
+                    self._ws.close()
+                except:
+                    pass
+                self._ws = None
+        
+        self._fail_inflight_requests()
+        
         self.event_handlers.clear()
-        self.method_results.clear()
-        self.event_queue.queue.clear()
+        self.immediate_event_handlers.clear()
+        
+        with self._method_results_lock:
+            self.method_results.clear()
+        
+        while not self.event_queue.empty():
+            try:
+                self.event_queue.get_nowait()
+            except Empty:
+                break
+        
+        while not self.immediate_event_queue.empty():
+            try:
+                self.immediate_event_queue.get_nowait()
+            except Empty:
+                break
 
         if hasattr(self.owner, '_on_disconnect'):
-            self.owner._on_disconnect()
+            try:
+                self.owner._on_disconnect()
+            except:
+                pass
+    
+    def _fail_inflight_requests(self):
+        with self._method_results_lock:
+            for ws_id, result_info in list(self.method_results.items()):
+                try:
+                    result_info['queue'].put_nowait(
+                        {'error': {'message': 'connection disconnected'}, 'type': 'connection_error'}
+                    )
+                except:
+                    pass
 
     def set_callback(self, event, callback, immediate=False):
         handler = self.immediate_event_handlers if immediate else self.event_handlers
@@ -204,17 +291,17 @@ class Driver(object):
 class BrowserDriver(Driver):
     BROWSERS = {}
 
-    def __new__(cls, tab_id, tab_type, address, owner):
-        if tab_id in cls.BROWSERS:
-            return cls.BROWSERS[tab_id]
+    def __new__(cls, _id, address, owner):
+        if _id in cls.BROWSERS:
+            return cls.BROWSERS[_id]
         return object.__new__(cls)
 
-    def __init__(self, tab_id, tab_type, address, owner):
+    def __init__(self, _id, address, owner):
         if hasattr(self, '_created'):
             return
         self._created = True
-        BrowserDriver.BROWSERS[tab_id] = self
-        super().__init__(tab_id, tab_type, address, owner)
+        BrowserDriver.BROWSERS[_id] = self
+        super().__init__(_id, address, owner)
 
     def __repr__(self):
         return f'<BrowserDriver {self.id}>'

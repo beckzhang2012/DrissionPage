@@ -7,8 +7,9 @@
 """
 from base64 import b64decode
 from json import JSONDecodeError, loads
-from queue import Queue
+from queue import Queue, Empty
 from re import search
+from threading import RLock
 from time import perf_counter, sleep
 
 from requests.structures import CaseInsensitiveDict
@@ -23,15 +24,17 @@ class Listener(object):
 
     def __init__(self, owner):
         self._owner = owner
-        self._address = owner.browser.address
+        self._address = owner.browser._ws_address
         self._target_id = owner._target_id
         self._driver = None
-        self._running_requests = 0
-        self._running_targets = 0
+        self._listener_epoch = 0
+        self._lock = RLock()
 
         self._caught = None
         self._request_ids = None
         self._extra_info_ids = None
+        self._running_requests = 0
+        self._running_targets = 0
 
         self.listening = False
         self.tab_id = None
@@ -82,21 +85,25 @@ class Listener(object):
                                                ALLOW_TYPE='str, list, tuple, set, True', CURR_TYPE=type(res_type)))
 
     def start(self, targets=None, is_regex=None, method=None, res_type=None):
-        if targets is not None:
-            if is_regex is None:
-                is_regex = False
-        if targets or is_regex is not None or method or res_type:
-            self.set_targets(targets, is_regex, method, res_type)
-        self.clear()
+        with self._lock:
+            if targets is not None:
+                if is_regex is None:
+                    is_regex = False
+            if targets or is_regex is not None or method or res_type:
+                self.set_targets(targets, is_regex, method, res_type)
+            
+            self._listener_epoch += 1
+            self.clear()
 
-        if self.listening:
-            return
+            if self.listening:
+                return
 
-        self._driver = Driver(self._target_id, 'page', self._address)
-        self._driver.run('Network.enable')
+            self._driver = Driver(self._target_id, self._address)
+            self._driver.session_id = self._driver.run('Target.attachToTarget', targetId=self._target_id, flatten=True)['sessionId']
+            self._driver.run('Network.enable')
 
-        self._set_callback()
-        self.listening = True
+            self._set_callback()
+            self.listening = True
 
     def wait(self, count=1, timeout=None, fit_count=True, raise_err=None):
         if not self.listening:
@@ -120,7 +127,7 @@ class Listener(object):
         if fail:
             if fit_count or not self._caught.qsize():
                 if raise_err is True or (_S.raise_when_wait_failed is True and raise_err is None):
-                    raise WaitTimeoutError(_S._lang.WAITING_FAILED_, _S._lang.DATA_PACKET, timeout)
+                    raise WaitTimeoutError(_S._lang.join(_S._lang.WAITING_FAILED_, _S._lang.DATA_PACKET, timeout))
                 else:
                     return False
             else:
@@ -159,34 +166,48 @@ class Listener(object):
             return False
 
     def stop(self):
-        if self.listening:
-            self.pause()
+        with self._lock:
+            self._listener_epoch += 1
+            if self.listening:
+                self.pause(clear=False)
+            if self._driver:
+                try:
+                    self._driver.stop()
+                except:
+                    pass
+                self._driver = None
             self.clear()
-        self._driver.stop()
-        self._driver = None
 
     def pause(self, clear=True):
-        if self.listening:
-            self._driver.set_callback('Network.requestWillBeSent', None)
-            self._driver.set_callback('Network.responseReceived', None)
-            self._driver.set_callback('Network.loadingFinished', None)
-            self._driver.set_callback('Network.loadingFailed', None)
-            self.listening = False
-        if clear:
-            self.clear()
+        with self._lock:
+            if self.listening and self._driver:
+                try:
+                    self._driver.set_callback('Network.requestWillBeSent', None)
+                    self._driver.set_callback('Network.requestWillBeSentExtraInfo', None)
+                    self._driver.set_callback('Network.responseReceived', None)
+                    self._driver.set_callback('Network.responseReceivedExtraInfo', None)
+                    self._driver.set_callback('Network.loadingFinished', None)
+                    self._driver.set_callback('Network.loadingFailed', None)
+                except:
+                    pass
+                self.listening = False
+            if clear:
+                self.clear()
 
     def resume(self):
-        if self.listening:
-            return
-        self._set_callback()
-        self.listening = True
+        with self._lock:
+            if self.listening:
+                return
+            self._set_callback()
+            self.listening = True
 
     def clear(self):
-        self._request_ids = {}
-        self._extra_info_ids = {}
-        self._caught = Queue(maxsize=0)
-        self._running_requests = 0
-        self._running_targets = 0
+        with self._lock:
+            self._request_ids = {}
+            self._extra_info_ids = {}
+            self._caught = Queue(maxsize=0)
+            self._running_requests = 0
+            self._running_targets = 0
 
     def wait_silent(self, timeout=None, targets_only=False, limit=0):
         if not self.listening:
@@ -210,13 +231,12 @@ class Listener(object):
         self._target_id = target_id
         self._address = address
         self._owner = owner
-        # debug = False
         if self._driver:
-            # debug = self._driver._debug
             self._driver.stop()
         if self.listening:
-            self._driver = Driver(self._target_id, 'page', self._address)
-            # self._driver._debug = debug
+            self._driver = Driver(self._target_id, self._address)
+            self._driver.session_id = self._driver.run('Target.attachToTarget',
+                                                       targetId=target_id, flatten=True)['sessionId']
             self._driver.run('Network.enable')
             self._set_callback()
 
@@ -229,129 +249,233 @@ class Listener(object):
         self._driver.set_callback('Network.loadingFailed', self._loading_failed)
 
     def _requestWillBeSent(self, **kwargs):
-        self._running_requests += 1
-        p = None
-        if self._targets is True:
-            if ((self._method is True or kwargs['request']['method'] in self._method)
-                    and (self._res_type is True or kwargs.get('type', '').upper() in self._res_type)):
-                self._running_targets += 1
-                rid = kwargs['requestId']
-                p = self._request_ids.setdefault(rid, DataPacket(self._owner.tab_id, True))
-                p._raw_request = kwargs
-                if kwargs['request'].get('hasPostData', None) and not kwargs['request'].get('postData', None):
-                    p._raw_post_data = self._driver.run('Network.getRequestPostData',
-                                                        requestId=rid).get('postData', None)
-
-        else:
+        with self._lock:
+            if not self.listening:
+                return
+            current_epoch = self._listener_epoch
+            self._running_requests += 1
+            p = None
             rid = kwargs['requestId']
-            for target in self._targets:
-                if (((self._is_regex and search(target, kwargs['request']['url']))
-                     or (not self._is_regex and target in kwargs['request']['url']))
-                        and (self._method is True or kwargs['request']['method'] in self._method)
+            
+            if self._targets is True:
+                if ((self._method is True or kwargs['request']['method'] in self._method)
                         and (self._res_type is True or kwargs.get('type', '').upper() in self._res_type)):
                     self._running_targets += 1
-                    p = self._request_ids.setdefault(rid, DataPacket(self._owner.tab_id, target))
+                    p = self._request_ids.setdefault(rid, DataPacket(self._owner.tab_id, True))
                     p._raw_request = kwargs
-                    break
+                    p._listener_epoch = current_epoch
+                    if kwargs['request'].get('hasPostData', None) and not kwargs['request'].get('postData', None):
+                        try:
+                            if self._driver and self._driver.is_running:
+                                r = self._driver.run('Network.getRequestPostData', requestId=rid, _timeout=2)
+                                p._raw_post_data = r.get('postData', None)
+                        except:
+                            pass
 
-        self._extra_info_ids.setdefault(kwargs['requestId'], {})['obj'] = p if p else False
+            else:
+                for target in self._targets:
+                    if (((self._is_regex and search(target, kwargs['request']['url']))
+                         or (not self._is_regex and target in kwargs['request']['url']))
+                            and (self._method is True or kwargs['request']['method'] in self._method)
+                            and (self._res_type is True or kwargs.get('type', '').upper() in self._res_type)):
+                        self._running_targets += 1
+                        p = self._request_ids.setdefault(rid, DataPacket(self._owner.tab_id, target))
+                        p._raw_request = kwargs
+                        p._listener_epoch = current_epoch
+                        break
+
+            self._extra_info_ids.setdefault(rid, {'epoch': current_epoch})['obj'] = p if p else False
 
     def _requestWillBeSentExtraInfo(self, **kwargs):
-        self._running_requests += 1
-        self._extra_info_ids.setdefault(kwargs['requestId'], {})['request'] = kwargs
+        with self._lock:
+            if not self.listening:
+                return
+            current_epoch = self._listener_epoch
+            rid = kwargs['requestId']
+            
+            extra_info = self._extra_info_ids.get(rid)
+            if extra_info is None:
+                extra_info = self._extra_info_ids.setdefault(rid, {'epoch': current_epoch})
+            elif extra_info.get('epoch') != current_epoch:
+                return
+            
+            self._running_requests += 1
+            extra_info['request'] = kwargs
 
     def _response_received(self, **kwargs):
-        request = self._request_ids.get(kwargs['requestId'], None)
-        if request:
+        with self._lock:
+            if not self.listening:
+                return
+            current_epoch = self._listener_epoch
+            rid = kwargs['requestId']
+            
+            request = self._request_ids.get(rid)
+            if request is None:
+                return
+            if hasattr(request, '_listener_epoch') and request._listener_epoch != current_epoch:
+                self._request_ids.pop(rid, None)
+                return
+            
             request._raw_response = kwargs['response']
             request._resource_type = kwargs['type']
 
     def _responseReceivedExtraInfo(self, **kwargs):
-        self._running_requests -= 1
-        r = self._extra_info_ids.get(kwargs['requestId'], None)
-        if r:
-            obj = r.get('obj', None)
+        with self._lock:
+            if not self.listening:
+                return
+            current_epoch = self._listener_epoch
+            rid = kwargs['requestId']
+            
+            self._running_requests = max(0, self._running_requests - 1)
+            
+            r = self._extra_info_ids.get(rid)
+            if r is None:
+                return
+            if r.get('epoch') != current_epoch:
+                self._extra_info_ids.pop(rid, None)
+                return
+            
+            obj = r.get('obj')
             if obj is False:
-                self._extra_info_ids.pop(kwargs['requestId'], None)
+                self._extra_info_ids.pop(rid, None)
             elif isinstance(obj, DataPacket):
-                obj._requestExtraInfo = r.get('request', None)
+                if hasattr(obj, '_listener_epoch') and obj._listener_epoch != current_epoch:
+                    self._extra_info_ids.pop(rid, None)
+                    return
+                obj._requestExtraInfo = r.get('request')
                 obj._responseExtraInfo = kwargs
-                self._extra_info_ids.pop(kwargs['requestId'], None)
+                self._extra_info_ids.pop(rid, None)
             else:
                 r['response'] = kwargs
 
     def _loading_finished(self, **kwargs):
-        self._running_requests -= 1
-        rid = kwargs['requestId']
-        packet = self._request_ids.get(rid)
-        if packet:
-            r = self._driver.run('Network.getResponseBody', requestId=rid)
-            if 'body' in r:
-                packet._raw_body = r['body']
-                packet._base64_body = r['base64Encoded']
-            else:
-                packet._raw_body = ''
-                packet._base64_body = False
+        with self._lock:
+            if not self.listening:
+                return
+            current_epoch = self._listener_epoch
+            self._running_requests = max(0, self._running_requests - 1)
+            rid = kwargs['requestId']
+            packet = self._request_ids.get(rid)
+            
+            if packet:
+                if hasattr(packet, '_listener_epoch') and packet._listener_epoch != current_epoch:
+                    self._request_ids.pop(rid, None)
+                    self._extra_info_ids.pop(rid, None)
+                    return
+                
+                try:
+                    if self._driver and self._driver.is_running:
+                        r = self._driver.run('Network.getResponseBody', requestId=rid, _timeout=5)
+                        if 'body' in r:
+                            packet._raw_body = r['body']
+                            packet._base64_body = r['base64Encoded']
+                        elif 'error' in r:
+                            packet._raw_body = ''
+                            packet._base64_body = False
+                        else:
+                            packet._raw_body = ''
+                            packet._base64_body = False
+                    else:
+                        packet._raw_body = ''
+                        packet._base64_body = False
+                except:
+                    packet._raw_body = ''
+                    packet._base64_body = False
 
-            if (packet._raw_request['request'].get('hasPostData', None)
-                    and not packet._raw_request['request'].get('postData', None)):
-                r = self._driver.run('Network.getRequestPostData', requestId=rid, _timeout=1)
-                packet._raw_post_data = r.get('postData', None)
+                if (packet._raw_request and packet._raw_request['request'].get('hasPostData')
+                        and not packet._raw_request['request'].get('postData')):
+                    try:
+                        if self._driver and self._driver.is_running:
+                            r = self._driver.run('Network.getRequestPostData', requestId=rid, _timeout=1)
+                            packet._raw_post_data = r.get('postData')
+                    except:
+                        pass
 
-        r = self._extra_info_ids.get(kwargs['requestId'], None)
-        if r:
-            obj = r.get('obj', None)
-            if obj is False or (isinstance(obj, DataPacket) and not self._extra_info_ids.get('request')):
-                self._extra_info_ids.pop(kwargs['requestId'], None)
-            elif isinstance(obj, DataPacket) and self._extra_info_ids.get('response'):
-                response = r.get('response')
-                obj._requestExtraInfo = r['request']
-                obj._responseExtraInfo = response
-                self._extra_info_ids.pop(kwargs['requestId'], None)
+            r = self._extra_info_ids.get(rid)
+            if r:
+                if r.get('epoch') != current_epoch:
+                    self._extra_info_ids.pop(rid, None)
+                else:
+                    obj = r.get('obj')
+                    if obj is False:
+                        self._extra_info_ids.pop(rid, None)
+                    elif isinstance(obj, DataPacket):
+                        if hasattr(obj, '_listener_epoch') and obj._listener_epoch != current_epoch:
+                            self._extra_info_ids.pop(rid, None)
+                        else:
+                            response = r.get('response')
+                            if response:
+                                obj._requestExtraInfo = r.get('request')
+                                obj._responseExtraInfo = response
+                            self._extra_info_ids.pop(rid, None)
 
-        self._request_ids.pop(rid, None)
+            self._request_ids.pop(rid, None)
 
-        if packet:
-            self._caught.put(packet)
-            self._running_targets -= 1
+            if packet:
+                try:
+                    self._caught.put_nowait(packet)
+                except:
+                    pass
+                self._running_targets = max(0, self._running_targets - 1)
 
     def _loading_failed(self, **kwargs):
-        self._running_requests -= 1
-        r_id = kwargs['requestId']
-        data_packet = self._request_ids.get(r_id, None)
-        if data_packet:
-            data_packet._raw_fail_info = kwargs
-            data_packet._resource_type = kwargs['type']
-            data_packet.is_failed = True
+        with self._lock:
+            if not self.listening:
+                return
+            current_epoch = self._listener_epoch
+            self._running_requests = max(0, self._running_requests - 1)
+            r_id = kwargs['requestId']
+            data_packet = self._request_ids.get(r_id)
+            
+            if data_packet:
+                if hasattr(data_packet, '_listener_epoch') and data_packet._listener_epoch != current_epoch:
+                    self._request_ids.pop(r_id, None)
+                    self._extra_info_ids.pop(r_id, None)
+                    return
+                
+                data_packet._raw_fail_info = kwargs
+                data_packet._resource_type = kwargs.get('type')
+                data_packet.is_failed = True
 
-        r = self._extra_info_ids.get(kwargs['requestId'], None)
-        if r:
-            obj = r.get('obj', None)
-            if obj is False and r.get('response'):
-                self._extra_info_ids.pop(kwargs['requestId'], None)
-            elif isinstance(obj, DataPacket):
-                response = r.get('response')
-                if response:
-                    obj._requestExtraInfo = r['request']
-                    obj._responseExtraInfo = response
-                    self._extra_info_ids.pop(kwargs['requestId'], None)
+            r = self._extra_info_ids.get(r_id)
+            if r:
+                if r.get('epoch') != current_epoch:
+                    self._extra_info_ids.pop(r_id, None)
+                else:
+                    obj = r.get('obj')
+                    if obj is False:
+                        self._extra_info_ids.pop(r_id, None)
+                    elif isinstance(obj, DataPacket):
+                        if hasattr(obj, '_listener_epoch') and obj._listener_epoch != current_epoch:
+                            self._extra_info_ids.pop(r_id, None)
+                        else:
+                            response = r.get('response')
+                            if response:
+                                obj._requestExtraInfo = r.get('request')
+                                obj._responseExtraInfo = response
+                            self._extra_info_ids.pop(r_id, None)
 
-        self._request_ids.pop(r_id, None)
+            self._request_ids.pop(r_id, None)
 
-        if data_packet:
-            self._caught.put(data_packet)
-            self._running_targets -= 1
+            if data_packet:
+                try:
+                    self._caught.put_nowait(data_packet)
+                except:
+                    pass
+                self._running_targets = max(0, self._running_targets - 1)
 
 
 class FrameListener(Listener):
     def _requestWillBeSent(self, **kwargs):
-        if not self._owner._is_diff_domain and kwargs.get('frameId', None) != self._owner._frame_id:
-            return
+        with self._lock:
+            if not self._owner._is_diff_domain and kwargs.get('frameId') != self._owner._frame_id:
+                return
         super()._requestWillBeSent(**kwargs)
 
     def _response_received(self, **kwargs):
-        if not self._owner._is_diff_domain and kwargs.get('frameId', None) != self._owner._frame_id:
-            return
+        with self._lock:
+            if not self._owner._is_diff_domain and kwargs.get('frameId') != self._owner._frame_id:
+                return
         super()._response_received(**kwargs)
 
 
@@ -361,6 +485,7 @@ class DataPacket(object):
         self.tab_id = tab_id
         self.target = target
         self.is_failed = False
+        self._listener_epoch = 0
 
         self._raw_request = None
         self._raw_post_data = None
@@ -391,15 +516,19 @@ class DataPacket(object):
 
     @property
     def url(self):
+        if self._raw_request and self._raw_request.get('request'):
+            return self._raw_request['request'].get('url', '')
         return self.request.url
 
     @property
     def method(self):
+        if self._raw_request and self._raw_request.get('request'):
+            return self._raw_request['request'].get('method', '')
         return self.request.method
 
     @property
     def frameId(self):
-        return self._raw_request.get('frameId')
+        return self._raw_request.get('frameId') if self._raw_request else None
 
     @property
     def resourceType(self):
@@ -408,7 +537,10 @@ class DataPacket(object):
     @property
     def request(self):
         if self._request is None:
-            self._request = Request(self, self._raw_request['request'], self._raw_post_data)
+            if self._raw_request and self._raw_request.get('request'):
+                self._request = Request(self, self._raw_request['request'], self._raw_post_data)
+            else:
+                self._request = Request(self, {}, None)
         return self._request
 
     @property
@@ -425,7 +557,11 @@ class DataPacket(object):
 
     def wait_extra_info(self, timeout=None):
         if timeout is None:
+            wait_start = perf_counter()
+            max_wait = 30
             while self._responseExtraInfo is None:
+                if perf_counter() - wait_start > max_wait:
+                    return False
                 sleep(.01)
             return True
 

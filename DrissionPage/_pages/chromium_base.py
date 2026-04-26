@@ -78,8 +78,13 @@ class ChromiumBase(BasePage):
         self._is_reading = False
 
         if not target_id:
-            tabs = self.browser._driver.get(f'http://{self.browser.address}/json').json()
-            tabs = [(i['id'], i['url']) for i in tabs
+            if self.browser._ws_only:
+                tabs = self._run_cdp('Target.getTargets')['targetInfos']
+                _id = 'targetId'
+            else:
+                tabs = self.browser._driver.get(f'http://{self.browser.address}/json').json()
+                _id = 'id'
+            tabs = [(i[_id], i['url']) for i in tabs
                     if i['type'] in ('page', 'webview') and not i['url'].startswith('devtools://')]
             dialog = None
             if len(tabs) > 1:
@@ -444,7 +449,7 @@ class ChromiumBase(BasePage):
         elif locator._type in ('ChromiumElement', 'ChromiumFrame'):
             return locator
         else:
-            raise LocatorError(ALLOW_TYPE=_S._lang.ELE_OR_LOC, CURR_VAL=locator)
+            raise LocatorError(_S._lang.join(ALLOW_TYPE=_S._lang.ELE_OR_LOC, CURR_VAL=locator))
 
         self.wait.doc_loaded()
         end_time = perf_counter() + timeout
@@ -558,7 +563,7 @@ class ChromiumBase(BasePage):
             insert_to = self.ele(insert_to) if insert_to else self.ele('t:body')
             args = [html_or_info, insert_to]
             if before:
-                args.append(self.ele(before))
+                args.append(insert_to.ele(before))
                 js = '''
                      ele = document.createElement(null);
                      arguments[1].insertBefore(ele, arguments[2]);
@@ -646,6 +651,9 @@ class ChromiumBase(BasePage):
             self._init_jss.remove(script_id)
 
     def clear_cache(self, session_storage=True, local_storage=True, cache=True, cookies=True):
+        if session_storage and local_storage and cache and cookies:
+            self._run_cdp_loaded("Storage.clearDataForOrigin", origin="*", storageTypes="all")
+
         if session_storage or local_storage:
             self._run_cdp_loaded('DOMStorage.enable')
             i = self._run_cdp('Storage.getStorageKeyForFrame', frameId=self._frame_id)['storageKey']
