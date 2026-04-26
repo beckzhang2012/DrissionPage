@@ -22,7 +22,9 @@ from ..errors import BrowserConnectError
 
 
 def connect_browser(option):
-    address = option.address.replace('localhost', '127.0.0.1').lstrip('htps:/')
+    address = option.address.replace('localhost', '127.0.0.1')
+    if address.startswith('http'):
+        address = address.lstrip('htps:/')
     browser_path = option.browser_path
 
     ip, port = address.split(':')
@@ -46,8 +48,7 @@ def connect_browser(option):
     try:
         _run_browser(port, browser_path, args)
 
-    # 传入的路径找不到，主动在ini文件、注册表、系统变量中找
-    except FileNotFoundError:
+    except FileNotFoundError:  # 传入的路径找不到，主动在ini文件、注册表、系统变量中找
         browser_path = get_chrome_path(option.ini_path)
         if not browser_path:
             raise FileNotFoundError(_S._lang.join(_S._lang.BROWSER_EXE_NOT_FOUND))
@@ -63,7 +64,7 @@ def get_launch_args(opt):
     result = set()
     user_path = False
     for i in opt.arguments:
-        if i.startswith(('--load-extension=', '--remote-debugging-port=')):
+        if i.startswith(('--disable-extensions-except=', '--load-extension=', '--remote-debugging-port=')):
             continue
         elif i.startswith('--user-data-dir') and not opt.system_user_path:
             user_path = f'--user-data-dir={Path(i[16:]).absolute()}'
@@ -85,11 +86,19 @@ def get_launch_args(opt):
     result = list(result)
 
     # ----------处理插件extensions-------------
-    ext = [str(Path(e).absolute()) for e in opt.extensions]
+    ext = [Path(e) for e in opt.extensions]
+    exts = []
     if ext:
-        ext = ','.join(set(ext))
-        ext = f'--load-extension={ext}'
-        result.append(ext)
+        for e in ext:
+            if e.is_file():
+                raise ValueError(_S._lang.join(_S._lang.PLUGIN_NEED_FOLDER, str(e.absolute())))
+            elif not e.exists():
+                raise FileNotFoundError(_S._lang.join(_S._lang.EXT_NOT_FOUND, PATH=e))
+            else:
+                exts.append(str(e.absolute()))
+        ext = ','.join(set(exts))
+        result.append(f'--disable-extensions-except={ext}')
+        result.append(f'--load-extension={ext}')
 
     return result, user_path
 

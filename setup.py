@@ -1,9 +1,11 @@
 # -*- coding:utf-8 -*-
 from setuptools import setup, find_packages
-from DrissionPage import __version__
 
 with open("README.md", "r", encoding='utf-8') as fh:
     long_description = fh.read()
+
+with open("DrissionPage/version.py", "r", encoding='utf-8') as f:
+    exec(f.read())
 
 setup(
     name="DrissionPage",
