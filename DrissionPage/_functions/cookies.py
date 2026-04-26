@@ -94,15 +94,20 @@ def set_browser_cookies(browser, cookies):
 
 
 def set_tab_cookies(page, cookies):
+    failed_cookies = []
     for cookie in cookies_to_tuple(cookies):
         cookie = format_cookie(cookie)
+        original_cookie = cookie.copy()
 
         if cookie['name'].startswith('__Host-'):
             if not page.url.startswith('http'):
                 cookie['name'] = cookie['name'].replace('__Host-', '__Secure-', 1)
             else:
                 cookie['url'] = page.url
-            page._run_cdp_loaded('Network.setCookie', **cookie)
+            try:
+                page._run_cdp_loaded('Network.setCookie', **cookie)
+            except Exception as e:
+                failed_cookies.append({'cookie': original_cookie, 'error': str(e)})
             continue  # 不用设置域名，可退出
 
         if cookie.get('domain', None):
@@ -111,8 +116,8 @@ def set_tab_cookies(page, cookies):
                 if not is_cookie_in_driver(page, cookie):
                     page.browser.set.cookies(cookie)
                 continue
-            except Exception:
-                pass
+            except Exception as e:
+                failed_cookies.append({'cookie': original_cookie, 'error': str(e)})
 
         url = page._browser_url
         if not url.startswith('http'):
@@ -128,11 +133,30 @@ def set_tab_cookies(page, cookies):
                 tmp.append('.')
                 tmp.append(i)
 
+        set_success = False
+        last_error = None
         for i in range(len(tmp)):
             cookie['domain'] = ''.join(tmp[i:])
-            page._run_cdp_loaded('Network.setCookie', **cookie)
-            if is_cookie_in_driver(page, cookie):
-                break
+            try:
+                page._run_cdp_loaded('Network.setCookie', **cookie)
+                if is_cookie_in_driver(page, cookie):
+                    set_success = True
+                    break
+            except Exception as e:
+                last_error = str(e)
+
+        if not set_success:
+            failed_cookies.append({'cookie': original_cookie, 'error': last_error or 'Failed to set cookie'})
+
+    if failed_cookies:
+        error_msg = f"Failed to set {len(failed_cookies)} cookie(s): "
+        error_details = []
+        for fc in failed_cookies[:5]:
+            error_details.append(f"name={fc['cookie'].get('name')}, error={fc['error']}")
+        if len(failed_cookies) > 5:
+            error_details.append(f"... and {len(failed_cookies) - 5} more")
+        error_msg += "; ".join(error_details)
+        raise RuntimeError(error_msg)
 
 
 def is_cookie_in_driver(page, cookie):
