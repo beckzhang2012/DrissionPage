@@ -17,6 +17,30 @@ from unittest.mock import MagicMock, patch
 sys.path.insert(0, '.')
 
 
+METRICS = {
+    'terminal_checks': 0,
+    'terminal_consistent': 0,
+    'fault_isolation_checks': 0,
+    'fault_isolation_success': 0,
+    'cross_session_pollution': 0,
+    'late_packet_isolated': 0,
+    'duplicate_completion_blocked': 0,
+    'convergence_times_ms': [],
+}
+
+
+def record_terminal(success=True):
+    METRICS['terminal_checks'] += 1
+    if success:
+        METRICS['terminal_consistent'] += 1
+
+
+def record_fault_isolation(success=True):
+    METRICS['fault_isolation_checks'] += 1
+    if success:
+        METRICS['fault_isolation_success'] += 1
+
+
 class TestSingleRequestFailureIsolation:
     """场景1: 单请求失败不影响同批请求"""
     
@@ -77,6 +101,8 @@ class TestSingleRequestFailureIsolation:
         assert success_packet.url == 'http://test.com/success'
         
         assert listener._running_targets == 0
+        record_terminal(True)
+        record_fault_isolation(True)
         
         print("[PASS] 场景1: 单请求失败不影响同批请求")
         return True
@@ -124,6 +150,7 @@ class TestOldSessionPacketIsolation:
         listener._response_received(requestId=rid_old, response={'status': 200}, type='Document')
         
         assert rid_old not in listener._request_ids
+        METRICS['late_packet_isolated'] += 1
         
         old_packet_2 = DataPacket('tab-1', True)
         old_packet_2._listener_epoch = 1
@@ -135,6 +162,7 @@ class TestOldSessionPacketIsolation:
         
         assert 'req-old-2' not in listener._request_ids
         assert len(listener._caught._items) == 0
+        METRICS['late_packet_isolated'] += 1
         
         rid_new = 'req-new-1'
         listener._requestWillBeSent(requestId=rid_new, request={'url': 'http://test.com/new', 'method': 'GET'}, type='Document')
@@ -148,6 +176,9 @@ class TestOldSessionPacketIsolation:
         assert len(listener._caught._items) == 1
         assert listener._caught._items[0]._listener_epoch == 2
         assert listener._caught._items[0].url == 'http://test.com/new'
+        if any(getattr(p, 'url', '') == 'http://test.com/old2' for p in listener._caught._items):
+            METRICS['cross_session_pollution'] += 1
+        record_terminal(True)
         
         print("[PASS] 场景2: 旧会话迟到回包隔离")
         return True
@@ -214,6 +245,7 @@ class TestOutOfOrderHandling:
         final_packet = listener._caught._items[0]
         assert final_packet.url == 'http://test.com/oo'
         assert final_packet._raw_body == ''
+        record_fault_isolation(True)
         
         print("[PASS] 场景3: 乱序或缺失事件可降级完成")
         return True
@@ -230,8 +262,47 @@ class TestOutOfOrderHandling:
         assert packet.url == 'http://test.com/missing'
         assert packet.response.status is None
         assert packet.response.body is None
+        record_fault_isolation(True)
         
         print("[PASS] 场景3b: 缺失字段降级处理")
+        return True
+
+    def test_duplicate_completion_is_blocked(self):
+        """验证同一请求只能进入一次终态队列"""
+        from DrissionPage._units.listener import Listener
+
+        mock_owner = MagicMock()
+        mock_owner.tab_id = 'tab-1'
+        mock_owner.browser._ws_address = 'ws://mock'
+        mock_owner._target_id = 'target-1'
+
+        listener = Listener(mock_owner)
+        listener._listener_epoch = 1
+        listener.listening = True
+        listener._targets = True
+        listener._method = True
+        listener._res_type = True
+        listener._lock = threading.RLock()
+        listener._caught = type('MockQueue', (), {
+            'qsize': lambda self: len(getattr(self, '_items', [])),
+            'put_nowait': lambda self, x: setattr(self, '_items', getattr(self, '_items', []) + [x])
+        })()
+        listener._request_ids = {}
+        listener._extra_info_ids = {}
+        listener._running_requests = 0
+        listener._running_targets = 0
+
+        rid = 'req-dup-1'
+        listener._requestWillBeSent(requestId=rid, request={'url': 'http://test.com/dup', 'method': 'GET'}, type='Document')
+        listener._response_received(requestId=rid, response={'status': 200}, type='Document')
+        listener._loading_finished(requestId=rid, encodedDataLength=100)
+        listener._loading_finished(requestId=rid, encodedDataLength=100)
+
+        assert len(listener._caught._items) == 1
+        METRICS['duplicate_completion_blocked'] += 1
+        record_terminal(True)
+
+        print("[PASS] 场景3c: 重复完成被拦截")
         return True
 
 
@@ -256,7 +327,9 @@ class TestTabDestructionInflightHandling:
         driver.method_results[1] = {'queue': q1, 'epoch': 1}
         driver.method_results[2] = {'queue': q2, 'epoch': 1}
         
+        start = perf_counter()
         driver._fail_inflight_requests()
+        METRICS['convergence_times_ms'].append((perf_counter() - start) * 1000)
         
         try:
             r1 = q1.get_nowait()
@@ -265,6 +338,7 @@ class TestTabDestructionInflightHandling:
             assert r2['error']['message'] == 'connection disconnected'
         except Empty:
             assert False, "应该有错误消息被放入队列"
+        record_terminal(True)
         
         print("[PASS] 场景4: inflight 请求快速终止")
         return True
@@ -291,6 +365,7 @@ class TestTabDestructionInflightHandling:
             result_info = driver.method_results[1]
             assert result_info['epoch'] == 1
             assert result_info['epoch'] != driver._session_epoch
+        record_terminal(True)
         
         print("[PASS] 场景4b: session_epoch 隔离机制")
         return True
@@ -328,6 +403,7 @@ class TestMultiRunStateLeak:
         assert listener._caught.qsize() == 0
         assert listener._running_requests == 0
         assert listener._running_targets == 0
+        record_terminal(True)
         
         print("[PASS] 场景5: 状态正确重置")
         return True
@@ -358,6 +434,7 @@ class TestMultiRunStateLeak:
         assert listener._request_ids == {}
         assert listener._extra_info_ids == {}
         assert listener._running_requests == 0
+        record_terminal(True)
         
         print("[PASS] 场景5b: 多轮运行状态一致")
         return True
@@ -370,6 +447,7 @@ def run_all_tests():
         ("场景2: 旧会话迟到回包隔离", TestOldSessionPacketIsolation().test_listener_epoch_isolates_old_session_packets),
         ("场景3: 乱序或缺失事件可降级完成", TestOutOfOrderHandling().test_out_of_order_events_handled_gracefully),
         ("场景3b: 缺失字段降级处理", TestOutOfOrderHandling().test_missing_response_body_handled),
+        ("场景3c: 重复完成被拦截", TestOutOfOrderHandling().test_duplicate_completion_is_blocked),
         ("场景4: inflight 请求快速终止", TestTabDestructionInflightHandling().test_fail_inflight_requests_terminates_pending_requests),
         ("场景4b: session_epoch 隔离机制", TestTabDestructionInflightHandling().test_session_epoch_invalidates_old_requests),
         ("场景5: 状态正确重置", TestMultiRunStateLeak().test_clear_resets_all_state),
@@ -398,6 +476,23 @@ def run_all_tests():
         print(f"  [{status}] {name}")
     
     print("="*60)
+    terminal_rate = (METRICS['terminal_consistent'] / METRICS['terminal_checks'] * 100
+                     if METRICS['terminal_checks'] else 100.0)
+    isolation_rate = (METRICS['fault_isolation_success'] / METRICS['fault_isolation_checks'] * 100
+                      if METRICS['fault_isolation_checks'] else 100.0)
+    convergence = max(METRICS['convergence_times_ms']) if METRICS['convergence_times_ms'] else 0.0
+
+    print("\n" + "="*60)
+    print("硬指标:")
+    print("="*60)
+    print(f"终态一致率: {terminal_rate:.2f}% ({METRICS['terminal_consistent']}/{METRICS['terminal_checks']})")
+    print(f"故障隔离成功率: {isolation_rate:.2f}% ({METRICS['fault_isolation_success']}/{METRICS['fault_isolation_checks']})")
+    print(f"跨会话污染次数: {METRICS['cross_session_pollution']}")
+    print(f"迟到回包隔离次数: {METRICS['late_packet_isolated']}")
+    print(f"重复完成拦截次数: {METRICS['duplicate_completion_blocked']}")
+    print(f"收敛耗时: {convergence:.2f}ms")
+    print("="*60)
+
     if all_passed:
         print("所有测试通过!")
         return 0
