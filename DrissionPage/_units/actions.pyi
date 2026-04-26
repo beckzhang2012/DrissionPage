@@ -233,6 +233,18 @@ class Actions:
         """
         ...
 
+    def drag_in(self, ele_or_loc: Union[str, ChromiumElement], files: Union[str, list, tuple] = None,
+                text: str = None, title: str = None, baseURL: str = None) -> Actions:
+        """触发从浏览器外拖入文件、文本等事件
+        :param ele_or_loc: 接收拖动动作的元素
+        :param files: 要拖入文件路径，可多个，不为None时下面参数无效
+        :param text: 要拖入的文本，files参数为None时才生效
+        :param title: 如果text是超链接，可在此设置title，与baseURL互斥
+        :param baseURL: 如果text是html，可在此设置baseUrl，与title互斥
+        :return:
+        """
+        ...
+
     def wait(self, second: float, scope: float = None) -> Actions:
         """等待若干秒，如传入两个参数，等待时间为这两个数间的一个随机数
         :param second: 秒数

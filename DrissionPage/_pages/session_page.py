@@ -193,7 +193,7 @@ class SessionPage(BasePage):
 
             else:
                 if show_errmsg:
-                    raise ConnectionError(_S._lang.STATUS_CODE_, self._response.status_code)
+                    raise ConnectionError(_S._lang.join(_S._lang.STATUS_CODE_, self._response.status_code))
                 self._url_available = False
 
         return self._url_available

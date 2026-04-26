@@ -5,6 +5,8 @@
 @Website  : https://DrissionPage.cn
 @Copyright: (c) 2020 by g1879, Inc. All Rights Reserved.
 """
+import os
+import uuid
 from configparser import RawConfigParser, NoSectionError, NoOptionError
 from pathlib import Path
 from pprint import pprint
@@ -122,7 +124,18 @@ class OptionsManager(object):
         path.parent.mkdir(exist_ok=True, parents=True)
 
         path = str(path)
-        self._conf.write(open(path, 'w', encoding='utf-8'))
+        temp_path = f'{path}.{uuid.uuid4().hex}.tmp'
+        try:
+            with open(temp_path, 'w', encoding='utf-8') as f:
+                self._conf.write(f)
+            os.replace(temp_path, path)
+        except Exception:
+            if os.path.exists(temp_path):
+                try:
+                    os.remove(temp_path)
+                except Exception:
+                    pass
+            raise
 
         print(f'{_S._lang.OPTIONS_HAVE_SAVED}: {path}')
         if path == str(default_path):

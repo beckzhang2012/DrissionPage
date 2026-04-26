@@ -23,7 +23,7 @@ class Listener(object):
 
     def __init__(self, owner):
         self._owner = owner
-        self._address = owner.browser.address
+        self._address = owner.browser._ws_address
         self._target_id = owner._target_id
         self._driver = None
         self._running_requests = 0
@@ -92,7 +92,8 @@ class Listener(object):
         if self.listening:
             return
 
-        self._driver = Driver(self._target_id, 'page', self._address)
+        self._driver = Driver(self._target_id, self._address)
+        self._driver.session_id = self._driver.run('Target.attachToTarget', targetId=self._target_id, flatten=True)['sessionId']
         self._driver.run('Network.enable')
 
         self._set_callback()
@@ -120,7 +121,7 @@ class Listener(object):
         if fail:
             if fit_count or not self._caught.qsize():
                 if raise_err is True or (_S.raise_when_wait_failed is True and raise_err is None):
-                    raise WaitTimeoutError(_S._lang.WAITING_FAILED_, _S._lang.DATA_PACKET, timeout)
+                    raise WaitTimeoutError(_S._lang.join(_S._lang.WAITING_FAILED_, _S._lang.DATA_PACKET, timeout))
                 else:
                     return False
             else:
@@ -210,13 +211,12 @@ class Listener(object):
         self._target_id = target_id
         self._address = address
         self._owner = owner
-        # debug = False
         if self._driver:
-            # debug = self._driver._debug
             self._driver.stop()
         if self.listening:
-            self._driver = Driver(self._target_id, 'page', self._address)
-            # self._driver._debug = debug
+            self._driver = Driver(self._target_id, self._address)
+            self._driver.session_id = self._driver.run('Target.attachToTarget',
+                                                       targetId=target_id, flatten=True)['sessionId']
             self._driver.run('Network.enable')
             self._set_callback()
 
