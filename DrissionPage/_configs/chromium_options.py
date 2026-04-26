@@ -5,8 +5,10 @@
 @Website  : https://DrissionPage.cn
 @Copyright: (c) 2020 by g1879, Inc. All Rights Reserved.
 """
+from copy import deepcopy
 from pathlib import Path
 from re import search
+from urllib.parse import urlparse
 
 from .options_manage import OptionsManager
 from .._functions.settings import Settings as _S
@@ -20,6 +22,7 @@ class ChromiumOptions(object):
         self.clear_file_flags = False
         self._is_headless = False
         self._ua_set = False
+        self.ws_address = ''
 
         if read_file is False:
             ini_path = False
@@ -36,12 +39,12 @@ class ChromiumOptions(object):
         options = om.chromium_options
         self._download_path = om.paths.get('download_path', '.') or '.'
         self._tmp_path = om.paths.get('tmp_path', None) or None
-        self._arguments = options.get('arguments', [])
+        self._arguments = list(options.get('arguments', []))
         self._browser_path = options.get('browser_path', '')
-        self._extensions = options.get('extensions', [])
-        self._prefs = options.get('prefs', {})
-        self._flags = options.get('flags', {})
-        self._address = options.get('address', None)
+        self._extensions = list(options.get('extensions', []))
+        self._prefs = deepcopy(options.get('prefs', {}))
+        self._flags = deepcopy(options.get('flags', {}))
+        self._address = options.get('address', '')
         self._load_mode = options.get('load_mode', 'normal')
         self._system_user_path = options.get('system_user_path', False)
         self._existing_only = options.get('existing_only', False)
@@ -56,7 +59,7 @@ class ChromiumOptions(object):
         user_path = user = False
         for arg in self._arguments:
             if arg.startswith('--user-data-dir='):
-                self.set_paths(user_data_path=arg[16:])
+                self.set_user_data_path(arg[16:])
                 user_path = True
             if arg.startswith('--profile-directory='):
                 self.set_user(arg[20:])
@@ -194,10 +197,7 @@ class ChromiumOptions(object):
         return self
 
     def add_extension(self, path):
-        path = Path(path)
-        if not path.exists():
-            raise FileNotFoundError(_S._lang.join(_S._lang.EXT_NOT_FOUND, PATH=path))
-        self._extensions.append(str(path))
+        self._extensions.append(path)
         return self
 
     def remove_extensions(self):
@@ -303,7 +303,7 @@ class ChromiumOptions(object):
 
     def set_paths(self, browser_path=None, local_port=None, address=None, download_path=None,
                   user_data_path=None, cache_path=None):
-        """快捷的路径设置函数
+        """快捷的路径设置函数，即将废弃
         :param browser_path: 浏览器可执行文件路径
         :param local_port: 本地端口号
         :param address: 调试浏览器地址，例：127.0.0.1:9222
@@ -335,11 +335,19 @@ class ChromiumOptions(object):
     def set_local_port(self, port):
         self._address = f'127.0.0.1:{port}'
         self._auto_port = False
+        self.ws_address = ''
         return self
 
     def set_address(self, address):
-        address = address.replace('localhost', '127.0.0.1').lstrip('htps:/')
+        address = address.replace('localhost', '127.0.0.1')
+        self.ws_address = ''
+        if address.startswith('http'):
+            address = address.lstrip('htps:/')
+        elif address.startswith(('ws:', 'wss:')):
+            self.ws_address = address
+            address = urlparse(address).netloc
         self._address = address
+        self._auto_port = False
         return self
 
     def set_browser_path(self, path):
@@ -374,6 +382,8 @@ class ChromiumOptions(object):
             self._auto_port = scope if scope else (9600, 59600)
         else:
             self._auto_port = False
+        self._address = ''
+        self.ws_address = ''
         return self
 
     def existing_only(self, on_off=True):

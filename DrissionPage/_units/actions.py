@@ -5,6 +5,7 @@
 @Website  : https://DrissionPage.cn
 @Copyright: (c) 2020 by g1879, Inc. All Rights Reserved.
 """
+from pathlib import Path
 from time import sleep, perf_counter
 
 from .._functions.keys import modifierBit, make_input_data, input_text_or_keys, Keys
@@ -207,6 +208,40 @@ class Actions:
 
     def input(self, text):
         input_text_or_keys(self.owner, text)
+        return self
+
+    def drag_in(self, ele_or_loc, files=None, text=None, title=None, baseURL=None):
+        ele_or_loc = self.owner(ele_or_loc)
+        x, y = ele_or_loc.rect.viewport_midpoint
+        if files:
+            items = []
+            paths = []
+            if isinstance(files, str):
+                files = [files]
+            for file in files:
+                path = str(Path(file).absolute())
+                item = {'mimeType': 'text/plain', 'data': path}
+                items.append(item)
+                paths.append(path)
+            data = {'items': items, 'files': paths, 'dragOperationsMask': 16}
+
+        elif text:
+            item = {'data': text}
+            if title is not None:
+                item['title'] = title
+                item['mimeType'] = 'text/uri-list'
+            elif baseURL is not None:
+                item['baseURL'] = baseURL
+                item['mimeType'] = 'text/uri-list'
+            else:
+                item['mimeType'] = 'text/plain'
+            data = {'items': [item], 'dragOperationsMask': 1}
+
+        else:
+            raise ValueError(_S._lang.NEED_FILES_OR_TEXT_ARG)
+
+        self._dr.run('Input.dispatchDragEvent', type='dragEnter', x=x, y=y, data=data, modifiers=self.modifier)
+        self._dr.run('Input.dispatchDragEvent', type='drop', x=x, y=y, data=data, modifiers=self.modifier)
         return self
 
     def wait(self, second, scope=None):
