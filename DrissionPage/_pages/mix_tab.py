@@ -137,7 +137,7 @@ class MixTab(SessionPage, ChromiumTab, BasePage):
             self._url = super(SessionPage, self).url
             if self._session_url:
                 if copy_cookies:
-                    self.cookies_to_browser()
+                    self.cookies_to_browser(copy_user_agent=True)
                 if go:
                     self.get(self._session_url)
 
@@ -152,7 +152,7 @@ class MixTab(SessionPage, ChromiumTab, BasePage):
         self._url = self._session_url
         if self._driver:
             if copy_cookies:
-                self.cookies_to_session()
+                self.cookies_to_session(copy_user_agent=True)
 
             if go:
                 url = super(SessionPage, self).url
@@ -167,12 +167,69 @@ class MixTab(SessionPage, ChromiumTab, BasePage):
             user_agent = self._run_cdp('Runtime.evaluate', expression='navigator.userAgent;')['result']['value']
             self._headers.update({"User-Agent": user_agent})
 
-        set_session_cookies(self.session, super(SessionPage, self).cookies())
+        browser_cookies = super(SessionPage, self).cookies(all_domains=True, all_info=True)
+        session_cookies = super().cookies(all_domains=True, all_info=True)
 
-    def cookies_to_browser(self):
+        merged_cookies = self._merge_cookies(
+            source_cookies=browser_cookies,
+            target_cookies=session_cookies,
+            source_is_priority=True
+        )
+
+        set_session_cookies(self.session, merged_cookies)
+
+    def cookies_to_browser(self, copy_user_agent=True):
         if self._driver is None or not self._driver.is_running:
             return
-        set_tab_cookies(self, super().cookies())
+
+        if copy_user_agent and self._headers:
+            session_ua = self._headers.get('user-agent')
+            if session_ua:
+                try:
+                    self._run_cdp('Emulation.setUserAgentOverride', userAgent=session_ua)
+                except Exception:
+                    pass
+
+            if self._headers:
+                try:
+                    from .._functions.web import format_headers
+                    headers_dict = dict(self._headers)
+                    if headers_dict:
+                        self._run_cdp('Network.enable')
+                        self._run_cdp('Network.setExtraHTTPHeaders', headers=format_headers(headers_dict))
+                except Exception:
+                    pass
+
+        browser_cookies = super(SessionPage, self).cookies(all_domains=True, all_info=True)
+        session_cookies = super().cookies(all_domains=True, all_info=True)
+
+        merged_cookies = self._merge_cookies(
+            source_cookies=session_cookies,
+            target_cookies=browser_cookies,
+            source_is_priority=True
+        )
+
+        set_tab_cookies(self, merged_cookies)
+
+    def _merge_cookies(self, source_cookies, target_cookies, source_is_priority=True):
+        merged_dict = {}
+
+        for cookie in target_cookies:
+            key = self._cookie_key(cookie)
+            merged_dict[key] = cookie.copy()
+
+        for cookie in source_cookies:
+            key = self._cookie_key(cookie)
+            if source_is_priority or key not in merged_dict:
+                merged_dict[key] = cookie.copy()
+
+        return list(merged_dict.values())
+
+    def _cookie_key(self, cookie):
+        name = cookie.get('name', '')
+        domain = cookie.get('domain', '')
+        path = cookie.get('path', '/')
+        return (name, domain, path)
 
     def cookies(self, all_domains=False, all_info=False):
         return super(SessionPage, self).cookies(all_domains, all_info) if self._d_mode \
