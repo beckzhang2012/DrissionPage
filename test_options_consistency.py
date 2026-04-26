@@ -13,11 +13,14 @@ import sys
 import tempfile
 import threading
 import shutil
+import json
 from pathlib import Path
 from copy import deepcopy
 
 repo_root = Path(__file__).parent
 sys.path.insert(0, str(repo_root))
+test_tmp_root = repo_root / '.test_tmp'
+test_tmp_root.mkdir(exist_ok=True)
 
 from DrissionPage._configs.chromium_options import ChromiumOptions
 from DrissionPage._configs.options_manage import OptionsManager
@@ -38,8 +41,36 @@ class Metrics:
             return 100.0
         return (self.passed_checks / self.total_checks) * 100
 
+    def snapshot(self):
+        """Return a stable hard-metrics snapshot for PR review evidence."""
+        return {
+            'consistency_rate': round(self.consistency_rate, 2),
+            'passed_checks': self.passed_checks,
+            'total_checks': self.total_checks,
+            'pollution_count': self.pollution_count,
+            'half_write_intercepted': self.half_write_intercepted,
+            'residual_params': self.residual_params,
+            'reload_consistent': self.reload_consistent,
+        }
+
 
 metrics = Metrics()
+
+
+def temp_config_dir():
+    """Keep test temp files inside the repo to avoid host TEMP permission drift."""
+    class _TempConfigDir:
+        def __enter__(self):
+            for old_file in test_tmp_root.glob('*.ini*'):
+                old_file.unlink(missing_ok=True)
+            return str(test_tmp_root)
+
+        def __exit__(self, exc_type, exc, tb):
+            for old_file in test_tmp_root.glob('*.ini*'):
+                old_file.unlink(missing_ok=True)
+            return False
+
+    return _TempConfigDir()
 
 
 def test_multi_instance_isolation():
@@ -165,7 +196,7 @@ def test_save_reload_consistency():
     print("\n=== 测试: 保存重载一致性 ===")
     metrics.total_checks += 1
 
-    with tempfile.TemporaryDirectory() as tmpdir:
+    with temp_config_dir() as tmpdir:
         ini_path = Path(tmpdir) / 'test_config.ini'
 
         opt = ChromiumOptions(read_file=False)
@@ -226,7 +257,7 @@ def test_multiple_round_trips():
     print("\n=== 测试: 多轮往返无漂移 ===")
     metrics.total_checks += 1
 
-    with tempfile.TemporaryDirectory() as tmpdir:
+    with temp_config_dir() as tmpdir:
         ini_path = Path(tmpdir) / 'roundtrip.ini'
 
         opt = ChromiumOptions(read_file=False)
@@ -309,7 +340,7 @@ def test_atomic_save_on_error():
     print("\n=== 测试: 原子保存（异常不破坏原配置） ===")
     metrics.total_checks += 1
 
-    with tempfile.TemporaryDirectory() as tmpdir:
+    with temp_config_dir() as tmpdir:
         ini_path = Path(tmpdir) / 'atomic_test.ini'
 
         opt = ChromiumOptions(read_file=False)
@@ -396,6 +427,7 @@ def run_all_tests():
     print(f"半写入拦截次数: {metrics.half_write_intercepted}")
     print(f"残留参数数: {metrics.residual_params}")
     print(f"重载一致次数: {metrics.reload_consistent}")
+    print(f"硬指标JSON: {json.dumps(metrics.snapshot(), ensure_ascii=False, sort_keys=True)}")
 
     if all_passed:
         print("\n[OK] 所有测试通过!")
