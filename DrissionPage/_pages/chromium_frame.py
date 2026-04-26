@@ -90,7 +90,8 @@ class ChromiumFrame(ChromiumBase):
         try:
             super()._driver_init(target_id)
         except:
-            self.browser._driver.get(f'http://{self._browser.address}/json')
+            if not self.browser._ws_only:
+                self.browser._driver.get(f'http://{self._browser.address}/json')
             super()._driver_init(target_id)
         self._driver.set_callback('Inspector.detached', self._onInspectorDetached, immediate=True)
         self._driver.set_callback('Page.frameDetached', None)
@@ -122,7 +123,7 @@ class ChromiumFrame(ChromiumBase):
             self.doc_ele = ChromiumElement(self._target_page, backend_id=node['contentDocument']['backendNodeId'])
             self._frame_id = node['frameId']
             if self._listener:
-                self._listener._to_target(self._target_page.tab_id, self._browser.address, self)
+                self._listener._to_target(self._target_page.tab_id, self._browser._ws_address, self)
             super().__init__(self._browser, self._target_page.tab_id)
 
         else:
